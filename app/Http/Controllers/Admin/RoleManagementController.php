@@ -11,7 +11,11 @@ class RoleManagementController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'role:super admin']);
+        // Use permission-based middleware for granular access control
+        $this->middleware(['auth', 'permission:view roles'])->only(['index']);
+        $this->middleware(['auth', 'permission:create roles'])->only(['create', 'store']);
+        $this->middleware(['auth', 'permission:edit roles'])->only(['edit', 'update']);
+        $this->middleware(['auth', 'permission:delete roles'])->only(['destroy']);
     }
 
     public function index()

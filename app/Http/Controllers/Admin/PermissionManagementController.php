@@ -10,7 +10,11 @@ class PermissionManagementController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'role:super admin']);
+        // Use permission-based middleware for granular access control
+        // Only users with 'view permissions' can view the list
+        // Only super admin (who has all permissions) can create/edit/delete permissions
+        $this->middleware(['auth', 'permission:view permissions'])->only(['index']);
+        $this->middleware(['auth', 'permission:assign permissions'])->only(['create', 'store', 'edit', 'update', 'destroy']);
     }
 
     public function index()

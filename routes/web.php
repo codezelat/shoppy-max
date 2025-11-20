@@ -20,8 +20,10 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// Admin routes - accessible only by super admin
-Route::middleware(['auth', 'role:super admin'])->prefix('admin')->name('admin.')->group(function () {
+// Admin routes - permission-based access control
+// The middleware in the controllers provides granular permission checks
+// This route group just ensures the user is authenticated
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('users', UserManagementController::class);
     Route::resource('roles', RoleManagementController::class);
     Route::resource('permissions', PermissionManagementController::class);
