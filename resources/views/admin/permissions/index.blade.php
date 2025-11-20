@@ -38,15 +38,22 @@
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm font-medium text-gray-900">
                                                 {{ $permission->name }}
+                                                @if(in_array($permission->name, ['view users', 'create users', 'edit users', 'delete users', 'view roles', 'create roles', 'edit roles', 'delete roles', 'view permissions', 'assign permissions']))
+                                                    <span class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">System</span>
+                                                @endif
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <a href="{{ route('admin.permissions.edit', $permission) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</a>
+                                            @if(!in_array($permission->name, ['view users', 'create users', 'edit users', 'delete users', 'view roles', 'create roles', 'edit roles', 'delete roles', 'view permissions', 'assign permissions']))
                                             <form action="{{ route('admin.permissions.destroy', $permission) }}" method="POST" class="inline">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure you want to delete this permission?')">Delete</button>
                                             </form>
+                                            @else
+                                                <span class="text-gray-400">Protected</span>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach

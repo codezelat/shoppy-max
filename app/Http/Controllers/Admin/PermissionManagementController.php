@@ -59,6 +59,18 @@ class PermissionManagementController extends Controller
 
     public function destroy(Permission $permission)
     {
+        // Protect critical system permissions from deletion
+        $criticalPermissions = [
+            'view users', 'create users', 'edit users', 'delete users',
+            'view roles', 'create roles', 'edit roles', 'delete roles',
+            'view permissions', 'assign permissions'
+        ];
+
+        if (in_array($permission->name, $criticalPermissions)) {
+            return redirect()->route('admin.permissions.index')
+                ->with('error', 'Cannot delete critical system permissions.');
+        }
+
         $permission->delete();
 
         return redirect()->route('admin.permissions.index')

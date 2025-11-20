@@ -38,16 +38,16 @@
                         </div>
                     </div>
 
-                    @role('super admin')
+                    @can('view users')
                     <div class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <p class="text-yellow-800 font-semibold">
-                            {{ __('🔑 Super Admin Access') }}
+                            {{ __('🔑 Admin Access') }}
                         </p>
                         <p class="text-yellow-700 text-sm mt-1">
-                            {{ __('You have full access to the admin panel. Use the navigation menu above to manage users, roles, and permissions.') }}
+                            {{ __('You have access to the admin panel. Use the navigation menu above to manage users, roles, and permissions.') }}
                         </p>
                     </div>
-                    @endrole
+                    @endcan
                 </div>
             </div>
         </div>

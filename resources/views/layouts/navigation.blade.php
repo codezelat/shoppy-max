@@ -15,17 +15,21 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
-                    @role('super admin')
+                    @can('view users')
                     <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                         {{ __('Users') }}
                     </x-nav-link>
+                    @endcan
+                    @can('view roles')
                     <x-nav-link :href="route('admin.roles.index')" :active="request()->routeIs('admin.roles.*')">
                         {{ __('Roles') }}
                     </x-nav-link>
+                    @endcan
+                    @can('view permissions')
                     <x-nav-link :href="route('admin.permissions.index')" :active="request()->routeIs('admin.permissions.*')">
                         {{ __('Permissions') }}
                     </x-nav-link>
-                    @endrole
+                    @endcan
                 </div>
             </div>
 
@@ -81,17 +85,21 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
-            @role('super admin')
+            @can('view users')
             <x-responsive-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                 {{ __('Users') }}
             </x-responsive-nav-link>
+            @endcan
+            @can('view roles')
             <x-responsive-nav-link :href="route('admin.roles.index')" :active="request()->routeIs('admin.roles.*')">
                 {{ __('Roles') }}
             </x-responsive-nav-link>
+            @endcan
+            @can('view permissions')
             <x-responsive-nav-link :href="route('admin.permissions.index')" :active="request()->routeIs('admin.permissions.*')">
                 {{ __('Permissions') }}
             </x-responsive-nav-link>
-            @endrole
+            @endcan
         </div>
 
         <!-- Responsive Settings Options -->
