@@ -12,15 +12,6 @@ use Illuminate\Validation\Rules;
 
 class UserManagementController extends Controller
 {
-    public function __construct()
-    {
-        // Use permission-based middleware for granular access control
-        $this->middleware(['auth', 'permission:view users'])->only(['index']);
-        $this->middleware(['auth', 'permission:create users'])->only(['create', 'store']);
-        $this->middleware(['auth', 'permission:edit users'])->only(['edit', 'update']);
-        $this->middleware(['auth', 'permission:delete users'])->only(['destroy']);
-    }
-
     public function index()
     {
         $users = User::with('roles')->paginate(10);
