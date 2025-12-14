@@ -23,6 +23,9 @@
         <header class="w-full lg:max-w-4xl max-w-[335px] text-sm mb-6 not-has-[nav]:hidden">
             @if (Route::has('login'))
                 <nav class="flex items-center justify-end gap-4">
+                    <a href="#" class="inline-block px-5 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-sm text-sm leading-normal">
+                        View Product
+                    </a>
                     @auth
                         <a
                             href="{{ url('/dashboard') }}"
