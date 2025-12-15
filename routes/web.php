@@ -56,4 +56,16 @@ Route::middleware(['auth'])->prefix('reseller-management')->name('resellers.')->
     Route::get('payments/dues', [\App\Http\Controllers\ResellerPaymentController::class, 'dues'])->name('payments.dues');
 });
 
+// Product Management Routes
+Route::middleware(['auth'])->group(function () {
+    Route::resource('units', \App\Http\Controllers\UnitController::class);
+    Route::resource('categories', \App\Http\Controllers\CategoryController::class);
+    Route::resource('sub-categories', \App\Http\Controllers\SubCategoryController::class);
+    Route::resource('attributes', \App\Http\Controllers\AttributeController::class);
+    Route::resource('products', \App\Http\Controllers\ProductController::class);
+});
+
+// Public Product View
+Route::get('/view-products', [\App\Http\Controllers\GuestProductController::class, 'index'])->name('guest.products');
+
 require __DIR__.'/auth.php';

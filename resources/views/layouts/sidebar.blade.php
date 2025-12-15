@@ -42,10 +42,23 @@
         </div>
 
         <!-- Placeholders for other requested modules -->
-        <a href="#" class="block px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg flex items-center">
-             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-            Product
-        </a>
+        <!-- Product Management -->
+        <div x-data="{ open: {{ request()->routeIs('products.*') || request()->routeIs('categories.*') || request()->routeIs('sub-categories.*') || request()->routeIs('attributes.*') || request()->routeIs('units.*') ? 'true' : 'false' }} }">
+            <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg focus:outline-none">
+                <span class="flex items-center">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                    Products
+                </span>
+                <svg :class="{'rotate-180': open}" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+            <div x-show="open" class="pl-12 mt-2 space-y-1">
+                <a href="{{ route('products.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('products.*') ? 'bg-gray-700 text-white' : '' }}">Product List</a>
+                <a href="{{ route('categories.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('categories.*') ? 'bg-gray-700 text-white' : '' }}">Categories</a>
+                <a href="{{ route('sub-categories.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('sub-categories.*') ? 'bg-gray-700 text-white' : '' }}">Sub Categories</a>
+                <a href="{{ route('attributes.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('attributes.*') ? 'bg-gray-700 text-white' : '' }}">Attributes</a>
+                <a href="{{ route('units.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('units.*') ? 'bg-gray-700 text-white' : '' }}">Units</a>
+            </div>
+        </div>
          <a href="#" class="block px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg flex items-center">
              <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 012-2h5a2 2 0 012 2"></path></svg>
             Courier

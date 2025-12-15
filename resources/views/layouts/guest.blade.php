@@ -17,7 +17,7 @@
     <body class="font-sans text-gray-900 antialiased">
         <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 relative">
             <div class="absolute top-0 right-0 p-6">
-                <a href="#" class="inline-block px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium shadow-sm">
+                <a href="{{ route('guest.products') }}" class="inline-block px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium shadow-sm">
                     View Product
                 </a>
             </div>
