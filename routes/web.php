@@ -34,4 +34,26 @@ Route::middleware('auth')->group(function () {
     Route::resource('cities', \App\Http\Controllers\CityController::class);
 });
 
+
+// Reseller Management Routes
+Route::middleware(['auth'])->prefix('reseller-management')->name('resellers.')->group(function () {
+    // Dashboard
+    Route::get('dashboard', [\App\Http\Controllers\ResellerManagementController::class, 'dashboard'])->name('dashboard');
+
+    // User Management (Resellers, Direct Resellers, Sub Users)
+    Route::get('users', [\App\Http\Controllers\ResellerManagementController::class, 'index'])->name('users.index');
+    Route::get('users/create', [\App\Http\Controllers\ResellerManagementController::class, 'create'])->name('users.create');
+    Route::post('users', [\App\Http\Controllers\ResellerManagementController::class, 'store'])->name('users.store');
+    // Add edit/update/destroy if needed
+
+    // Targets
+    Route::resource('targets', \App\Http\Controllers\ResellerTargetController::class);
+
+    // Payments
+    Route::get('payments', [\App\Http\Controllers\ResellerPaymentController::class, 'index'])->name('payments.index');
+    Route::get('payments/create', [\App\Http\Controllers\ResellerPaymentController::class, 'create'])->name('payments.create');
+    Route::post('payments', [\App\Http\Controllers\ResellerPaymentController::class, 'store'])->name('payments.store');
+    Route::get('payments/dues', [\App\Http\Controllers\ResellerPaymentController::class, 'dues'])->name('payments.dues');
+});
+
 require __DIR__.'/auth.php';

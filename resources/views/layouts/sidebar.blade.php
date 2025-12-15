@@ -7,7 +7,7 @@
         <!-- Dashboard (Removed as per user request, but keeping a home link usually best practice, user said "no need dashboard", so omitted) -->
         
         <!-- Contact Management -->
-        <div x-data="{ open: false }">
+        <div x-data="{ open: {{ request()->routeIs('customers.*') || request()->routeIs('suppliers.*') || request()->routeIs('resellers.index') || request()->routeIs('resellers.show') || request()->routeIs('resellers.edit') || request()->routeIs('resellers.create') || request()->routeIs('cities.*') ? 'true' : 'false' }} }">
             <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg focus:outline-none">
                 <span class="flex items-center">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -16,18 +16,30 @@
                 <svg :class="{'rotate-180': open}" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
             </button>
             <div x-show="open" class="pl-12 mt-2 space-y-1">
-                <a href="{{ route('customers.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">Customers</a>
-                <a href="{{ route('suppliers.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">Supplier</a>
-                <a href="{{ route('resellers.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">Reseller</a>
-                <a href="{{ route('cities.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">City</a>
+                <a href="{{ route('customers.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('customers.*') ? 'bg-gray-700 text-white' : '' }}">Customers</a>
+                <a href="{{ route('suppliers.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('suppliers.*') ? 'bg-gray-700 text-white' : '' }}">Supplier</a>
+                <a href="{{ route('resellers.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('resellers.index') || request()->routeIs('resellers.show') || request()->routeIs('resellers.edit') || request()->routeIs('resellers.create') ? 'bg-gray-700 text-white' : '' }}">Reseller</a>
+                <a href="{{ route('cities.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('cities.*') ? 'bg-gray-700 text-white' : '' }}">City</a>
             </div>
         </div>
 
-        <!-- Other Main Options -->
-        <a href="{{ route('resellers.index') }}" class="block px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg flex items-center">
-            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-            Reseller
-        </a>
+        <!-- Reseller Management -->
+        <div x-data="{ open: {{ request()->routeIs('resellers.dashboard') || request()->routeIs('resellers.users.*') || request()->routeIs('resellers.targets.*') || request()->routeIs('resellers.payments.*') ? 'true' : 'false' }} }">
+            <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg focus:outline-none">
+                <span class="flex items-center">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Reseller Section
+                </span>
+                <svg :class="{'rotate-180': open}" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+            <div x-show="open" class="pl-12 mt-2 space-y-1">
+                <a href="{{ route('resellers.dashboard') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('resellers.dashboard') ? 'bg-gray-700 text-white' : '' }}">Dashboard</a>
+                <a href="{{ route('resellers.users.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('resellers.users.*') ? 'bg-gray-700 text-white' : '' }}">User Details</a>
+                <a href="{{ route('resellers.targets.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('resellers.targets.*') ? 'bg-gray-700 text-white' : '' }}">Targets</a>
+                <a href="{{ route('resellers.payments.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('resellers.payments.index') || request()->routeIs('resellers.payments.create') ? 'bg-gray-700 text-white' : '' }}">Payments</a>
+                <a href="{{ route('resellers.payments.dues') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('resellers.payments.dues') ? 'bg-gray-700 text-white' : '' }}">Due Payments</a>
+            </div>
+        </div>
 
         <!-- Placeholders for other requested modules -->
         <a href="#" class="block px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg flex items-center">
