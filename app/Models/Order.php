@@ -26,6 +26,9 @@ class Order extends Model
         'sales_note',
         'waybill_number',
         'courier_id',
+        'courier_cost',
+        'delivery_fee',
+        'courier_payment_id',
         'packed_by',
         'dispatched_at',
         'cancelled_at',
@@ -35,6 +38,8 @@ class Order extends Model
 
     protected $casts = [
         'total_amount' => 'decimal:2',
+        'courier_cost' => 'decimal:2',
+        'delivery_fee' => 'decimal:2',
         'dispatched_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'delivered_at' => 'datetime',
@@ -69,5 +74,15 @@ class Order extends Model
     public function city()
     {
         return $this->belongsTo(City::class);
+    }
+    
+    public function courier()
+    {
+        return $this->belongsTo(Courier::class);
+    }
+    
+    public function courierPayment()
+    {
+        return $this->belongsTo(CourierPayment::class);
     }
 }

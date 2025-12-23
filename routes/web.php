@@ -102,8 +102,28 @@ Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function (
     // Reseller Orders (Add Reseller Orders sub-route for clarity if needed, or keep separate)
 });
 
+// Order Management System (OMS) Routes
+Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function () {
+    // ... existing routes
+});
+
 // Reseller Specific Order Route (Shortcut)
 Route::middleware(['auth'])->get('/reseller-orders/create', [\App\Http\Controllers\ResellerOrderController::class, 'create'])->name('reseller-orders.create');
+
+// Purchase Management Routes
+Route::middleware(['auth'])->prefix('purchases')->name('purchases.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\PurchaseController::class, 'index'])->name('index');
+    Route::get('/create', [\App\Http\Controllers\PurchaseController::class, 'create'])->name('create');
+    Route::post('/', [\App\Http\Controllers\PurchaseController::class, 'store'])->name('store');
+    Route::get('/{id}', [\App\Http\Controllers\PurchaseController::class, 'show'])->name('show');
+    Route::post('/{id}/verify', [\App\Http\Controllers\PurchaseController::class, 'verify'])->name('verify');
+});
+
+// Courier Management Routes
+Route::middleware(['auth'])->group(function () {
+    Route::resource('couriers', \App\Http\Controllers\CourierController::class);
+    Route::resource('courier-payments', \App\Http\Controllers\CourierPaymentController::class);
+});
 
 // Public Product View
 Route::get('/view-products', [\App\Http\Controllers\GuestProductController::class, 'index'])->name('guest.products');

@@ -74,10 +74,21 @@
                 <a href="{{ route('units.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('units.*') ? 'bg-gray-700 text-white' : '' }}">Units</a>
             </div>
         </div>
-         <a href="#" class="block px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg flex items-center">
-             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 012-2h5a2 2 0 012 2"></path></svg>
-            Courier
-        </a>
+        <!-- Courier Management -->
+        <div x-data="{ open: {{ request()->routeIs('couriers.*') || request()->routeIs('courier-payments.*') ? 'true' : 'false' }} }">
+             <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg focus:outline-none">
+                 <span class="flex items-center">
+                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 012-2h5a2 2 0 012 2"></path></svg>
+                     Courier Service
+                 </span>
+                 <svg :class="{'rotate-180': open}" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+             </button>
+             <div x-show="open" class="pl-12 mt-2 space-y-1">
+                 <a href="{{ route('couriers.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('couriers.*') ? 'bg-gray-700 text-white' : '' }}">Courier List</a>
+                 <a href="{{ route('courier-payments.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('courier-payments.index') ? 'bg-gray-700 text-white' : '' }}">Payment Ledger</a>
+                 <a href="{{ route('courier-payments.create') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('courier-payments.create') ? 'bg-gray-700 text-white' : '' }}">Receive Payment</a>
+             </div>
+        </div>
         <!-- Order Management -->
         <div x-data="{ open: {{ request()->routeIs('orders.*') || request()->routeIs('reseller-orders.*') ? 'true' : 'false' }} }">
             <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg focus:outline-none">
@@ -96,10 +107,21 @@
                 <a href="{{ route('orders.packing.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('orders.packing.*') ? 'bg-gray-700 text-white' : '' }}">Packing / Scanner</a>
             </div>
         </div>
-         <a href="#" class="block px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg flex items-center">
-             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-            Purchase
-        </a>
+        <!-- Purchase Management -->
+        <div x-data="{ open: {{ request()->routeIs('purchases.*') ? 'true' : 'false' }} }">
+            <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg focus:outline-none">
+                <span class="flex items-center">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                    Purchase Section
+                </span>
+                <svg :class="{'rotate-180': open}" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+            <div x-show="open" class="pl-12 mt-2 space-y-1">
+                <a href="{{ route('purchases.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('purchases.index') ? 'bg-gray-700 text-white' : '' }}">Purchase List</a>
+                <a href="{{ route('purchases.create') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('purchases.create') ? 'bg-gray-700 text-white' : '' }}">Add Purchase</a>
+                <!-- Future/Placeholder for Payments/Returns if needed separately -->
+            </div>
+        </div>
          <a href="#" class="block px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg flex items-center">
              <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
              Expenses
