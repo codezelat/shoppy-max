@@ -46,14 +46,28 @@ Route::middleware(['auth'])->prefix('reseller-management')->name('resellers.')->
     Route::post('users', [\App\Http\Controllers\ResellerManagementController::class, 'store'])->name('users.store');
     // Add edit/update/destroy if needed
 
-    // Targets
-    Route::resource('targets', \App\Http\Controllers\ResellerTargetController::class);
+    // Targets (REMOVED for Resellers)
+    // Route::resource('targets', \App\Http\Controllers\ResellerTargetController::class);
 
     // Payments
     Route::get('payments', [\App\Http\Controllers\ResellerPaymentController::class, 'index'])->name('payments.index');
     Route::get('payments/create', [\App\Http\Controllers\ResellerPaymentController::class, 'create'])->name('payments.create');
     Route::post('payments', [\App\Http\Controllers\ResellerPaymentController::class, 'store'])->name('payments.store');
     Route::get('payments/dues', [\App\Http\Controllers\ResellerPaymentController::class, 'dues'])->name('payments.dues');
+});
+
+// Seller Management Routes
+Route::middleware(['auth'])->prefix('seller-management')->name('sellers.')->group(function () {
+    // Dashboard
+    Route::get('dashboard', [\App\Http\Controllers\SellerManagementController::class, 'dashboard'])->name('dashboard');
+
+    // User Management
+    Route::get('users', [\App\Http\Controllers\SellerManagementController::class, 'index'])->name('users.index');
+    Route::get('users/create', [\App\Http\Controllers\SellerManagementController::class, 'create'])->name('users.create');
+    Route::post('users', [\App\Http\Controllers\SellerManagementController::class, 'store'])->name('users.store');
+
+    // Targets
+    Route::resource('targets', \App\Http\Controllers\SellerTargetController::class);
 });
 
 // Product Management Routes
@@ -64,6 +78,32 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('attributes', \App\Http\Controllers\AttributeController::class);
     Route::resource('products', \App\Http\Controllers\ProductController::class);
 });
+
+// Order Management System (OMS) Routes
+Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function () {
+    // General Orders
+    Route::get('/', [\App\Http\Controllers\OrderController::class, 'index'])->name('index');
+    Route::get('/create', [\App\Http\Controllers\OrderController::class, 'create'])->name('create');
+    Route::post('/', [\App\Http\Controllers\OrderController::class, 'store'])->name('store');
+    Route::get('/call-list', [\App\Http\Controllers\OrderController::class, 'callList'])->name('call-list');
+    
+    // Status update
+    Route::post('/{id}/status', [\App\Http\Controllers\OrderController::class, 'updateStatus'])->name('status.update');
+
+    // Waybill
+    Route::get('/waybill', [\App\Http\Controllers\WaybillController::class, 'index'])->name('waybill.index');
+    Route::post('/waybill/print', [\App\Http\Controllers\WaybillController::class, 'print'])->name('waybill.print');
+
+    // Packing
+    Route::get('/packing', [\App\Http\Controllers\PackingController::class, 'index'])->name('packing.index');
+    Route::get('/packing/{id}/process', [\App\Http\Controllers\PackingController::class, 'process'])->name('packing.process');
+    Route::post('/packing/{id}/mark-packed', [\App\Http\Controllers\PackingController::class, 'markPacked'])->name('packing.mark-packed');
+    
+    // Reseller Orders (Add Reseller Orders sub-route for clarity if needed, or keep separate)
+});
+
+// Reseller Specific Order Route (Shortcut)
+Route::middleware(['auth'])->get('/reseller-orders/create', [\App\Http\Controllers\ResellerOrderController::class, 'create'])->name('reseller-orders.create');
 
 // Public Product View
 Route::get('/view-products', [\App\Http\Controllers\GuestProductController::class, 'index'])->name('guest.products');

@@ -24,7 +24,7 @@
         </div>
 
         <!-- Reseller Management -->
-        <div x-data="{ open: {{ request()->routeIs('resellers.dashboard') || request()->routeIs('resellers.users.*') || request()->routeIs('resellers.targets.*') || request()->routeIs('resellers.payments.*') ? 'true' : 'false' }} }">
+        <div x-data="{ open: {{ request()->routeIs('resellers.dashboard') || request()->routeIs('resellers.users.*') || request()->routeIs('resellers.payments.*') ? 'true' : 'false' }} }">
             <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg focus:outline-none">
                 <span class="flex items-center">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -35,9 +35,24 @@
             <div x-show="open" class="pl-12 mt-2 space-y-1">
                 <a href="{{ route('resellers.dashboard') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('resellers.dashboard') ? 'bg-gray-700 text-white' : '' }}">Dashboard</a>
                 <a href="{{ route('resellers.users.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('resellers.users.*') ? 'bg-gray-700 text-white' : '' }}">User Details</a>
-                <a href="{{ route('resellers.targets.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('resellers.targets.*') ? 'bg-gray-700 text-white' : '' }}">Targets</a>
                 <a href="{{ route('resellers.payments.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('resellers.payments.index') || request()->routeIs('resellers.payments.create') ? 'bg-gray-700 text-white' : '' }}">Payments</a>
                 <a href="{{ route('resellers.payments.dues') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('resellers.payments.dues') ? 'bg-gray-700 text-white' : '' }}">Due Payments</a>
+            </div>
+        </div>
+
+        <!-- Seller Management -->
+        <div x-data="{ open: {{ request()->routeIs('sellers.dashboard') || request()->routeIs('sellers.users.*') || request()->routeIs('sellers.targets.*') ? 'true' : 'false' }} }">
+            <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg focus:outline-none">
+                <span class="flex items-center">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    Seller Section
+                </span>
+                <svg :class="{'rotate-180': open}" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+            <div x-show="open" class="pl-12 mt-2 space-y-1">
+                <a href="{{ route('sellers.dashboard') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('sellers.dashboard') ? 'bg-gray-700 text-white' : '' }}">Dashboard</a>
+                <a href="{{ route('sellers.users.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('sellers.users.*') ? 'bg-gray-700 text-white' : '' }}">User Details</a>
+                <a href="{{ route('sellers.targets.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('sellers.targets.*') ? 'bg-gray-700 text-white' : '' }}">Targets</a>
             </div>
         </div>
 
@@ -63,10 +78,24 @@
              <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 012-2h5a2 2 0 012 2"></path></svg>
             Courier
         </a>
-         <a href="#" class="block px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg flex items-center">
-             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-            Orders
-        </a>
+        <!-- Order Management -->
+        <div x-data="{ open: {{ request()->routeIs('orders.*') || request()->routeIs('reseller-orders.*') ? 'true' : 'false' }} }">
+            <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg focus:outline-none">
+                <span class="flex items-center">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    Order Section
+                </span>
+                <svg :class="{'rotate-180': open}" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+            <div x-show="open" class="pl-12 mt-2 space-y-1">
+                <a href="{{ route('orders.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('orders.index') ? 'bg-gray-700 text-white' : '' }}">Order List</a>
+                <a href="{{ route('reseller-orders.create') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('reseller-orders.create') ? 'bg-gray-700 text-white' : '' }}">Add Reseller Orders</a>
+                <a href="{{ route('orders.create') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('orders.create') ? 'bg-gray-700 text-white' : '' }}">Add Orders</a>
+                <a href="{{ route('orders.call-list') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('orders.call-list') ? 'bg-gray-700 text-white' : '' }}">Call List</a>
+                <a href="{{ route('orders.waybill.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('orders.waybill.*') ? 'bg-gray-700 text-white' : '' }}">Waybill Print</a>
+                <a href="{{ route('orders.packing.index') }}" class="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg {{ request()->routeIs('orders.packing.*') ? 'bg-gray-700 text-white' : '' }}">Packing / Scanner</a>
+            </div>
+        </div>
          <a href="#" class="block px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg flex items-center">
              <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
             Purchase

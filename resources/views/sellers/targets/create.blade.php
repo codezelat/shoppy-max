@@ -20,7 +20,7 @@
                         </div>
                     @endif
 
-                    <form action="{{ route('resellers.targets.store') }}" method="POST">
+                    <form action="{{ route('sellers.targets.store') }}" method="POST">
                         @csrf
                         
                         <!-- User Selection -->
@@ -86,7 +86,7 @@
                             <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                                 Save Target
                             </button>
-                            <a href="{{ route('resellers.targets.index') }}" class="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800">
+                            <a href="{{ route('sellers.targets.index') }}" class="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800">
                                 Cancel
                             </a>
                         </div>

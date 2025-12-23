@@ -1,0 +1,73 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Order extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    protected $fillable = [
+        'order_number',
+        'user_id',
+        'reseller_id',
+        'customer_name',
+        'customer_phone',
+        'customer_address',
+        'city_id',
+        'status',
+        'payment_method',
+        'payment_status',
+        'total_amount',
+        'sales_note',
+        'waybill_number',
+        'courier_id',
+        'packed_by',
+        'dispatched_at',
+        'cancelled_at',
+        'delivered_at',
+        'returned_at',
+    ];
+
+    protected $casts = [
+        'total_amount' => 'decimal:2',
+        'dispatched_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'delivered_at' => 'datetime',
+        'returned_at' => 'datetime',
+    ];
+
+    public function items()
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    public function logs()
+    {
+        return $this->hasMany(OrderLog::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function reseller()
+    {
+        return $this->belongsTo(User::class, 'reseller_id');
+    }
+
+    public function packer()
+    {
+        return $this->belongsTo(User::class, 'packed_by');
+    }
+
+    public function city()
+    {
+        return $this->belongsTo(City::class);
+    }
+}

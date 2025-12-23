@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Reseller Targets') }}
+            {{ __('Seller Targets') }}
         </h2>
     </x-slot>
 
@@ -11,11 +11,11 @@
                 <div class="p-6 text-gray-900">
                     
                     <div class="flex justify-between items-center mb-6">
-                        <a href="{{ route('resellers.targets.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        <a href="{{ route('sellers.targets.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                             Add New Target
                         </a>
                         <div class="flex space-x-2">
-                             <form method="GET" action="{{ route('resellers.targets.index') }}" class="flex">
+                             <form method="GET" action="{{ route('sellers.targets.index') }}" class="flex">
                                 <input type="text" name="search" placeholder="Search..." value="{{ request('search') }}" class="border rounded-l px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <button type="submit" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-r">Filter</button>
                             </form>
