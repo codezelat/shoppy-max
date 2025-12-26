@@ -50,7 +50,12 @@ class ResellerController extends Controller
 
         $resellers = $query->paginate(10);
 
-        return view('contacts.resellers.index', compact('resellers'));
+        // Stats for Dashboard Cards
+        $totalResellers = Reseller::count();
+        $totalDue = Reseller::sum('due_amount');
+        $activeResellers = Reseller::where('due_amount', '>', 0)->count(); // Example metric
+
+        return view('contacts.resellers.index', compact('resellers', 'totalResellers', 'totalDue', 'activeResellers'));
     }
 
     /**
