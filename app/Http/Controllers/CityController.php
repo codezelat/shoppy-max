@@ -13,11 +13,39 @@ class CityController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
-        $cities = City::when($search, function ($query, $search) {
-            return $query->where('city_name', 'like', "%{$search}%")
-                         ->orWhere('postal_code', 'like', "%{$search}%")
-                         ->orWhere('district', 'like', "%{$search}%");
-        })->paginate(10);
+        $query = City::query();
+        
+        if ($search) {
+             $query->where(function ($q) use ($search) {
+                $q->where('city_name', 'like', "%{$search}%")
+                  ->orWhere('postal_code', 'like', "%{$search}%")
+                  ->orWhere('district', 'like', "%{$search}%");
+             });
+        }
+
+        $sort = $request->input('sort', 'city_name');
+        $direction = $request->input('direction', 'asc');
+        $allowedSorts = ['city_name', 'postal_code', 'district'];
+        if (in_array($sort, $allowedSorts)) {
+            $query->orderBy($sort, $direction);
+        } else {
+            $query->orderBy('city_name', 'asc');
+        }
+
+        if ($request->has('export')) {
+            $cities = $query->get();
+            
+            if ($request->input('export') === 'excel') {
+                return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\CitiesExport($cities), 'cities.xlsx');
+            }
+            
+            if ($request->input('export') === 'pdf') {
+                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.cities_pdf', compact('cities'));
+                return $pdf->stream('cities.pdf');
+            }
+        }
+
+        $cities = $query->paginate(10);
 
         return view('contacts.cities.index', compact('cities'));
     }
@@ -27,7 +55,8 @@ class CityController extends Controller
      */
     public function create()
     {
-        return view('contacts.cities.create');
+        $slData = config('locations.sri_lanka');
+        return view('contacts.cities.create', compact('slData'));
     }
 
     /**
@@ -36,9 +65,10 @@ class CityController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'province' => 'required|string|max:255',
+            'district' => 'required|string|max:255',
             'city_name' => 'required|string|max:255',
             'postal_code' => 'required|string|max:20',
-            'district' => 'required|string|max:255',
         ]);
 
         City::create($request->all());
@@ -59,7 +89,8 @@ class CityController extends Controller
      */
     public function edit(City $city)
     {
-        return view('contacts.cities.edit', compact('city'));
+        $slData = config('locations.sri_lanka');
+        return view('contacts.cities.edit', compact('city', 'slData'));
     }
 
     /**
@@ -68,9 +99,10 @@ class CityController extends Controller
     public function update(Request $request, City $city)
     {
         $request->validate([
+            'province' => 'required|string|max:255',
+            'district' => 'required|string|max:255',
             'city_name' => 'required|string|max:255',
             'postal_code' => 'required|string|max:20',
-            'district' => 'required|string|max:255',
         ]);
 
         $city->update($request->all());
@@ -86,5 +118,23 @@ class CityController extends Controller
         $city->delete();
 
         return redirect()->route('cities.index')->with('success', 'City deleted successfully.');
+    }
+
+    /**
+     * Get cities by district for API.
+     */
+    public function getCitiesByDistrict(Request $request)
+    {
+        $district = $request->input('district');
+        
+        if (!$district) {
+            return response()->json([]);
+        }
+
+        $cities = City::where('district', $district)
+                      ->orderBy('city_name')
+                      ->get(['city_name', 'postal_code']);
+
+        return response()->json($cities);
     }
 }

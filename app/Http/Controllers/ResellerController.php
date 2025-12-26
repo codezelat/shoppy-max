@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Reseller;
 use Illuminate\Http\Request;
+use App\Rules\SriLankaMobile;
+use App\Rules\SriLankaLandline;
 
 class ResellerController extends Controller
 {
@@ -13,11 +15,40 @@ class ResellerController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
-        $resellers = Reseller::when($search, function ($query, $search) {
-            return $query->where('name', 'like', "%{$search}%")
-                         ->orWhere('business_name', 'like', "%{$search}%")
-                         ->orWhere('mobile', 'like', "%{$search}%");
-        })->paginate(10);
+        $query = Reseller::query();
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('business_name', 'like', "%{$search}%")
+                  ->orWhere('mobile', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $sort = $request->input('sort', 'name');
+        $direction = $request->input('direction', 'asc');
+        $allowedSorts = ['name', 'business_name', 'mobile', 'email', 'due_amount'];
+        if (in_array($sort, $allowedSorts)) {
+            $query->orderBy($sort, $direction);
+        } else {
+            $query->orderBy('name', 'asc');
+        }
+        if ($request->has('export')) {
+            $resellers = $query->get();
+            
+            if ($request->input('export') === 'excel') {
+                return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\ResellersExport($resellers), 'resellers.xlsx');
+            }
+            
+            if ($request->input('export') === 'pdf') {
+                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.resellers_pdf', compact('resellers'));
+                $pdf->setPaper('a4', 'landscape');
+                return $pdf->stream('resellers.pdf');
+            }
+        }
+
+        $resellers = $query->paginate(10);
 
         return view('contacts.resellers.index', compact('resellers'));
     }
@@ -27,7 +58,9 @@ class ResellerController extends Controller
      */
     public function create()
     {
-        return view('contacts.resellers.create');
+        $countries = config('locations.countries');
+        $slData = config('locations.sri_lanka');
+        return view('contacts.resellers.create', compact('countries', 'slData'));
     }
 
     /**
@@ -38,7 +71,14 @@ class ResellerController extends Controller
         $request->validate([
             'business_name' => 'required|string|max:255',
             'name' => 'required|string|max:255',
-            'mobile' => 'required|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'mobile' => ['required', 'string', new SriLankaMobile],
+            'landline' => ['nullable', 'string', new SriLankaLandline],
+            'address' => 'required|string',
+            'country' => 'required|string',
+            'province' => 'nullable|string',
+            'district' => 'nullable|string',
+            'city' => 'nullable|string',
             'due_amount' => 'numeric|min:0',
         ]);
 
@@ -60,7 +100,9 @@ class ResellerController extends Controller
      */
     public function edit(Reseller $reseller)
     {
-        return view('contacts.resellers.edit', compact('reseller'));
+        $countries = config('locations.countries');
+        $slData = config('locations.sri_lanka');
+        return view('contacts.resellers.edit', compact('reseller', 'countries', 'slData'));
     }
 
     /**
@@ -71,7 +113,14 @@ class ResellerController extends Controller
         $request->validate([
             'business_name' => 'required|string|max:255',
             'name' => 'required|string|max:255',
-            'mobile' => 'required|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'mobile' => ['required', 'string', new SriLankaMobile],
+            'landline' => ['nullable', 'string', new SriLankaLandline],
+            'address' => 'required|string',
+            'country' => 'required|string',
+            'province' => 'nullable|string',
+            'district' => 'nullable|string',
+            'city' => 'nullable|string',
             'due_amount' => 'numeric|min:0',
         ]);
 
