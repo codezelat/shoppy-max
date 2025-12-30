@@ -11,7 +11,7 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Route::get('/products', [GuestProductController::class, 'index'])->name('guest.products');
+Route::get('/shop', [GuestProductController::class, 'index'])->name('guest.products');
 
 Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
@@ -145,3 +145,5 @@ Route::middleware(['auth'])->prefix('reports')->name('reports.')->group(function
 });
 
 require __DIR__.'/auth.php';
+
+

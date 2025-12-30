@@ -8,6 +8,7 @@ use App\Models\SubCategory; // Make sure SubCategory model is imported
 use App\Models\Unit;
 use App\Models\Attribute;
 use Illuminate\Http\Request;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProductController extends Controller
 {
@@ -43,10 +44,10 @@ class ProductController extends Controller
         $validated['barcode_data'] = $request->sku; 
         
         if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('products'), $filename);
-            $validated['image'] = 'products/' . $filename;
+            $uploadedFileUrl = Cloudinary::uploadApi()->upload($request->file('image')->getRealPath(), [
+                'verify' => false // Disable SSL verification for local dev
+            ])['secure_url'];
+            $validated['image'] = $uploadedFileUrl;
         }
 
         $product = Product::create($validated);
@@ -81,15 +82,11 @@ class ProductController extends Controller
          $validated['barcode_data'] = $request->sku;
 
         if ($request->hasFile('image')) {
-            // Delete old image if exists
-            if ($product->image && file_exists(public_path($product->image))) {
-                unlink(public_path($product->image));
-            }
-
-            $file = $request->file('image');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('products'), $filename);
-            $validated['image'] = 'products/' . $filename;
+            // Upload to Cloudinary
+            $uploadedFileUrl = Cloudinary::uploadApi()->upload($request->file('image')->getRealPath(), [
+                'verify' => false // Disable SSL verification for local dev
+            ])['secure_url'];
+            $validated['image'] = $uploadedFileUrl;
         }
 
         $product->update($validated);

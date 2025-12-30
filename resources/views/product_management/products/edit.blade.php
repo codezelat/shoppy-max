@@ -133,7 +133,7 @@
                                     
                                     @if($product->image)
                                         <div class="mb-2">
-                                            <img src="{{ asset($product->image) }}" alt="Current Image" class="h-20 w-20 object-cover rounded-lg border border-gray-200 dark:border-gray-600">
+                                            <img src="{{ Str::startsWith($product->image, ['http://', 'https://']) ? $product->image : asset($product->image) }}" alt="Current Image" class="h-20 w-20 object-cover rounded-lg border border-gray-200 dark:border-gray-600">
                                         </div>
                                     @endif
                                     
