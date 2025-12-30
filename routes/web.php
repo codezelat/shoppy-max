@@ -5,14 +5,17 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\PermissionManagementController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\GuestProductController;
 
 Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/products', [GuestProductController::class, 'index'])->name('guest.products');
+
+Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -71,7 +74,7 @@ Route::middleware(['auth'])->prefix('seller-management')->name('sellers.')->grou
 });
 
 // Product Management Routes
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::resource('units', \App\Http\Controllers\UnitController::class);
     Route::resource('categories', \App\Http\Controllers\CategoryController::class);
     Route::resource('sub-categories', \App\Http\Controllers\SubCategoryController::class);

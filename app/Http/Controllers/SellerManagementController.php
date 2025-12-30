@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\SellerTarget;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
@@ -31,7 +32,27 @@ class SellerManagementController extends Controller
             // 'total_commission' => 0, // Sellers do not have commission
         ];
         
-        return view('sellers.dashboard', compact('sellers', 'selectedSellerId', 'startDate', 'endDate', 'stats'));
+        // Fetch Target if a seller is selected
+        $target = null;
+        $targetProgress = null;
+
+        if ($selectedSellerId) {
+            $target = SellerTarget::where('user_id', $selectedSellerId)
+                ->where('start_date', '<=', now())
+                ->where('end_date', '>=', now())
+                ->latest()
+                ->first();
+
+            if ($target) {
+                 $targetProgress = [
+                    'sales_amount' => $stats['total_sales_value'], // Using placeholder stats for now
+                    'target_amount' => $target->target_completed_price,
+                    'percentage' => $target->target_completed_price > 0 ? min(100, ($stats['total_sales_value'] / $target->target_completed_price) * 100) : 0,
+                ];
+            }
+        }
+        
+        return view('sellers.dashboard', compact('sellers', 'selectedSellerId', 'startDate', 'endDate', 'stats', 'target', 'targetProgress'));
     }
 
     /**
@@ -53,7 +74,8 @@ class SellerManagementController extends Controller
 
         $users = $query->paginate(10);
 
-        return view('sellers.users.index', compact('users'));
+        $type = 'seller';
+        return view('sellers.users.index', compact('users', 'type'));
     }
 
     /**
