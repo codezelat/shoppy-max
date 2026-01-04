@@ -2,41 +2,32 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ResellerTarget extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
-        'user_id',
+        'reseller_id',
         'target_type',
         'target_completed_price',
-        'target_not_completed_price',
+        'with_completed_price',
         'return_order_target_price',
         'start_date',
         'end_date',
         'ref_id',
-        'target_pieces_qty',
-        'created_by',
+        'target_pcs_qty',
     ];
 
     protected $casts = [
-        'target_completed_price' => 'decimal:2',
-        'target_not_completed_price' => 'decimal:2',
-        'return_order_target_price' => 'decimal:2',
         'start_date' => 'date',
         'end_date' => 'date',
+        'target_completed_price' => 'decimal:2',
+        'with_completed_price' => 'decimal:2',
+        'return_order_target_price' => 'decimal:2',
     ];
 
-    public function user()
+    public function reseller()
     {
-        return $this->belongsTo(User::class);
-    }
-
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(Reseller::class);
     }
 }

@@ -29,40 +29,7 @@
                 </div>
             </div>
 
-            <!-- Target Progress Section -->
-            @if($target)
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-lg sm:rounded-xl mb-8 border border-gray-200 dark:border-gray-700">
-                <div class="p-6">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                        Current Target Progress ({{ $target->start_date->format('M d') }} - {{ $target->end_date->format('M d') }})
-                    </h3>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <!-- Sales Target -->
-                        <div>
-                            <div class="flex justify-between mb-1">
-                                <span class="text-base font-medium text-gray-700 dark:text-gray-300">Sales Target</span>
-                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    {{ number_format($targetProgress['sales_amount'], 2) }} / {{ number_format($targetProgress['target_amount'], 2) }}
-                                </span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                                <div class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style="width: {{ $targetProgress['percentage'] }}%"></div>
-                            </div>
-                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                {{ number_format($targetProgress['percentage'], 1) }}% Achieved
-                            </p>
-                        </div>
-                        
-                        <!-- Placeholder for other targets if needed -->
-                         <div>
-                             <!-- Additional stats like Return Rate target could go here -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-            @endif
+
 
             <!-- KPI Cards Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

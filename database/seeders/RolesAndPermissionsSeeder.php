@@ -58,11 +58,19 @@ class RolesAndPermissionsSeeder extends Seeder
         // NOTE: For security, change this password immediately after first login in production
         // You can use: php artisan tinker
         // Then: User::where('email', 'admin@shoppy-max.com')->first()->update(['password' => Hash::make('your-secure-password')])
-        $superAdmin = User::create([
-            'name' => 'Super Admin',
-            'email' => 'admin@shoppy-max.com',
-            'password' => Hash::make('password'), // CHANGE THIS IN PRODUCTION!
-        ]);
+        $superAdmin = User::firstOrCreate(
+            ['email' => 'admin@shoppy-max.com'],
+            [
+                'name' => 'Super Admin',
+                'password' => 'password', // 'hashed' cast in User model handles hashing
+            ]
+        );
+
+        // Ensure password is correct if user already existed
+        if (!$superAdmin->wasRecentlyCreated) {
+             $superAdmin->password = 'password';
+             $superAdmin->save();
+        }
 
         $superAdmin->assignRole('super admin');
         

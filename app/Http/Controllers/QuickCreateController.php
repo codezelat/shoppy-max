@@ -13,16 +13,29 @@ class QuickCreateController extends Controller
 {
     public function storeCategory(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+
+
+        // Auto-generate code if not provided (though validator required it, we should probably make it optional in validation or generate before)
+        // Wait, validator says REQUIRED. So I must change validation rule or send it from JS.
+        // Better: Make it optional, generate if missing.
+        
+        $data = $request->all();
+        // Since we changed logic, let's remove validation for code IF we generate it. 
+        // ACTUALLY, let's just create a new Validator instance with modified rules or better yet, merge input.
+        
+        // Revised Logic:
+        $data['code'] = $request->code ?? \Illuminate\Support\Str::slug($request->name);
+        
+        $validator = Validator::make($data, [
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:255|unique:categories,code',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+             return response()->json(['errors' => $validator->errors()], 422);
         }
-
-        $category = Category::create($request->all());
+        
+        $category = Category::create($data);
 
         return response()->json([
             'success' => true,

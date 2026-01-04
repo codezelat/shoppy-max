@@ -19,4 +19,19 @@ class Reseller extends Model
         'country',
         'due_amount',
     ];
+
+    public function targets()
+    {
+        return $this->hasMany(ResellerTarget::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(ResellerPayment::class);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
 }

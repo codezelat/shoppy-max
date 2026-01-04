@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\PermissionManagementController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GuestProductController;
+use App\Http\Controllers\ProductImportController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -38,43 +39,22 @@ Route::middleware('auth')->group(function () {
 });
 
 
-// Reseller Management Routes
-Route::middleware(['auth'])->prefix('reseller-management')->name('resellers.')->group(function () {
-    // Dashboard
-    Route::get('dashboard', [\App\Http\Controllers\ResellerManagementController::class, 'dashboard'])->name('dashboard');
 
-    // User Management (Resellers, Direct Resellers, Sub Users)
-    Route::get('users', [\App\Http\Controllers\ResellerManagementController::class, 'index'])->name('users.index');
-    Route::get('users/create', [\App\Http\Controllers\ResellerManagementController::class, 'create'])->name('users.create');
-    Route::post('users', [\App\Http\Controllers\ResellerManagementController::class, 'store'])->name('users.store');
-    // Add edit/update/destroy if needed
-
-    // Targets (REMOVED for Resellers)
-    // Route::resource('targets', \App\Http\Controllers\ResellerTargetController::class);
-
-    // Payments
-    Route::get('payments', [\App\Http\Controllers\ResellerPaymentController::class, 'index'])->name('payments.index');
-    Route::get('payments/create', [\App\Http\Controllers\ResellerPaymentController::class, 'create'])->name('payments.create');
-    Route::post('payments', [\App\Http\Controllers\ResellerPaymentController::class, 'store'])->name('payments.store');
-    Route::get('payments/dues', [\App\Http\Controllers\ResellerPaymentController::class, 'dues'])->name('payments.dues');
-});
-
-// Seller Management Routes
-Route::middleware(['auth'])->prefix('seller-management')->name('sellers.')->group(function () {
-    // Dashboard
-    Route::get('dashboard', [\App\Http\Controllers\SellerManagementController::class, 'dashboard'])->name('dashboard');
-
-    // User Management
-    Route::get('users', [\App\Http\Controllers\SellerManagementController::class, 'index'])->name('users.index');
-    Route::get('users/create', [\App\Http\Controllers\SellerManagementController::class, 'create'])->name('users.create');
-    Route::post('users', [\App\Http\Controllers\SellerManagementController::class, 'store'])->name('users.store');
-
-    // Targets
-    Route::resource('targets', \App\Http\Controllers\SellerTargetController::class);
-});
 
 // Product Management Routes
 Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
+    Route::get('products/export', [\App\Http\Controllers\ProductController::class, 'export'])->name('products.export');
+    Route::get('products/{product}/success', [\App\Http\Controllers\ProductController::class, 'success'])->name('products.success');
+    Route::post('products/bulk-destroy', [\App\Http\Controllers\ProductController::class, 'bulkDestroy'])->name('products.destroy.bulk');
+    Route::get('products/print-barcodes-bulk', [\App\Http\Controllers\ProductController::class, 'bulkPrintBarcode'])->name('products.barcode.bulk');
+    Route::get('variants/{variant}/print-barcode', [\App\Http\Controllers\ProductController::class, 'printBarcode'])->name('products.barcode.print');
+    
+    // Product Import
+    Route::get('products/import', [\App\Http\Controllers\ProductImportController::class, 'show'])->name('products.import.show');
+    Route::get('products/import/template', [\App\Http\Controllers\ProductImportController::class, 'downloadTemplate'])->name('products.import.template');
+    Route::post('products/import/preview', [\App\Http\Controllers\ProductImportController::class, 'preview'])->name('products.import.preview');
+    Route::post('products/import/store', [\App\Http\Controllers\ProductImportController::class, 'store'])->name('products.import.store');
+    
     Route::resource('products', \App\Http\Controllers\ProductController::class);
     Route::resource('categories', \App\Http\Controllers\CategoryController::class);
     Route::resource('sub-categories', \App\Http\Controllers\SubCategoryController::class);
@@ -106,26 +86,24 @@ Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function (
     Route::get('/packing', [\App\Http\Controllers\PackingController::class, 'index'])->name('packing.index');
     Route::get('/packing/{id}/process', [\App\Http\Controllers\PackingController::class, 'process'])->name('packing.process');
     Route::post('/packing/{id}/mark-packed', [\App\Http\Controllers\PackingController::class, 'markPacked'])->name('packing.mark-packed');
-    
-    // Reseller Orders (Add Reseller Orders sub-route for clarity if needed, or keep separate)
-});
-
-// Order Management System (OMS) Routes
-Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function () {
-    // ... existing routes
 });
 
 // Reseller Specific Order Route (Shortcut)
 Route::middleware(['auth'])->get('/reseller-orders/create', [\App\Http\Controllers\ResellerOrderController::class, 'create'])->name('reseller-orders.create');
 
-// Purchase Management Routes
-Route::middleware(['auth'])->prefix('purchases')->name('purchases.')->group(function () {
-    Route::get('/', [\App\Http\Controllers\PurchaseController::class, 'index'])->name('index');
-    Route::get('/create', [\App\Http\Controllers\PurchaseController::class, 'create'])->name('create');
-    Route::post('/', [\App\Http\Controllers\PurchaseController::class, 'store'])->name('store');
-    Route::get('/{id}', [\App\Http\Controllers\PurchaseController::class, 'show'])->name('show');
-    Route::post('/{id}/verify', [\App\Http\Controllers\PurchaseController::class, 'verify'])->name('verify');
-});
+// Reseller Targets
+Route::middleware(['auth'])->resource('reseller-targets', \App\Http\Controllers\ResellerTargetController::class);
+Route::middleware(['auth'])->get('reseller-payments/import', [\App\Http\Controllers\ResellerPaymentImportController::class, 'show'])->name('reseller-payments.import.show');
+Route::middleware(['auth'])->post('reseller-payments/import/preview', [\App\Http\Controllers\ResellerPaymentImportController::class, 'preview'])->name('reseller-payments.import.preview');
+Route::middleware(['auth'])->post('reseller-payments/import/store', [\App\Http\Controllers\ResellerPaymentImportController::class, 'store'])->name('reseller-payments.import.store');
+Route::middleware(['auth'])->get('reseller-payments/template', [\App\Http\Controllers\ResellerPaymentImportController::class, 'downloadTemplate'])->name('reseller-payments.import.template');
+
+Route::middleware(['auth'])->resource('reseller-payments', \App\Http\Controllers\ResellerPaymentController::class)->except(['destroy']);
+Route::middleware(['auth'])->post('reseller-payments/{reseller_payment}/cancel', [\App\Http\Controllers\ResellerPaymentController::class, 'cancel'])->name('reseller-payments.cancel');
+Route::middleware(['auth'])->get('reseller-payments/{reseller_payment}/download', [\App\Http\Controllers\ResellerPaymentController::class, 'downloadInvoice'])->name('reseller-payments.download');
+Route::middleware(['auth'])->get('reseller-payments-bulk', [\App\Http\Controllers\ResellerPaymentController::class, 'downloadBulkInvoices'])->name('reseller-payments.download-bulk');
+Route::middleware(['auth'])->get('reseller-dues', [\App\Http\Controllers\ResellerDuesController::class, 'index'])->name('reseller-dues.index');
+Route::middleware(['auth'])->get('reseller-dues/{id}', [\App\Http\Controllers\ResellerDuesController::class, 'show'])->name('reseller-dues.show');
 
 // Courier Management Routes
 Route::middleware(['auth'])->group(function () {

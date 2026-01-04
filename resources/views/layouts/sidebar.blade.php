@@ -35,87 +35,79 @@
                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"/>
                         </svg>
                     </button>
-                    <ul id="dropdown-contacts" class="{{ request()->routeIs('customers.*') || request()->routeIs('suppliers.*') || request()->routeIs('resellers.index') || request()->routeIs('resellers.show') || request()->routeIs('resellers.edit') || request()->routeIs('resellers.create') || request()->routeIs('cities.*') ? '' : 'hidden' }} py-2 space-y-2">
+                    <ul id="dropdown-contacts" class="{{ request()->routeIs('customers.*') || request()->routeIs('suppliers.*') || request()->routeIs('cities.*') ? '' : 'hidden' }} py-2 space-y-2">
                         <li>
                             <a href="{{ route('customers.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('customers.*') ? 'text-primary-600 dark:text-primary-400' : '' }}">Customers</a>
                         </li>
                         <li>
                             <a href="{{ route('suppliers.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('suppliers.*') ? 'text-primary-600 dark:text-primary-400' : '' }}">Suppliers</a>
                         </li>
-                        <li>
-                             <a href="{{ route('resellers.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('resellers.index') ? 'text-primary-600 dark:text-primary-400' : '' }}">Resellers</a>
-                        </li>
+
                         <li>
                             <a href="{{ route('cities.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('cities.*') ? 'text-primary-600 dark:text-primary-400' : '' }}">Cities</a>
                         </li>
                     </ul>
                 </li>
 
-                <!-- Reseller Section -->
-                 <li>
-                    <button type="button" class="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-controls="dropdown-reseller" data-collapse-toggle="dropdown-reseller">
-                         <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                        <span class="flex-1 ms-3 text-left rtl:text-right whitespace-nowrap">Reseller Section</span>
+                <!-- Resellers -->
+                <li>
+                    <button type="button" class="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-controls="dropdown-resellers" data-collapse-toggle="dropdown-resellers">
+                        <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        <span class="flex-1 ms-3 text-left rtl:text-right whitespace-nowrap">Resellers</span>
                         <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"/>
                         </svg>
                     </button>
-                    <ul id="dropdown-reseller" class="{{ request()->routeIs('resellers.dashboard') || request()->routeIs('resellers.users.*') || request()->routeIs('resellers.payments.*') ? '' : 'hidden' }} py-2 space-y-2">
+                    <ul id="dropdown-resellers" class="{{ request()->routeIs('resellers.*') || request()->routeIs('reseller-targets.*') || request()->routeIs('reseller-payments.*') || request()->routeIs('reseller-dues.*') ? '' : 'hidden' }} py-2 space-y-2">
                         <li>
-                            <a href="{{ route('resellers.dashboard') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Dashboard</a>
+                            <a href="{{ route('resellers.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('resellers.index') ? 'text-primary-600 dark:text-primary-400' : '' }}">Resellers List</a>
                         </li>
                         <li>
-                            <a href="{{ route('resellers.users.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">User Details</a>
+                            <a href="{{ route('resellers.create') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('resellers.create') ? 'text-primary-600 dark:text-primary-400' : '' }}">Add Reseller</a>
                         </li>
                         <li>
-                            <a href="{{ route('resellers.payments.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Payments</a>
+                            <a href="{{ route('reseller-targets.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('reseller-targets.*') ? 'text-primary-600 dark:text-primary-400' : '' }}">Targets List</a>
                         </li>
-                         <li>
-                            <a href="{{ route('resellers.payments.dues') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Due Payments</a>
+                        <li>
+                            <a href="{{ route('reseller-payments.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('reseller-payments.*') ? 'text-primary-600 dark:text-primary-400' : '' }}">User Payments</a>
+                        </li>
+                        <li>
+                            <a href="{{ route('reseller-dues.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('reseller-dues.*') ? 'text-primary-600 dark:text-primary-400' : '' }}">User Due Payments</a>
                         </li>
                     </ul>
                 </li>
 
-                 <!-- Seller Section -->
-                 <li>
-                    <button type="button" class="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-controls="dropdown-seller" data-collapse-toggle="dropdown-seller">
-                         <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                        <span class="flex-1 ms-3 text-left rtl:text-right whitespace-nowrap">Seller Section</span>
-                         <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
-                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"/>
-                        </svg>
-                    </button>
-                    <ul id="dropdown-seller" class="{{ request()->routeIs('sellers.dashboard') || request()->routeIs('sellers.users.*') || request()->routeIs('sellers.targets.*') ? '' : 'hidden' }} py-2 space-y-2">
-                        <li>
-                            <a href="{{ route('sellers.dashboard') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Dashboard</a>
-                        </li>
-                         <li>
-                            <a href="{{ route('sellers.users.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">User Details</a>
-                        </li>
-                         <li>
-                            <a href="{{ route('sellers.targets.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Targets</a>
-                        </li>
-                    </ul>
-                </li>
-                
-                <!-- Purchase -->
+                <!-- Products -->
                 <li>
-                     <button type="button" class="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-controls="dropdown-purchase" data-collapse-toggle="dropdown-purchase">
-                         <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-                        <span class="flex-1 ms-3 text-left rtl:text-right whitespace-nowrap">Purchase Section</span>
-                         <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                    <button type="button" class="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-controls="dropdown-products" data-collapse-toggle="dropdown-products">
+                        <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                        <span class="flex-1 ms-3 text-left rtl:text-right whitespace-nowrap">Products</span>
+                        <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"/>
                         </svg>
                     </button>
-                    <ul id="dropdown-purchase" class="{{ request()->routeIs('purchases.*') ? '' : 'hidden' }} py-2 space-y-2">
+                    <ul id="dropdown-products" class="{{ request()->routeIs('products.*') || request()->routeIs('categories.*') || request()->routeIs('sub-categories.*') || request()->routeIs('units.*') ? '' : 'hidden' }} py-2 space-y-2">
                         <li>
-                            <a href="{{ route('purchases.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Purchase List</a>
+                             <a href="{{ route('products.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('products.index') ? 'text-primary-600 dark:text-primary-400' : '' }}">Products List</a>
                         </li>
                         <li>
-                            <a href="{{ route('purchases.create') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">Add Purchase</a>
+                             <a href="{{ route('products.create') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('products.create') ? 'text-primary-600 dark:text-primary-400' : '' }}">Add Product</a>
+                        </li>
+                        <li>
+                             <a href="{{ route('categories.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('categories.*') ? 'text-primary-600 dark:text-primary-400' : '' }}">Categories List</a>
+                        </li>
+                        <li>
+                             <a href="{{ route('sub-categories.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('sub-categories.*') ? 'text-primary-600 dark:text-primary-400' : '' }}">Sub Categories List</a>
+                        </li>
+                        <li>
+                             <a href="{{ route('units.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('units.*') ? 'text-primary-600 dark:text-primary-400' : '' }}">Units List</a>
                         </li>
                     </ul>
                 </li>
+
+
+
+
                 
                 <!-- User Section -->
                 <li>
@@ -152,20 +144,6 @@
                  For now, adding Products, Courier, Order... -->
 
             <ul class="pt-4 mt-4 space-y-2 font-medium border-t border-gray-200 dark:border-gray-700">
-                <!-- Products -->
-                <li>
-                    <button type="button" class="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-controls="dropdown-products" data-collapse-toggle="dropdown-products">
-                        <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                        <span class="flex-1 ms-3 text-left rtl:text-right whitespace-nowrap">Products</span>
-                        <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
-                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"/>
-                        </svg>
-                    </button>
-                    <ul id="dropdown-products" class="{{ request()->routeIs('products.*') ? '' : 'hidden' }} py-2 space-y-2">
-                        <li><a href="{{ route('products.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700">List</a></li>
-                    </ul>
-                </li>
-                
                 <!-- Reports -->
                 <li>
                     <a href="{{ route('reports.index') }}" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">

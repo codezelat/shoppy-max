@@ -72,7 +72,7 @@ class OrderController extends Controller
             'payment_method' => 'required|string',
             'sales_note' => 'nullable|string',
             'order_type' => 'nullable|string', // 'reseller' or 'general'
-            'reseller_id' => 'nullable|exists:users,id',
+            'reseller_id' => 'nullable|exists:resellers,id',
         ]);
 
         DB::beginTransaction();

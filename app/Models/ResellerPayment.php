@@ -10,27 +10,21 @@ class ResellerPayment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
-        'payment_ref_no',
+        'reseller_id',
         'amount',
         'payment_method',
+        'reference_id',
         'status',
         'payment_date',
-        'created_by',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'payment_date' => 'date',
+        'payment_date' => 'datetime',
     ];
 
-    public function user()
+    public function reseller()
     {
-        return $this->belongsTo(User::class);
-    }
-
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(Reseller::class);
     }
 }

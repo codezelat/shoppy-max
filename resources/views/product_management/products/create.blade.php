@@ -1,75 +1,59 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-bold text-2xl text-gray-800 dark:text-gray-100 leading-tight">
-            {{ __('Add New Product') }}
-        </h2>
-    </x-slot>
+    <x-form-layout>
+        <div class="mb-6">
+            <nav class="flex" aria-label="Breadcrumb">
+                <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                    <li class="inline-flex items-center">
+                        <a href="{{ route('dashboard') }}" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
+                            <svg class="w-3 h-3 me-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="m19.707 9.293-2-2-7-7a1 1 0 0 0-1.414 0l-7 7-2 2a1 1 0 0 0 1.414 1.414L2 10.414V18a2 2 0 0 0 2 2h3a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h3a2 2 0 0 0 2-2v-7.586l.293.293a1 1 0 0 0 1.414-1.414Z"/>
+                            </svg>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg class="w-3 h-3 text-gray-400 mx-1 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
+                            </svg>
+                            <a href="{{ route('products.index') }}" class="ms-1 text-sm font-medium text-gray-700 hover:text-blue-600 md:ms-2 dark:text-gray-400 dark:hover:text-white">Products</a>
+                        </div>
+                    </li>
+                    <li aria-current="page">
+                        <div class="flex items-center">
+                            <svg class="w-3 h-3 text-gray-400 mx-1 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
+                            </svg>
+                            <span class="ms-1 text-sm font-medium text-gray-500 md:ms-2 dark:text-gray-400">Add Product</span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+            <h2 class="mt-4 text-2xl font-bold text-gray-900 dark:text-white">Add New Product</h2>
+        </div>
 
-    <div class="py-6 space-y-6" x-data="productForm()">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-lg sm:rounded-xl border border-gray-200 dark:border-gray-700">
-                <div class="p-8">
+        <form action="{{ route('products.store') }}" method="POST" enctype="multipart/form-data" 
+              x-data="productForm({{ json_encode($units) }}, {{ json_encode(old('variants', [['unit_id' => '', 'unit_value' => '', 'sku' => '', 'selling_price' => '', 'limit_price' => '', 'quantity' => 0, 'alert_quantity' => 5]])) }})">
+            @csrf
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Column (Main Info) -->
+                <div class="lg:col-span-2 space-y-6">
                     
-                    <!-- Error Message Display -->
-                    <template x-if="errorMessage">
-                        <div class="mb-6 p-4 bg-red-50 text-red-800 border border-red-200 rounded-lg dark:bg-red-900/30 dark:text-red-300 dark:border-red-800" role="alert">
-                            <div class="flex items-center mb-2">
-                                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
-                                <span class="font-medium" x-text="errorMessage"></span>
+                    <!-- Basic Information -->
+                    <x-form-section title="Basic Information" description="Enter the core product details.">
+                        <div class="space-y-6">
+                            <div>
+                                <label for="name" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Product Name <span class="text-red-500">*</span></label>
+                                <input type="text" id="name" name="name" x-model="name" value="{{ old('name') }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" placeholder="e.g. Wireless Headphones" required>
+                                <x-input-error :messages="$errors->get('name')" class="mt-2" />
                             </div>
-                        </div>
-                    </template>
 
-                    @if ($errors->any())
-                        <div class="mb-6 p-4 bg-red-50 text-red-800 border border-red-200 rounded-lg dark:bg-red-900/30 dark:text-red-300 dark:border-red-800" role="alert">
-                            <ul class="list-disc list-inside text-sm ml-5">
-                                @foreach ($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
-
-                    <form action="{{ route('products.store') }}" method="POST" enctype="multipart/form-data">
-                        @csrf
-                        
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            
-                            <!-- Basic Info Section -->
-                            <div class="space-y-6">
-                                <div class="pb-2 border-b border-gray-200 dark:border-gray-700">
-                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                                        <svg class="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                        Basic Information
-                                    </h3>
-                                </div>
-                                
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label for="name" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Product Name <span class="text-red-500">*</span></label>
-                                    <input type="text" id="name" name="name" value="{{ old('name') }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="e.g. Product Name" required>
-                                </div>
-
-                                <div>
-                                    <label for="sku" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">SKU / Barcode <span class="text-red-500">*</span></label>
-                                    <div class="flex">
-                                        <span class="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">
-                                            <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
-                                        </span>
-                                        <input type="text" id="sku" name="sku" value="{{ old('sku', 'SKU-' . strtoupper(Str::random(8))) }}" class="rounded-none rounded-r-lg bg-gray-50 border border-gray-300 text-gray-900 focus:ring-blue-500 focus:border-blue-500 block flex-1 min-w-0 w-full text-sm p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required>
-                                    </div>
-                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Barcode will be generated automatically from this SKU.</p>
-                                </div>
-
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <div class="flex justify-between items-center mb-2">
-                                            <label for="category_id" class="block text-sm font-medium text-gray-900 dark:text-white">Category <span class="text-red-500">*</span></label>
-                                            <button type="button" @click="openModal('category')" class="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center">
-                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                                                Add New
-                                            </button>
-                                        </div>
-                                        <select id="category_id" name="category_id" x-model="selectedCategory" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required>
+                                    <label for="category_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Category <span class="text-red-500">*</span></label>
+                                    <div class="flex gap-2">
+                                        <select id="category_id" name="category_id" x-model="selectedCategory" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required>
                                             <option value="">Select Category</option>
                                             @foreach($categories as $category)
                                                 <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -78,237 +62,185 @@
                                                 <option :value="cat.id" x-text="cat.name"></option>
                                             </template>
                                         </select>
-                                    </div>
-                                    <div>
-                                        <div class="flex justify-between items-center mb-2">
-                                            <label for="sub_category_id" class="block text-sm font-medium text-gray-900 dark:text-white">Sub Category</label>
-                                            <button type="button" @click="openModal('subCategory')" class="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center">
-                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                                                Add New
-                                            </button>
-                                        </div>
-                                        <select id="sub_category_id" name="sub_category_id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-                                            <option value="">Select Sub Category</option>
-                                             @foreach($subCategories as $subCategory)
-                                                <option value="{{ $subCategory->id }}">{{ $subCategory->name }} ({{ $subCategory->category->name ?? 'No Parent' }})</option>
-                                            @endforeach
-                                            <template x-for="sub in newSubCategories" :key="sub.id">
-                                                <option :value="sub.id" x-text="sub.name + ' (New)'"></option>
-                                            </template>
-                                        </select>
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <div class="flex justify-between items-center mb-2">
-                                        <label for="unit_id" class="block text-sm font-medium text-gray-900 dark:text-white">Unit</label>
-                                        <button type="button" @click="openModal('unit')" class="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                                            Add New
+                                        <button type="button" @click="openModal('category')" class="px-3 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                                         </button>
                                     </div>
-                                     <select id="unit_id" name="unit_id" x-model="selectedUnit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-                                        <option value="">Select Unit</option>
-                                        @foreach($units as $unit)
-                                            <option value="{{ $unit->id }}">{{ $unit->name }} ({{ $unit->short_name }})</option>
-                                        @endforeach
-                                        <template x-for="u in newUnits" :key="u.id">
-                                            <option :value="u.id" x-text="u.name + ' (' + u.short_name + ')'"></option>
-                                        </template>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label for="description" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Description</label>
-                                    <textarea id="description" name="description" rows="4" class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Product description...">{{ old('description') }}</textarea>
+                                    <x-input-error :messages="$errors->get('category_id')" class="mt-2" />
                                 </div>
                                 
                                 <div>
-                                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white" for="image">Product Image</label>
-                                    <input class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400" id="image" name="image" type="file" accept="image/*">
-                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400" id="file_input_help">SVG, PNG, JPG or GIF (MAX. 2MB).</p>
-                                </div>
-                            </div>
-
-                            <!-- Pricing & Inventory Section -->
-                            <div class="space-y-6">
-                                <div class="pb-2 border-b border-gray-200 dark:border-gray-700">
-                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                                        <svg class="w-5 h-5 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                        Pricing & Inventory
-                                    </h3>
-                                </div>
-                                
-                                <div>
-                                    <label for="selling_price" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Selling Price <span class="text-red-500">*</span></label>
-                                    <div class="relative">
-                                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                            <span class="text-gray-500 dark:text-gray-400">Rs.</span>
-                                        </div>
-                                        <input type="number" step="0.01" id="selling_price" name="selling_price" value="{{ old('selling_price') }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="0.00" required>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label for="limit_price" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Limit Price (Min)</label>
-                                    <div class="relative">
-                                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                            <span class="text-gray-500 dark:text-gray-400">Rs.</span>
-                                        </div>
-                                        <input type="number" step="0.01" id="limit_price" name="limit_price" value="{{ old('limit_price') }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="0.00">
-                                    </div>
-                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">The minimum price at which this product can be sold.</p>
-                                </div>
-
-                                <div>
-                                    <label for="alert_quantity" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Alert Quantity</label>
-                                    <input type="number" id="alert_quantity" name="alert_quantity" value="{{ old('alert_quantity', 5) }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Get notified when stock drops below this level.</p>
-                                </div>
-
-                                <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
-                                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Current Stock</label>
-                                    <div class="relative">
-                                        <input type="text" value="0" disabled class="bg-gray-200 border border-gray-300 text-gray-500 text-sm rounded-lg cursor-not-allowed block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-400">
-                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3">
-                                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                                        </div>
-                                    </div>
-                                    <p class="mt-2 text-sm text-red-600 dark:text-red-400 flex items-center">
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                        Initial stock is 0. Please create a purchase entry to add stock.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center justify-end mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                            <a href="{{ route('products.index') }}" class="text-gray-900 hover:text-white border border-gray-800 hover:bg-gray-900 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 mb-2 dark:border-gray-600 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-800 transition-colors">
-                                Cancel
-                            </a>
-                            <button type="submit" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 shadow-md transition-transform hover:scale-105">
-                                Save Product
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Category Modal -->
-        <div x-show="showCategoryModal" style="display: none;" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div x-show="showCategoryModal" @click="showCategoryModal = false" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-                <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                    <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                        <div class="sm:flex sm:items-start">
-                             <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">Add New Category</h3>
-                                <div class="mt-4 space-y-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
-                                        <input type="text" x-model="newCategoryForm.name" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Code</label>
-                                        <input type="text" x-model="newCategoryForm.code" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                        <button type="button" @click="saveCategory()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">Save</button>
-                        <button type="button" @click="showCategoryModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm dark:bg-gray-600 dark:text-white dark:border-gray-500 hover:dark:bg-gray-500">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sub Modal -->
-        <div x-show="showSubCategoryModal" style="display: none;" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div x-show="showSubCategoryModal" @click="showSubCategoryModal = false" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-                <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                    <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                         <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">Add New Sub Category</h3>
-                                <div class="mt-4 space-y-4">
-                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Parent Category</label>
-                                        <!-- If category is already selected in main form, pre-select it here or lock it -->
-                                        <select x-model="newSubCategoryForm.category_id" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                            <option value="">Select Category</option>
-                                            @foreach($categories as $category)
-                                                <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                    <label for="sub_category_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Sub Category</label>
+                                    <div class="flex gap-2">
+                                        <select id="sub_category_id" name="sub_category_id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                                            <option value="">Select Sub Category</option>
+                                            @foreach($subCategories as $subCategory)
+                                                <option value="{{ $subCategory->id }}" data-category="{{ $subCategory->category_id }}" x-show="selectedCategory == {{ $subCategory->category_id }} || selectedCategory == ''">{{ $subCategory->name }}</option>
                                             @endforeach
-                                            <template x-for="cat in newCategories" :key="cat.id">
-                                                <option :value="cat.id" x-text="cat.name"></option>
+                                             <template x-for="sub in newSubCategories" :key="sub.id">
+                                                <option :value="sub.id" x-text="sub.name" x-show="selectedCategory == sub.category_id"></option>
                                             </template>
                                         </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
-                                        <input type="text" x-model="newSubCategoryForm.name" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        <button type="button" @click="openModal('subCategory')" class="px-3 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800" :disabled="!selectedCategory" :class="{'opacity-50 cursor-not-allowed': !selectedCategory}">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                        </button>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div>
+                                <label for="description" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Description</label>
+                                <textarea id="description" name="description" rows="4" class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Product description...">{{ old('description') }}</textarea>
+                            </div>
                         </div>
-                    </div>
-                     <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                        <button type="button" @click="saveSubCategory()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">Save</button>
-                        <button type="button" @click="showSubCategoryModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm dark:bg-gray-600 dark:text-white dark:border-gray-500 hover:dark:bg-gray-500">Cancel</button>
+                    </x-form-section>
+
+                    <!-- Product Variants -->
+                    <x-form-section title="Product Variants" description="Manage different units/variants (e.g., 1kg, 500g) with specific pricing and stock.">
+                        <div class="space-y-6">
+                            
+                            <template x-for="(variant, index) in variants" :key="index">
+                                <div class="p-4 border border-gray-200 rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-gray-800 relative">
+                                    
+                                    <!-- Remove Button -->
+                                    <button type="button" @click="removeVariant(index)" x-show="variants.length > 1" class="absolute top-2 right-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        <!-- Unit -->
+                                        <div>
+                                            <label :for="'variant_unit_'+index" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Unit <span class="text-red-500">*</span></label>
+                                            <select :id="'variant_unit_'+index" :name="'variants['+index+'][unit_id]'" x-model="variant.unit_id" @change="generateSmartSku(index)" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required>
+                                                <option value="">Select Unit</option>
+                                                @foreach($units as $unit)
+                                                    <option value="{{ $unit->id }}">{{ $unit->name }} ({{ $unit->short_name }})</option>
+                                                @endforeach
+                                                <template x-for="unit in newUnits" :key="unit.id">
+                                                    <option :value="unit.id" x-text="unit.name + ' (' + unit.short_name + ')'"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+
+                                        <!-- Unit Value -->
+                                        <div>
+                                            <label :for="'variant_unit_value_'+index" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Value (Optional)</label>
+                                            <input type="text" :id="'variant_unit_value_'+index" :name="'variants['+index+'][unit_value]'" x-model="variant.unit_value" @input="generateSmartSku(index)" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" placeholder="e.g. 500">
+                                        </div>
+
+                                        <!-- SKU -->
+                                        <div>
+                                            <label :for="'variant_sku_'+index" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">SKU <span class="text-red-500">*</span></label>
+                                            <div class="flex">
+                                                 <span @click="generateSmartSku(index)" class="cursor-pointer inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 hover:bg-gray-300" title="Click to Generate">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                                </span>
+                                                <input type="text" :id="'variant_sku_'+index" :name="'variants['+index+'][sku]'" x-model="variant.sku" class="rounded-none rounded-r-lg bg-white border border-gray-300 text-gray-900 focus:ring-blue-500 focus:border-blue-500 block flex-1 min-w-0 w-full text-sm p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required>
+                                            </div>
+                                        </div>
+
+                                        <!-- Selling Price -->
+                                        <div>
+                                            <label :for="'variant_price_'+index" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Price <span class="text-red-500">*</span></label>
+                                            <div class="relative">
+                                                 <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                                    <span class="text-gray-500 dark:text-gray-400">Rs.</span>
+                                                </div>
+                                                <input type="number" step="0.01" :id="'variant_price_'+index" :name="'variants['+index+'][selling_price]'" x-model="variant.selling_price" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" placeholder="0.00" required>
+                                            </div>
+                                        </div>
+
+                                        <!-- Limit Price -->
+                                        <div>
+                                            <label :for="'variant_limit_'+index" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Limit Price</label>
+                                            <input type="number" step="0.01" :id="'variant_limit_'+index" :name="'variants['+index+'][limit_price]'" x-model="variant.limit_price" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" placeholder="0.00">
+                                        </div>
+
+                                        <!-- Quantity -->
+                                        <div>
+                                            <label :for="'variant_qty_'+index" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Quantity <span class="text-red-500">*</span></label>
+                                            <input type="number" :id="'variant_qty_'+index" :name="'variants['+index+'][quantity]'" x-model="variant.quantity" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required>
+                                        </div>
+
+                                         <!-- Variant Image -->
+                                        <div>
+                                            <label :for="'variant_image_'+index" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Image (Optional)</label>
+                                            <input type="file" :id="'variant_image_'+index" :name="'variants['+index+'][image]'" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400">
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <button type="button" @click="addVariant" class="text-blue-700 hover:text-white border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:hover:bg-blue-500 dark:focus:ring-blue-800 w-full flex justify-center items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                Add Another Variant
+                            </button>
+
+                             <x-input-error :messages="$errors->get('variants')" class="mt-2" />
+                        </div>
+                    </x-form-section>
+                </div>
+
+                <!-- Right Column (Media & Actions) -->
+                <div class="space-y-6">
+                    <x-form-section title="Product Media">
+                        <!-- Image Upload with Preview -->
+                        <div x-data="imageViewer()">
+                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white" for="image">Main Product Image</label>
+                            
+                            <div class="flex items-center justify-center w-full">
+                                <label for="image" class="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-bray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600 relative overflow-hidden group">
+                                    <div class="flex flex-col items-center justify-center pt-5 pb-6" x-show="!imageUrl">
+                                        <svg class="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                                        </svg>
+                                        <p class="mb-2 text-sm text-gray-500 dark:text-gray-400"><span class="font-semibold">Click to upload</span></p>
+                                    </div>
+                                    <img x-show="imageUrl" :src="imageUrl" class="absolute inset-0 w-full h-full object-cover" />
+                                    <input id="image" name="image" type="file" class="hidden" accept="image/*" @change="fileChosen">
+                                </label>
+                            </div>
+                            <x-input-error :messages="$errors->get('image')" class="mt-2" />
+                        </div>
+                    </x-form-section>
+
+                    <!-- Actions -->
+                    <div class="flex flex-col gap-3">
+                        <button type="submit" class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 shadow-lg transition-transform active:scale-95">
+                            Save Product
+                        </button>
+                        <a href="{{ route('products.index') }}" class="w-full py-2.5 px-5 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 text-center">
+                            Cancel
+                        </a>
                     </div>
                 </div>
             </div>
-        </div>
+            
+             <!-- Quick Add Modals -->
+             @include('product_management.products.partials.quick-add-modals')
 
-        <!-- Unit Modal -->
-        <div x-show="showUnitModal" style="display: none;" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div x-show="showUnitModal" @click="showUnitModal = false" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-                <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                    <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">Add New Unit</h3>
-                                <div class="mt-4 space-y-4">
-                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
-                                        <input type="text" x-model="newUnitForm.name" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Short Name</label>
-                                        <input type="text" x-model="newUnitForm.short_name" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                    </div>
-                                </div>
-                        </div>
-                    </div>
-                     <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                        <button type="button" @click="saveUnit()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">Save</button>
-                        <button type="button" @click="showUnitModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm dark:bg-gray-600 dark:text-white dark:border-gray-500 hover:dark:bg-gray-500">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </form>
+    </x-form-layout>
 
-    </div>
-
-    @push('scripts')
     <script>
-        function productForm() {
+        function productForm(backendUnits, oldVariants) {
             return {
                 showCategoryModal: false,
                 showSubCategoryModal: false,
                 showUnitModal: false,
-                selectedCategory: '',
-                selectedUnit: '',
+                selectedCategory: '{{ old('category_id') }}',
                 newCategories: [],
                 newSubCategories: [],
                 newUnits: [],
-                errorMessage: '',
+                unitsList: backendUnits, // To access names if needed, though simple select is enough
                 
+                // Variants Data
+                variants: oldVariants,
+
+                // Form Data (Main)
+                name: '{{ old('name') }}',
+
+                // Form Data for Modals
                 newCategoryForm: { name: '', code: '' },
                 newSubCategoryForm: { category_id: '', name: '' },
                 newUnitForm: { name: '', short_name: '' },
@@ -320,9 +252,70 @@
                          this.showSubCategoryModal = true;
                     }
                     if(type === 'unit') this.showUnitModal = true;
-                    this.errorMessage = '';
                 },
 
+                addVariant() {
+                    this.variants.push({
+                         unit_id: '',
+                         unit_value: '',
+                         sku: '',
+                         selling_price: '',
+                         limit_price: '',
+                         quantity: 0,
+                         alert_quantity: 5
+                    });
+                    this.generateSmartSku(this.variants.length - 1);
+                },
+
+                removeVariant(index) {
+                    this.variants.splice(index, 1);
+                },
+
+                generateSmartSku(index) {
+                     let variant = this.variants[index];
+                     
+                     // 1. Product Name Code (3 chars, Upper)
+                     let namePart = this.name ? this.name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X') : 'PRO';
+                     if(namePart.length < 3) namePart = namePart.padEnd(3, 'X');
+                     
+                     // 2. Variant Spec Code (Value + Unit)
+                     let unitObj = this.unitsList.find(u => u.id == variant.unit_id);
+                     let specPart = 'VAR';
+                     if (unitObj) {
+                         let val = variant.unit_value ? variant.unit_value.replace(/[^0-9a-zA-Z]/g, '') : '';
+                         specPart = val + unitObj.short_name.toUpperCase();
+                     } else {
+                        // Fallback/Random if no unit selected
+                        specPart = 'GEN';
+                     }
+                     
+                     // 3. Random Suffix (4 chars) - Try to preserve existing if present to avoid flickering
+                     let currentSku = variant.sku || '';
+                     let randomSuffix = '';
+                     let matches = currentSku.match(/-([A-Z0-9]{4})$/);
+                     if (matches) {
+                         randomSuffix = matches[1];
+                     } else {
+                         randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+                     }
+                     
+                     // Combine: SK + Name + - + Spec + - + Random
+                     this.variants[index].sku = `SK${namePart}-${specPart}-${randomSuffix}`;
+                },
+                
+                updateAllSkus() {
+                    this.variants.forEach((_, index) => this.generateSmartSku(index));
+                },
+                
+                init() {
+                     this.$watch('name', () => this.updateAllSkus());
+                     
+                     if (this.variants.length === 1 && !this.variants[0].sku) {
+                         this.generateSmartSku(0);
+                     }
+                },
+
+                // API Calls (same as before)
                 async saveCategory() {
                     try {
                         let response = await axios.post('{{ route("quick.category.store") }}', this.newCategoryForm);
@@ -332,9 +325,7 @@
                             this.showCategoryModal = false;
                             this.newCategoryForm = { name: '', code: '' };
                         }
-                    } catch (error) {
-                        this.handleError(error);
-                    }
+                    } catch (error) { this.handleQuickAddError(error); }
                 },
 
                 async saveSubCategory() {
@@ -342,15 +333,10 @@
                         let response = await axios.post('{{ route("quick.subcategory.store") }}', this.newSubCategoryForm);
                         if(response.data.success) {
                             this.newSubCategories.push(response.data.subCategory);
-                             // Auto select modal close
                             this.showSubCategoryModal = false;
                             this.newSubCategoryForm = { category_id: '', name: '' };
-                            // Note: We don't verify if it belongs to current Category as that requires complex logic, 
-                            // but simpler is to just add it and let user select it if valid.
                         }
-                    } catch (error) {
-                        this.handleError(error);
-                    }
+                    } catch (error) { this.handleQuickAddError(error); }
                 },
 
                 async saveUnit() {
@@ -358,24 +344,36 @@
                         let response = await axios.post('{{ route("quick.unit.store") }}', this.newUnitForm);
                         if(response.data.success) {
                             this.newUnits.push(response.data.unit);
-                            this.selectedUnit = response.data.unit.id;
                             this.showUnitModal = false;
                             this.newUnitForm = { name: '', short_name: '' };
                         }
-                    } catch (error) {
-                        this.handleError(error);
-                    }
+                    } catch (error) { this.handleQuickAddError(error); }
                 },
 
-                handleError(error) {
+                handleQuickAddError(error) {
+                    let msg = 'Error saving.';
                     if (error.response && error.response.data && error.response.data.errors) {
-                         this.errorMessage = Object.values(error.response.data.errors).flat().join(', ');
-                    } else {
-                        this.errorMessage = 'An unexpected error occurred.';
+                         msg = Object.values(error.response.data.errors).flat().join('\n');
                     }
+                    alert(msg);
+                }
+            }
+        }
+        
+        function imageViewer() {
+            return {
+                imageUrl: '',
+                fileChosen(event) {
+                    this.fileToDataUrl(event, src => this.imageUrl = src)
+                },
+                fileToDataUrl(event, callback) {
+                    if (! event.target.files.length) return
+                    let file = event.target.files[0],
+                        reader = new FileReader()
+                    reader.readAsDataURL(file)
+                    reader.onload = e => callback(e.target.result)
                 }
             }
         }
     </script>
-    @endpush
 </x-app-layout>

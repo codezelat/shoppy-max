@@ -63,7 +63,7 @@ class Order extends Model
 
     public function reseller()
     {
-        return $this->belongsTo(User::class, 'reseller_id');
+        return $this->belongsTo(Reseller::class, 'reseller_id');
     }
 
     public function packer()

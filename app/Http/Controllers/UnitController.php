@@ -10,9 +10,17 @@ class UnitController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $units = Unit::all();
+        $query = Unit::query();
+
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->where('name', 'like', "%{$search}%")
+                  ->orWhere('short_name', 'like', "%{$search}%");
+        }
+
+        $units = $query->paginate(10);
         return view('product_management.units.index', compact('units'));
     }
 

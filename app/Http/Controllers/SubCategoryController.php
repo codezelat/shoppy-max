@@ -8,10 +8,25 @@ use Illuminate\Http\Request;
 
 class SubCategoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $subCategories = SubCategory::with('category')->get();
-        return view('product_management.sub_categories.index', compact('subCategories'));
+        $query = SubCategory::with('category');
+
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->where('name', 'like', "%{$search}%")
+                  ->orWhereHas('category', function($q) use ($search) {
+                      $q->where('name', 'like', "%{$search}%");
+                  });
+        }
+
+        if ($request->has('category_id') && $request->category_id != '') {
+             $query->where('category_id', $request->category_id);
+        }
+
+        $subCategories = $query->paginate(10);
+        $categories = Category::all(); // For filter dropdown
+        return view('product_management.sub_categories.index', compact('subCategories', 'categories'));
     }
 
     public function create()
