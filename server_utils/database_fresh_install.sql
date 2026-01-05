@@ -1,8 +1,8 @@
 -- ============================================
 -- ShoppyMax Database Schema
 -- Database: lbccompa_shoppymax
--- Generated: 2026-01-01
--- Description: Fresh database structure for ShoppyMax
+-- Generated: 2026-01-06
+-- Description: Fresh database structure for ShoppyMax (Updated)
 -- ============================================
 
 -- Create database if not exists
@@ -337,32 +337,45 @@ CREATE TABLE `attribute_values` (
   CONSTRAINT `attribute_values_attribute_id_foreign` FOREIGN KEY (`attribute_id`) REFERENCES `attributes` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Products Table
+-- Products Table (UPDATED: Removed variant fields)
 CREATE TABLE `products` (
   `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
-  `sku` varchar(255) NOT NULL,
   `barcode_data` text DEFAULT NULL,
   `category_id` bigint(20) UNSIGNED DEFAULT NULL,
   `sub_category_id` bigint(20) UNSIGNED DEFAULT NULL,
-  `unit_id` bigint(20) UNSIGNED DEFAULT NULL,
-  `selling_price` decimal(10,2) DEFAULT NULL,
-  `limit_price` decimal(10,2) DEFAULT NULL,
-  `alert_quantity` int(11) NOT NULL DEFAULT 0,
-  `quantity` int(11) NOT NULL DEFAULT 0,
   `description` text DEFAULT NULL,
   `image` varchar(255) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `products_sku_unique` (`sku`),
   KEY `products_category_id_foreign` (`category_id`),
   KEY `products_sub_category_id_foreign` (`sub_category_id`),
-  KEY `products_unit_id_foreign` (`unit_id`),
   CONSTRAINT `products_category_id_foreign` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `products_sub_category_id_foreign` FOREIGN KEY (`sub_category_id`) REFERENCES `sub_categories` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `products_unit_id_foreign` FOREIGN KEY (`unit_id`) REFERENCES `units` (`id`) ON DELETE SET NULL
+  CONSTRAINT `products_sub_category_id_foreign` FOREIGN KEY (`sub_category_id`) REFERENCES `sub_categories` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Product Variants Table (NEW)
+CREATE TABLE `product_variants` (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `product_id` bigint(20) UNSIGNED NOT NULL,
+  `unit_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `unit_value` varchar(255) DEFAULT NULL,
+  `sku` varchar(255) NOT NULL,
+  `selling_price` decimal(10,2) NOT NULL,
+  `limit_price` decimal(10,2) DEFAULT NULL,
+  `alert_quantity` int(11) NOT NULL DEFAULT 0,
+  `quantity` int(11) NOT NULL DEFAULT 0,
+  `image` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `product_variants_sku_unique` (`sku`),
+  KEY `product_variants_product_id_foreign` (`product_id`),
+  KEY `product_variants_unit_id_foreign` (`unit_id`),
+  CONSTRAINT `product_variants_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `product_variants_unit_id_foreign` FOREIGN KEY (`unit_id`) REFERENCES `units` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Product Attributes Table
@@ -386,26 +399,23 @@ CREATE TABLE `product_attributes` (
 -- TARGET & PAYMENT TABLES
 -- ============================================
 
--- Reseller Targets Table
+-- Reseller Targets Table (UPDATED: Matches migration)
 CREATE TABLE `reseller_targets` (
   `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` bigint(20) UNSIGNED NOT NULL,
+  `reseller_id` bigint(20) UNSIGNED NOT NULL,
   `target_type` varchar(255) NOT NULL,
-  `target_completed_price` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `target_not_completed_price` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `return_order_target_price` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `start_date` date NOT NULL,
-  `end_date` date NOT NULL,
+  `target_completed_price` decimal(15,2) DEFAULT NULL,
+  `with_completed_price` decimal(15,2) DEFAULT NULL,
+  `return_order_target_price` decimal(15,2) DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
   `ref_id` varchar(255) DEFAULT NULL,
-  `target_pieces_qty` int(11) NOT NULL DEFAULT 0,
-  `created_by` bigint(20) UNSIGNED DEFAULT NULL,
+  `target_pcs_qty` int(11) NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `reseller_targets_user_id_foreign` (`user_id`),
-  KEY `reseller_targets_created_by_foreign` (`created_by`),
-  CONSTRAINT `reseller_targets_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `reseller_targets_created_by_foreign` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+  KEY `reseller_targets_reseller_id_foreign` (`reseller_id`),
+  CONSTRAINT `reseller_targets_reseller_id_foreign` FOREIGN KEY (`reseller_id`) REFERENCES `resellers` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Seller Targets Table
@@ -430,23 +440,20 @@ CREATE TABLE `seller_targets` (
   CONSTRAINT `seller_targets_created_by_foreign` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Reseller Payments Table
+-- Reseller Payments Table (UPDATED: Matches migration)
 CREATE TABLE `reseller_payments` (
   `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` bigint(20) UNSIGNED NOT NULL,
-  `payment_ref_no` varchar(255) DEFAULT NULL,
-  `amount` decimal(10,2) NOT NULL,
-  `payment_method` varchar(255) DEFAULT NULL,
-  `status` varchar(255) NOT NULL DEFAULT 'Paid',
-  `payment_date` date NOT NULL,
-  `created_by` bigint(20) UNSIGNED DEFAULT NULL,
+  `reseller_id` bigint(20) UNSIGNED NOT NULL,
+  `amount` decimal(12,2) NOT NULL,
+  `status` enum('paid','cancelled') NOT NULL DEFAULT 'paid',
+  `payment_method` varchar(255) NOT NULL,
+  `reference_id` varchar(255) DEFAULT NULL,
+  `payment_date` timestamp NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `reseller_payments_user_id_foreign` (`user_id`),
-  KEY `reseller_payments_created_by_foreign` (`created_by`),
-  CONSTRAINT `reseller_payments_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `reseller_payments_created_by_foreign` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+  KEY `reseller_payments_reseller_id_foreign` (`reseller_id`),
+  CONSTRAINT `reseller_payments_reseller_id_foreign` FOREIGN KEY (`reseller_id`) REFERENCES `resellers` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Courier Payments Table
@@ -470,7 +477,7 @@ CREATE TABLE `courier_payments` (
 -- ORDERS TABLES
 -- ============================================
 
--- Orders Table
+-- Orders Table (UPDATED: reseller_id now references resellers)
 CREATE TABLE `orders` (
   `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
   `order_number` varchar(255) NOT NULL,
@@ -507,7 +514,7 @@ CREATE TABLE `orders` (
   KEY `orders_courier_id_foreign` (`courier_id`),
   KEY `orders_courier_payment_id_foreign` (`courier_payment_id`),
   CONSTRAINT `orders_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `orders_reseller_id_foreign` FOREIGN KEY (`reseller_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `orders_reseller_id_foreign` FOREIGN KEY (`reseller_id`) REFERENCES `resellers` (`id`) ON DELETE SET NULL,
   CONSTRAINT `orders_city_id_foreign` FOREIGN KEY (`city_id`) REFERENCES `cities` (`id`) ON DELETE SET NULL,
   CONSTRAINT `orders_packed_by_foreign` FOREIGN KEY (`packed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `orders_courier_id_foreign` FOREIGN KEY (`courier_id`) REFERENCES `couriers` (`id`) ON DELETE SET NULL,
@@ -682,7 +689,13 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES
 ('2025_12_25_233858_add_address_details_to_suppliers_and_resellers_tables', 1),
 ('2025_12_25_235502_create_personal_access_tokens_table', 1),
 ('2025_12_30_093115_make_product_fields_nullable', 1),
-('2025_12_30_094155_add_soft_deletes_to_products_table', 1);
+('2025_12_30_094155_add_soft_deletes_to_products_table', 1),
+('2026_01_03_120335_create_reseller_targets_table', 1),
+('2026_01_03_122015_create_reseller_payments_table', 1),
+('2026_01_03_122955_update_orders_reseller_id_fk', 1),
+('2026_01_03_124150_add_status_to_reseller_payments_table', 1),
+('2026_01_03_133335_create_product_variants_table', 1),
+('2026_01_03_135921_add_unit_value_to_product_variants_table', 1);
 
 -- ============================================
 -- SEED DATA - ROLES, PERMISSIONS & SUPER ADMIN
@@ -728,15 +741,4 @@ INSERT INTO `model_has_roles` (`role_id`, `model_type`, `model_id`) VALUES
 
 -- ============================================
 -- END OF SCHEMA & SEED DATA
--- ============================================
--- 
--- LOGIN CREDENTIALS:
--- Email: admin@shoppy-max.com
--- Password: password
--- 
--- ⚠️ SECURITY WARNING:
--- Change the default password immediately after first login!
--- Navigate to your profile settings or use Laravel Tinker:
--- php artisan tinker
--- User::find(1)->update(['password' => Hash::make('YourNewPassword')]);
 -- ============================================
