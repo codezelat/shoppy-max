@@ -149,6 +149,25 @@
                     </li>
                 </ul>
             </li>
+
+            <!-- Purchases -->
+            <li>
+                <button type="button" class="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700" aria-controls="dropdown-purchases" data-collapse-toggle="dropdown-purchases">
+                    <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    <span class="flex-1 ms-3 text-left rtl:text-right whitespace-nowrap">Purchases</span>
+                    <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"/>
+                    </svg>
+                </button>
+                <ul id="dropdown-purchases" class="{{ request()->routeIs('purchases.*') ? '' : 'hidden' }} py-2 space-y-2">
+                    <li>
+                            <a href="{{ route('purchases.index') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('purchases.index') ? 'text-primary-600 dark:text-primary-400' : '' }}">Purchase List</a>
+                    </li>
+                    <li>
+                            <a href="{{ route('purchases.create') }}" class="flex items-center w-full p-2 text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 {{ request()->routeIs('purchases.create') ? 'text-primary-600 dark:text-primary-400' : '' }}">Add Purchase</a>
+                    </li>
+                </ul>
+            </li>
                 
                 <!-- User Section -->
                 <li>

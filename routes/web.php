@@ -79,6 +79,13 @@ Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function (
     Route::get('/search-products', [\App\Http\Controllers\OrderController::class, 'searchProducts'])->name('search-products');
     Route::get('/search-resellers', [\App\Http\Controllers\OrderController::class, 'searchResellers'])->name('search-resellers');
     
+    // CRUD & PDF
+    Route::get('/{order}', [\App\Http\Controllers\OrderController::class, 'show'])->name('show');
+    Route::get('/{order}/edit', [\App\Http\Controllers\OrderController::class, 'edit'])->name('edit');
+    Route::put('/{order}', [\App\Http\Controllers\OrderController::class, 'update'])->name('update');
+    Route::delete('/{order}', [\App\Http\Controllers\OrderController::class, 'destroy'])->name('destroy');
+    Route::get('/{order}/pdf', [\App\Http\Controllers\OrderController::class, 'downloadPdf'])->name('pdf');
+    
     // Status update
     Route::post('/{id}/status', [\App\Http\Controllers\OrderController::class, 'updateStatus'])->name('status.update');
 
@@ -113,6 +120,7 @@ Route::middleware(['auth'])->get('reseller-dues/{id}', [\App\Http\Controllers\Re
 Route::middleware(['auth'])->group(function () {
     Route::resource('couriers', \App\Http\Controllers\CourierController::class);
     Route::resource('courier-payments', \App\Http\Controllers\CourierPaymentController::class);
+    Route::resource('purchases', \App\Http\Controllers\PurchaseController::class);
 });
 
 // Report Routes

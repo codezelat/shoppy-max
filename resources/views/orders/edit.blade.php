@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div x-data="orderManager()" class="py-12" x-cloak>
+    <div x-data="orderManager({{ json_encode($orderFull) }})" class="py-12" x-cloak>
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
             <!-- Breadcrumb -->
@@ -26,7 +26,7 @@
                             <svg class="w-3 h-3 text-gray-400 mx-1" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
                             </svg>
-                            <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400">Create Order</span>
+                            <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400">Edit Order {{ $order->order_number }}</span>
                         </div>
                     </li>
                 </ol>
@@ -59,8 +59,8 @@
                     <!-- Order ID Preview -->
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 flex flex-col justify-center items-center">
                         <div class="text-center mb-4">
-                            <span class="block text-sm text-gray-500 dark:text-gray-400">Next Order ID</span>
-                            <span class="block text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $nextOrderNumber }}</span>
+                            <span class="block text-sm text-gray-500 dark:text-gray-400">Order ID</span>
+                            <span class="block text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $order->order_number }}</span>
                         </div>
                         <div class="w-full">
                             <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Order Status</label>
@@ -137,7 +137,7 @@
                             <textarea x-model="form.customer.address" rows="2" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required></textarea>
                         </div>
                     </div>
-                    
+
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
                         <!-- Province -->
                         <div>
@@ -239,11 +239,12 @@
                                                     <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
                                                 </button>
                                                 <input type="number" x-model="item.quantity" class="w-16 text-center bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" min="1">
-                                                <button type="button" @click="item.quantity < item.max_stock ? item.quantity++ : null" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600">
+                                                <button type="button" @click="item.quantity < (item.max_stock + item.original_qty_if_edit) ? item.quantity++ : null" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600">
                                                     <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                                                 </button>
                                             </div>
-                                             <div x-show="item.quantity > item.max_stock" class="text-xs text-red-500 text-center mt-1">Max Stock: <span x-text="item.max_stock"></span></div>
+                                             <!-- Logic to show max available including what they already bought -->
+                                             <div x-show="item.quantity >= (item.max_stock + (item.original_qty_if_edit || 0))" class="text-xs text-red-500 text-center mt-1">Max Stock Reached</div>
                                         </td>
                                         <td class="px-6 py-4 text-right">
                                             <input type="number" x-model="item.selling_price" class="w-24 text-right bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block ml-auto p-1 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" step="0.01">
@@ -359,8 +360,8 @@
                     <button type="submit" 
                             class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
                             :disabled="form.items.length === 0 || isSubmitting">
-                        <span x-show="!isSubmitting">Create Order</span>
-                        <span x-show="isSubmitting">Processing...</span>
+                        <span x-show="!isSubmitting">Update Order</span>
+                        <span x-show="isSubmitting">Updating...</span>
                     </button>
                 </div>
             </form>
@@ -368,51 +369,64 @@
     </div>
 
     <script>
-        function orderManager() {
+        function orderManager(initialOrder) {
             return {
                 isSubmitting: false,
                 resellerSearch: '',
                 resellers: [],
-                selectedReseller: null,
+                selectedReseller: initialOrder.reseller || null,
                 
                 productSearch: '',
                 productResults: [],
 
-                // Address Data
+                 // Address Data
                 provinces: @json($slData),
                 availableDistricts: [],
                 
                 form: {
-                    order_type: 'direct', // Default
-                    order_date: new Date().toISOString().split('T')[0],
-                    order_status: 'pending',
-                    reseller_id: null,
+                    order_type: initialOrder.order_type,
+                    order_date: initialOrder.order_date,
+                    order_status: initialOrder.status,
+                    reseller_id: initialOrder.reseller_id,
                     
                     // Fulfillment
-                    courier_id: null,
-                    courier_charge: 0,
-                    payment_method: 'COD',
-                    call_status: 'pending',
-                    sales_note: '',
+                    courier_id: initialOrder.courier_id,
+                    courier_charge: initialOrder.courier_charge,
+                    payment_method: initialOrder.payment_method,
+                    call_status: initialOrder.call_status,
+                    sales_note: initialOrder.sales_note,
 
                     customer: {
-                        name: '',
-                        mobile: '',
-                        landline: '',
-                        address: '',
-                        city: '',
-                        district: '',
-                        province: ''
+                        name: initialOrder.customer.name,
+                        mobile: initialOrder.customer.mobile,
+                        landline: initialOrder.customer.landline,
+                        address: initialOrder.customer.address,
+                        city: initialOrder.customer.city || initialOrder.customer_city,
+                        district: initialOrder.customer_district,
+                        province: initialOrder.customer_province
                     },
-                    items: []
+                    items: initialOrder.items.map(item => ({
+                        id: item.product_variant_id,
+                        name: item.product_name,
+                        sku: item.sku,
+                        quantity: item.quantity,
+                        original_qty_if_edit: item.quantity, // Setup for stock logic
+                        selling_price: parseFloat(item.unit_price),
+                        limit_price: parseFloat(item.base_price),
+                        max_stock: item.variant ? item.variant.quantity : 0, // Current stock available
+                        image: null // Can't easily get image without eager loading on variant relation deep structure, optional
+                    }))
                 },
                 
                 init() {
+                    // Pre-fill logic
+                    this.updateDistricts();
+                    
                     this.$watch('form.customer.province', (value) => {
                         this.updateDistricts();
                     });
                 },
-                
+
                 updateDistricts() {
                     const province = this.form.customer.province;
                     if (province && this.provinces[province]) {
@@ -420,7 +434,12 @@
                     } else {
                         this.availableDistricts = [];
                     }
-                    this.form.customer.district = ''; 
+                    // Only reset district if the current district is NOT in the new list (or if explicitly changing)
+                    // But for init loading, we want to keep it.
+                    // For now, simple logic: if just loaded, keep. If changed by user, reset.
+                    // Actually, $watch fires on init? No.
+                    // But if user changes province, we reset district. 
+                    // However, updateDistricts is called on Init.
                 },
                 
                 // --- Search Logic ---
@@ -472,7 +491,10 @@
                      // Check if already exists
                      const existing = this.form.items.find(i => i.id === product.id);
                      if (existing) {
-                         if (existing.quantity < product.stock) {
+                         // Logic for edit: available = current_stock + original_qty (if existing item)
+                         const allowedStock = product.stock + (existing.original_qty_if_edit || 0);
+
+                         if (existing.quantity < allowedStock) {
                              existing.quantity++;
                          } else {
                              alert("Max stock reached for this item.");
@@ -534,8 +556,8 @@
                     this.isSubmitting = true;
                     
                     try {
-                        const response = await fetch('{{ route("orders.store") }}', {
-                            method: 'POST',
+                        const response = await fetch('{{ route("orders.update", $order->id) }}', {
+                            method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')

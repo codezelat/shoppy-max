@@ -24,6 +24,7 @@
                     </li>
                 </ol>
             </nav>
+            
         </div>
     </x-slot>
 
@@ -31,60 +32,79 @@
         
         <!-- Filter bar -->
         <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
-            <div class="flex flex-col lg:flex-row gap-4 items-center justify-between">
-                
-                <!-- Search & Filters -->
-                <div class="w-full lg:flex-1">
-                    <form method="GET" action="{{ route('orders.index') }}" class="flex flex-col md:flex-row gap-3">
+             <div class="flex justify-end mb-4">
+                <a href="{{ route('orders.create') }}" class="w-full sm:w-64 inline-flex items-center justify-center px-8 py-2.5 text-sm font-medium text-white transition-colors bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 shadow-md">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Create Order
+                </a>
+             </div>
+             <form method="GET" action="{{ route('orders.index') }}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         
-                        <!-- Search -->
-                         <div class="relative w-full md:w-80">
-                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 1 1 14 0Z"/>
-                                </svg>
-                            </div>
-                            <input type="text" name="search" value="{{ request('search') }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Search Order # or Customer...">
-                        </div>
-
-                        <!-- Type Filter -->
-                        <div class="w-full md:w-40">
-                            <select name="order_type" onchange="this.form.submit()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                <option value="">All Types</option>
-                                <option value="reseller" {{ request('order_type') == 'reseller' ? 'selected' : '' }}>Reseller</option>
-                                <option value="direct" {{ request('order_type') == 'direct' ? 'selected' : '' }}>Direct</option>
-                            </select>
-                        </div>
-                        
-                        <!-- Status Filter -->
-                        <div class="w-full md:w-40">
-                             <select name="status" onchange="this.form.submit()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                <option value="">All Status</option>
-                                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="confirmed" {{ request('status') == 'confirmed' ? 'selected' : '' }}>Confirmed</option>
-                                <option value="shipped" {{ request('status') == 'shipped' ? 'selected' : '' }}>Shipped</option>
-                                <option value="delivered" {{ request('status') == 'delivered' ? 'selected' : '' }}>Delivered</option>
-                                <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                            </select>
-                        </div>
-                        
-                        @if(request('search') || request('order_type') || request('status'))
-                             <a href="{{ route('orders.index') }}" class="flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500 transition-colors">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                Clear
-                            </a>
-                        @endif
-                    </form>
+                <!-- Search -->
+                <div class="relative">
+                    <input type="text" name="search" value="{{ request('search') }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" placeholder="Search Order #, Name, Mobile...">
                 </div>
 
-                <!-- Actions -->
-                <div class="flex items-center gap-3 w-full lg:w-auto justify-end">
-                    <a href="{{ route('orders.create') }}" class="inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white transition-colors bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
-                        <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        Create Order
+                <!-- Order Status -->
+                <div>
+                        <select name="status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                        <option value="">All Order Status</option>
+                        <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="hold" {{ request('status') == 'hold' ? 'selected' : '' }}>Hold</option>
+                        <option value="confirm" {{ request('status') == 'confirm' ? 'selected' : '' }}>Confirm</option>
+                    </select>
+                </div>
+                
+                <!-- Call Status -->
+                <div>
+                        <select name="call_status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                        <option value="">All Call Status</option>
+                        <option value="pending" {{ request('call_status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="confirm" {{ request('call_status') == 'confirm' ? 'selected' : '' }}>Confirm</option>
+                        <option value="cancel" {{ request('call_status') == 'cancel' ? 'selected' : '' }}>Cancel</option>
+                    </select>
+                </div>
+
+                    <!-- Courier -->
+                <div>
+                        <select name="courier_id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                        <option value="">All Couriers</option>
+                        @foreach($couriers as $courier)
+                            <option value="{{ $courier->id }}" {{ request('courier_id') == $courier->id ? 'selected' : '' }}>{{ $courier->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Date From -->
+                <div>
+                    <input type="date" name="date_from" value="{{ request('date_from') }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="From Date">
+                </div>
+
+                <!-- Date To -->
+                <div>
+                    <input type="date" name="date_to" value="{{ request('date_to') }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="To Date">
+                </div>
+                
+                    <!-- Payment Method -->
+                <div>
+                        <select name="payment_method" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                        <option value="">All Payment Methods</option>
+                        <option value="COD" {{ request('payment_method') == 'COD' ? 'selected' : '' }}>COD</option>
+                        <option value="Online Payment" {{ request('payment_method') == 'Online Payment' ? 'selected' : '' }}>Online Payment</option>
+                        <option value="Bank Transfer" {{ request('payment_method') == 'Bank Transfer' ? 'selected' : '' }}>Bank Transfer</option>
+                    </select>
+                </div>
+
+                <!-- Filter Actions -->
+                <div class="flex gap-2">
+                    <button type="submit" class="flex-1 text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
+                        Filter
+                    </button>
+                    <a href="{{ route('orders.index') }}" class="flex-1 flex items-center justify-center px-5 py-2.5 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        Reset
                     </a>
                 </div>
-            </div>
+            </form>
         </div>
 
         <!-- Table -->
@@ -134,24 +154,58 @@
                             </td>
                             <td class="px-6 py-4">
                                 @php
-                                    $colors = [
+                                    $statusColors = [
                                         'pending' => 'text-yellow-800 bg-yellow-100 border-yellow-300',
-                                        'confirmed' => 'text-blue-800 bg-blue-100 border-blue-300',
-                                        'shipped' => 'text-indigo-800 bg-indigo-100 border-indigo-300',
-                                        'delivered' => 'text-green-800 bg-green-100 border-green-300',
+                                        'hold' => 'text-orange-800 bg-orange-100 border-orange-300',
+                                        'confirm' => 'text-green-800 bg-green-100 border-green-300',
                                         'cancelled' => 'text-red-800 bg-red-100 border-red-300',
                                     ];
-                                    $colorClass = $colors[$order->status] ?? 'text-gray-800 bg-gray-100 border-gray-300';
+                                    $callColors = [
+                                        'pending' => 'text-gray-600 bg-gray-100',
+                                        'confirm' => 'text-blue-600 bg-blue-100',
+                                        'cancel' => 'text-red-600 bg-red-100',
+                                    ];
                                 @endphp
-                                <span class="{{ $colorClass }} border px-2.5 py-0.5 rounded text-xs font-medium">
-                                    {{ ucfirst($order->status) }}
-                                </span>
+                                <div class="flex flex-col gap-1">
+                                    <span class="{{ $statusColors[$order->status] ?? 'text-gray-800 bg-gray-100' }} border px-2.5 py-0.5 rounded text-xs font-medium w-fit">
+                                        {{ ucfirst($order->status) }}
+                                    </span>
+                                    
+                                    @if($order->call_status)
+                                        <div class="flex items-center text-xs mt-1">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                                            <span class="{{ $callColors[$order->call_status] ?? 'text-gray-500' }} font-medium capitalize">
+                                                {{ $order->call_status }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                    
+                                    @if($order->sales_note)
+                                         <div class="text-xs text-yellow-600 dark:text-yellow-400 mt-1 flex items-center" title="{{ $order->sales_note }}">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                            Note
+                                        </div>
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center space-x-2">
-                                    <button class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg dark:text-blue-400 dark:hover:bg-gray-700 transition-colors" title="View Details">
+                                    <a href="{{ route('orders.pdf', $order) }}" target="_blank" class="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg dark:text-indigo-400 dark:hover:bg-gray-700 transition-colors" title="Download PDF">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    </a>
+                                    <a href="{{ route('orders.show', $order) }}" class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-400 dark:hover:bg-gray-700 transition-colors" title="View Details">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                                    </button>
+                                    </a>
+                                    <a href="{{ route('orders.edit', $order) }}" class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg dark:text-blue-400 dark:hover:bg-gray-700 transition-colors" title="Edit">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                    </a>
+                                    <form action="{{ route('orders.destroy', $order) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to delete this order? This will restore stock.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="p-2 text-red-600 hover:bg-red-100 rounded-lg dark:text-red-400 dark:hover:bg-gray-700 transition-colors" title="Delete">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

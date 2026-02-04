@@ -28,7 +28,10 @@ class Order extends Model
         'sales_note',
         'waybill_number',
         'courier_id',
-        'courier_cost',
+        'courier_cost', // Legacy or used interchangeably
+        'courier_charge', // New
+        'call_status',
+        'customer_city', 'customer_district', 'customer_province',
         'delivery_fee',
         'courier_payment_id',
         'packed_by',
@@ -44,6 +47,7 @@ class Order extends Model
         'total_cost' => 'decimal:2',
         'total_commission' => 'decimal:2',
         'courier_cost' => 'decimal:2',
+        'courier_charge' => 'decimal:2',
         'delivery_fee' => 'decimal:2',
         'dispatched_at' => 'datetime',
         'cancelled_at' => 'datetime',
