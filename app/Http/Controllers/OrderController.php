@@ -478,8 +478,11 @@ class OrderController extends Controller
             $totalCommission = 0;
 
             // 4. Process NEW Items
+            $variantIds = collect($validated['items'])->pluck('id');
+            $variants = ProductVariant::with('product')->whereIn('id', $variantIds)->get()->keyBy('id');
+
             foreach ($validated['items'] as $itemData) {
-                $variant = ProductVariant::with('product')->find($itemData['id']);
+                $variant = $variants->get($itemData['id']);
                 
                 // Stock Check
                 if ($variant->quantity < $itemData['quantity']) {
