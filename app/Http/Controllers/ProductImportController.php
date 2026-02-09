@@ -181,6 +181,16 @@ class ProductImportController extends Controller
         $groupedData = collect($previewData)->groupBy('name');
 
         DB::transaction(function () use ($groupedData, &$count) {
+            // Optimization: Pre-fetch products to avoid N+1 queries
+            $productNames = $groupedData->keys();
+            $existingProducts = Product::whereIn('name', $productNames)->get();
+
+            // Map by lowercase name for case-insensitive lookup
+            $productMap = [];
+            foreach ($existingProducts as $p) {
+                $productMap[strtolower($p->name)] = $p;
+            }
+
             foreach ($groupedData as $productName => $variants) {
                 // Use the FIRST valid row's creation data for the product
                 // Find a row that has valid product data? Or just take the first one?
@@ -191,7 +201,8 @@ class ProductImportController extends Controller
                 // But if user skips invalid rows, we proceed with valid ones.
                 
                 // 1. Find or Create Product
-                $product = Product::where('name', $productName)->first();
+                $lowerName = strtolower($productName);
+                $product = $productMap[$lowerName] ?? null;
 
                 if (!$product) {
                     $image = null;
@@ -211,6 +222,9 @@ class ProductImportController extends Controller
                         'description' => $firstRow['description'],
                         'image' => $image,
                     ]);
+
+                    // Add to map for subsequent lookups in this loop (if any)
+                    $productMap[$lowerName] = $product;
                 }
 
                 // 2. Add Variants
