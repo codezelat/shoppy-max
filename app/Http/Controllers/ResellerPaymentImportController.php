@@ -110,6 +110,11 @@ class ResellerPaymentImportController extends Controller
         $count = 0;
         
         DB::transaction(function () use ($previewData, &$count) {
+            // Optimally fetch all involved resellers
+            $resellerIds = collect($previewData)->pluck('reseller_id')->unique()->filter();
+            $resellers = Reseller::whereIn('id', $resellerIds)->get()->keyBy('id');
+            $updatedResellers = collect();
+
             foreach ($previewData as $row) {
                 if (!empty($row['errors'])) continue;
 
@@ -124,13 +129,22 @@ class ResellerPaymentImportController extends Controller
                 ]);
 
                 // Update Reseller Due
-                $reseller = Reseller::find($row['reseller_id']);
-                if ($reseller) {
+                if (isset($resellers[$row['reseller_id']])) {
+                    $reseller = $resellers[$row['reseller_id']];
                     $reseller->due_amount -= $row['amount'];
-                    $reseller->save();
+
+                    // Track unique resellers to save later
+                    if (!$updatedResellers->has($reseller->id)) {
+                        $updatedResellers->put($reseller->id, $reseller);
+                    }
                 }
                 
                 $count++;
+            }
+
+            // Save all updated resellers in one go (well, N queries but N = unique resellers, not N = total rows)
+            foreach ($updatedResellers as $reseller) {
+                $reseller->save();
             }
         });
 
