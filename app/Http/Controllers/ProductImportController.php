@@ -180,7 +180,10 @@ class ProductImportController extends Controller
         // (Though usually file is sorted, better safe)
         $groupedData = collect($previewData)->groupBy('name');
 
-        DB::transaction(function () use ($groupedData, &$count) {
+        $allSkus = collect($previewData)->pluck('sku')->unique()->filter()->toArray();
+        $existingSkus = ProductVariant::whereIn('sku', $allSkus)->pluck('sku')->map(fn($sku) => strtolower($sku))->flip()->toArray();
+
+        DB::transaction(function () use ($groupedData, &$count, $existingSkus) {
             foreach ($groupedData as $productName => $variants) {
                 // Use the FIRST valid row's creation data for the product
                 // Find a row that has valid product data? Or just take the first one?
@@ -218,7 +221,7 @@ class ProductImportController extends Controller
                     if (!empty($row['errors'])) continue;
 
                     // Check duplicate SKU again to be safe
-                    if (ProductVariant::where('sku', $row['sku'])->exists()) continue;
+                    if (isset($existingSkus[strtolower($row['sku'])])) continue;
 
                     $variantImage = null; // Currently template supports 1 image per row, usually mapping to Product Image. 
                     // If user provides specific variant image logic, we'd need another column. 
