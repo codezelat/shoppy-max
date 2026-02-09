@@ -5,10 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\Supplier;
-use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class PurchaseController extends Controller
 {
@@ -23,10 +21,10 @@ class PurchaseController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('purchase_number', 'like', "%{$search}%")
-                  ->orWhereHas('supplier', function ($sq) use ($search) {
-                      $sq->where('name', 'like', "%{$search}%")
-                         ->orWhere('business_name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('supplier', function ($sq) use ($search) {
+                        $sq->where('name', 'like', "%{$search}%")
+                            ->orWhere('business_name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -42,11 +40,12 @@ class PurchaseController extends Controller
         $totalPurchases = Purchase::count();
         $totalSpent = Purchase::sum('net_total');
         // Calculate total due (net_total - paid_amount)
-        // Since we don't have a direct column, strict SQL or collection sum. 
+        // Since we don't have a direct column, strict SQL or collection sum.
         // SQL is better for performance.
         $totalDue = Purchase::query()->selectRaw('SUM(net_total - paid_amount) as due')->value('due') ?? 0;
 
         $purchases = $query->paginate(15);
+
         return view('purchases.index', compact('purchases', 'totalPurchases', 'totalSpent', 'totalDue'));
     }
 
@@ -57,7 +56,8 @@ class PurchaseController extends Controller
     {
         $suppliers = Supplier::all();
         // Generate a suggested ID
-        $suggestedNumber = 'PUR-' . date('Ymd') . '-' . mt_rand(1000, 9999);
+        $suggestedNumber = 'PUR-'.date('Ymd').'-'.mt_rand(1000, 9999);
+
         return view('purchases.create', compact('suppliers', 'suggestedNumber'));
     }
 
@@ -79,33 +79,33 @@ class PurchaseController extends Controller
         DB::beginTransaction();
         try {
             // Calculate total paid amount from payments array
-        $paidAmount = 0;
-        $paymentsData = [];
-        
-        if ($request->has('payments') && is_array($request->payments)) {
-            foreach ($request->payments as $payment) {
-                $paidAmount += floatval($payment['amount'] ?? 0);
-            }
-            $paymentsData = $request->payments;
-        }
+            $paidAmount = 0;
+            $paymentsData = [];
 
-        $purchase = Purchase::create([
-            'purchase_number' => $request->purchase_number,
-            'supplier_id' => $request->supplier_id,
-            'purchase_date' => $request->purchase_date,
-            'currency' => $request->currency ?? 'LKR',
-            'sub_total' => $request->sub_total,
-            'discount_type' => $request->discount_type,
-            'discount_value' => $request->discount_value ?? 0,
-            'discount_amount' => $request->discount_amount ?? 0,
-            'net_total' => $request->net_total,
-            'paid_amount' => $paidAmount,
-            'payments_data' => json_encode($paymentsData),
-            'payment_method' => null, // Deprecated, keeping for backward compatibility
-            'payment_reference' => $request->payment_reference,
-            'payment_account' => null, // Deprecated
-            'payment_note' => null, // Deprecated
-        ]);
+            if ($request->has('payments') && is_array($request->payments)) {
+                foreach ($request->payments as $payment) {
+                    $paidAmount += floatval($payment['amount'] ?? 0);
+                }
+                $paymentsData = $request->payments;
+            }
+
+            $purchase = Purchase::create([
+                'purchase_number' => $request->purchase_number,
+                'supplier_id' => $request->supplier_id,
+                'purchase_date' => $request->purchase_date,
+                'currency' => $request->currency ?? 'LKR',
+                'sub_total' => $request->sub_total,
+                'discount_type' => $request->discount_type,
+                'discount_value' => $request->discount_value ?? 0,
+                'discount_amount' => $request->discount_amount ?? 0,
+                'net_total' => $request->net_total,
+                'paid_amount' => $paidAmount,
+                'payments_data' => json_encode($paymentsData),
+                'payment_method' => null, // Deprecated, keeping for backward compatibility
+                'payment_reference' => $request->payment_reference,
+                'payment_account' => null, // Deprecated
+                'payment_note' => null, // Deprecated
+            ]);
 
             foreach ($request->items as $item) {
                 PurchaseItem::create([
@@ -119,11 +119,13 @@ class PurchaseController extends Controller
             }
 
             DB::commit();
+
             return redirect()->route('purchases.index')->with('success', 'Purchase recorded successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Error creating purchase: ' . $e->getMessage())->withInput();
+
+            return back()->with('error', 'Error creating purchase: '.$e->getMessage())->withInput();
         }
     }
 
@@ -133,6 +135,7 @@ class PurchaseController extends Controller
     public function show(Purchase $purchase)
     {
         $purchase->load(['items', 'supplier']);
+
         return view('purchases.show', compact('purchase'));
     }
 
@@ -142,6 +145,7 @@ class PurchaseController extends Controller
     public function pdf(Purchase $purchase)
     {
         $purchase->load(['items', 'supplier']);
+
         return view('purchases.pdf', compact('purchase'));
     }
 
@@ -152,6 +156,7 @@ class PurchaseController extends Controller
     {
         $suppliers = Supplier::all();
         $purchase->load('items');
+
         return view('purchases.edit', compact('purchase', 'suppliers'));
     }
 
@@ -164,7 +169,7 @@ class PurchaseController extends Controller
         $request->validate([
             'supplier_id' => 'required|exists:suppliers,id',
             'purchase_date' => 'required|date',
-            'purchase_number' => 'required|unique:purchases,purchase_number,' . $purchase->id,
+            'purchase_number' => 'required|unique:purchases,purchase_number,'.$purchase->id,
             'items' => 'required|array|min:1',
             'items.*.product_name' => 'required|string',
             'items.*.quantity' => 'required|numeric|min:1',
@@ -176,7 +181,7 @@ class PurchaseController extends Controller
             // Calculate total paid amount from payments array
             $paidAmount = 0;
             $paymentsData = [];
-            
+
             if ($request->has('payments') && is_array($request->payments)) {
                 foreach ($request->payments as $payment) {
                     $paidAmount += floatval($payment['amount'] ?? 0);
@@ -217,11 +222,13 @@ class PurchaseController extends Controller
             }
 
             DB::commit();
+
             return redirect()->route('purchases.index')->with('success', 'Purchase updated successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Error updating purchase: ' . $e->getMessage())->withInput();
+
+            return back()->with('error', 'Error updating purchase: '.$e->getMessage())->withInput();
         }
     }
 
@@ -231,6 +238,7 @@ class PurchaseController extends Controller
     public function destroy(Purchase $purchase)
     {
         $purchase->delete();
+
         return redirect()->route('purchases.index')->with('success', 'Purchase deleted successfully.');
     }
 }

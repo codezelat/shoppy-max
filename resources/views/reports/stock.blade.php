@@ -41,11 +41,11 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div class="p-4 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-100 dark:border-gray-600">
                 <span class="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase">Total Inventory Value</span>
-                <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ number_format($products->sum('stock_value'), 2) }}</div>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ number_format($totalStockValue, 2) }}</div>
             </div>
              <div class="p-4 bg-green-50 dark:bg-gray-700 rounded-lg border border-green-100 dark:border-gray-600">
                 <span class="text-xs font-bold text-green-600 dark:text-green-300 uppercase">Total Items In Stock</span>
-                <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ $products->sum('quantity') }}</div>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ number_format($totalItemsInStock) }}</div>
             </div>
         </div>
 
@@ -67,7 +67,7 @@
                             <div class="text-xs text-gray-500 dark:text-gray-400">{{ $product->sku }}</div>
                         </td>
                         <td class="px-6 py-4 font-bold text-right text-gray-900 dark:text-white">
-                            {{ $product->quantity }}
+                            {{ number_format($product->quantity) }}
                         </td>
                         <td class="px-6 py-4 font-bold text-right text-green-600 dark:text-green-400">
                             {{ number_format($product->stock_value, 2) }}
@@ -78,13 +78,13 @@
                                     @foreach($product->purchaseItems as $batch)
                                         <div class="flex items-center gap-2">
                                             <span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300 font-mono">
-                                                Batch #{{ $batch->purchase->purchasing_number }}
+                                                Batch #{{ $batch->purchase ? $batch->purchase->purchase_number : 'N/A' }}
                                             </span>
                                             <span class="text-gray-900 dark:text-white font-semibold">
                                                 {{ $batch->remaining_quantity }} left
                                             </span>
                                             <span class="text-gray-500 dark:text-gray-400">
-                                                @ {{ number_format($batch->purchasing_price, 2) }}
+                                                @ {{ number_format($batch->purchase_price, 2) }}
                                             </span>
                                         </div>
                                     @endforeach
@@ -98,9 +98,9 @@
                 </tbody>
                  <tfoot class="bg-gray-100 dark:bg-gray-700 font-bold text-gray-900 dark:text-white">
                     <tr>
-                        <td colspan="2" class="px-6 py-3 text-right">Total:</td>
-                        <td class="px-6 py-3 text-right text-green-600 dark:text-green-400">{{ number_format($products->sum('stock_value'), 2) }}</td>
-                        <td></td>
+                        <td colspan="4" class="px-6 py-3">
+                            {{ $products->links() }}
+                        </td>
                     </tr>
                 </tfoot>
             </table>

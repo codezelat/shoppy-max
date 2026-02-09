@@ -14,13 +14,13 @@ class CityController extends Controller
     {
         $search = $request->input('search');
         $query = City::query();
-        
+
         if ($search) {
-             $query->where(function ($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('city_name', 'like', "%{$search}%")
-                  ->orWhere('postal_code', 'like', "%{$search}%")
-                  ->orWhere('district', 'like', "%{$search}%");
-             });
+                    ->orWhere('postal_code', 'like', "%{$search}%")
+                    ->orWhere('district', 'like', "%{$search}%");
+            });
         }
 
         $sort = $request->input('sort', 'city_name');
@@ -34,13 +34,14 @@ class CityController extends Controller
 
         if ($request->has('export')) {
             $cities = $query->get();
-            
+
             if ($request->input('export') === 'excel') {
                 return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\CitiesExport($cities), 'cities.xlsx');
             }
-            
+
             if ($request->input('export') === 'pdf') {
                 $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.cities_pdf', compact('cities'));
+
                 return $pdf->stream('cities.pdf');
             }
         }
@@ -56,6 +57,7 @@ class CityController extends Controller
     public function create()
     {
         $slData = config('locations.sri_lanka');
+
         return view('contacts.cities.create', compact('slData'));
     }
 
@@ -90,6 +92,7 @@ class CityController extends Controller
     public function edit(City $city)
     {
         $slData = config('locations.sri_lanka');
+
         return view('contacts.cities.edit', compact('city', 'slData'));
     }
 
@@ -126,14 +129,14 @@ class CityController extends Controller
     public function getCitiesByDistrict(Request $request)
     {
         $district = $request->input('district');
-        
-        if (!$district) {
+
+        if (! $district) {
             return response()->json([]);
         }
 
         $cities = City::where('district', $district)
-                      ->orderBy('city_name')
-                      ->get(['city_name', 'postal_code']);
+            ->orderBy('city_name')
+            ->get(['city_name', 'postal_code']);
 
         return response()->json($cities);
     }

@@ -17,10 +17,11 @@ class UnitController extends Controller
         if ($request->has('search')) {
             $search = $request->input('search');
             $query->where('name', 'like', "%{$search}%")
-                  ->orWhere('short_name', 'like', "%{$search}%");
+                ->orWhere('short_name', 'like', "%{$search}%");
         }
 
         $units = $query->paginate(10);
+
         return view('product_management.units.index', compact('units'));
     }
 
@@ -76,6 +77,7 @@ class UnitController extends Controller
     public function destroy(Unit $unit)
     {
         $unit->delete();
+
         return redirect()->route('units.index')->with('success', 'Unit deleted successfully.');
     }
 }

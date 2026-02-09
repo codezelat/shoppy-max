@@ -17,10 +17,11 @@ class CategoryController extends Controller
         if ($request->has('search')) {
             $search = $request->input('search');
             $query->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
+                ->orWhere('code', 'like', "%{$search}%");
         }
 
         $categories = $query->paginate(10);
+
         return view('product_management.categories.index', compact('categories'));
     }
 
@@ -44,7 +45,7 @@ class CategoryController extends Controller
 
         // Simple placeholder logic for image handling (to be improved if needed)
         $input = $request->all();
-        
+
         Category::create($input);
 
         return redirect()->route('categories.index')->with('success', 'Category created successfully.');
@@ -55,7 +56,7 @@ class CategoryController extends Controller
      */
     public function edit(Category $category)
     {
-         return view('product_management.categories.edit', compact('category'));
+        return view('product_management.categories.edit', compact('category'));
     }
 
     /**
@@ -65,7 +66,7 @@ class CategoryController extends Controller
     {
         $request->validate([
             'name' => 'required',
-            'code' => 'required|unique:categories,code,' . $category->id,
+            'code' => 'required|unique:categories,code,'.$category->id,
         ]);
 
         $category->update($request->all());
@@ -79,6 +80,7 @@ class CategoryController extends Controller
     public function destroy(Category $category)
     {
         $category->delete();
+
         return redirect()->route('categories.index')->with('success', 'Category deleted successfully.');
     }
 }

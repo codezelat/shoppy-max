@@ -4,11 +4,11 @@ namespace App\Exports;
 
 use App\Models\Product;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 
-class ProductsExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize
+class ProductsExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping
 {
     protected $request;
 
@@ -18,8 +18,8 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, Shoul
     }
 
     /**
-    * @return \Illuminate\Support\Collection
-    */
+     * @return \Illuminate\Support\Collection
+     */
     public function collection()
     {
         $query = \App\Models\ProductVariant::query()->with(['product.category', 'product.subCategory', 'unit']);
@@ -32,17 +32,17 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, Shoul
 
         if (isset($this->request['search']) && $this->request['search']) {
             $search = $this->request['search'];
-            $query->where(function($q) use ($search) {
-                $q->whereHas('product', function($pq) use ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('product', function ($pq) use ($search) {
                     $pq->where('name', 'like', "%{$search}%")
-                       ->orWhere('barcode_data', 'like', "%{$search}%");
+                        ->orWhere('barcode_data', 'like', "%{$search}%");
                 })
-                ->orWhere('sku', 'like', "%{$search}%");
+                    ->orWhere('sku', 'like', "%{$search}%");
             });
         }
 
         if (isset($this->request['category_id']) && $this->request['category_id']) {
-            $query->whereHas('product', function($q) {
+            $query->whereHas('product', function ($q) {
                 $q->where('category_id', $this->request['category_id']);
             });
         }
@@ -64,7 +64,7 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, Shoul
             'Limit Price',
             'Quantity',
             'Alert Quantity',
-            'Product Created At'
+            'Product Created At',
         ];
     }
 

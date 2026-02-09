@@ -2,17 +2,17 @@
 
 namespace App\Exports;
 
+use App\Models\Reseller;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use App\Models\Reseller;
 
-class ResellerPaymentTemplateExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize
+class ResellerPaymentTemplateExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping
 {
     /**
-    * @return \Illuminate\Support\Collection
-    */
+     * @return \Illuminate\Support\Collection
+     */
     public function collection()
     {
         return Reseller::select('id', 'name', 'due_amount')->orderBy('name')->get();
@@ -27,7 +27,7 @@ class ResellerPaymentTemplateExport implements FromCollection, WithHeadings, Wit
             'Payment Amount',
             'Payment Method (cash/bank/other)',
             'Reference',
-            'Date (YYYY-MM-DD)'
+            'Date (YYYY-MM-DD)',
         ];
     }
 

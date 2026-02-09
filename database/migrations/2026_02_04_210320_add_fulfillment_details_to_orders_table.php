@@ -12,28 +12,28 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            if (!Schema::hasColumn('orders', 'courier_id')) {
+            if (! Schema::hasColumn('orders', 'courier_id')) {
                 $table->foreignId('courier_id')->nullable()->constrained()->onDelete('set null');
             }
-            if (!Schema::hasColumn('orders', 'courier_charge')) {
+            if (! Schema::hasColumn('orders', 'courier_charge')) {
                 $table->decimal('courier_charge', 10, 2)->default(0);
             }
-            if (!Schema::hasColumn('orders', 'payment_method')) {
+            if (! Schema::hasColumn('orders', 'payment_method')) {
                 $table->string('payment_method')->nullable();
             }
-            if (!Schema::hasColumn('orders', 'call_status')) {
+            if (! Schema::hasColumn('orders', 'call_status')) {
                 $table->string('call_status')->nullable();
             }
-            if (!Schema::hasColumn('orders', 'sales_note')) {
+            if (! Schema::hasColumn('orders', 'sales_note')) {
                 $table->text('sales_note')->nullable();
             }
-            if (!Schema::hasColumn('orders', 'customer_city')) {
+            if (! Schema::hasColumn('orders', 'customer_city')) {
                 $table->string('customer_city')->nullable();
             }
-            if (!Schema::hasColumn('orders', 'customer_district')) {
+            if (! Schema::hasColumn('orders', 'customer_district')) {
                 $table->string('customer_district')->nullable();
             }
-            if (!Schema::hasColumn('orders', 'customer_province')) {
+            if (! Schema::hasColumn('orders', 'customer_province')) {
                 $table->string('customer_province')->nullable();
             }
         });

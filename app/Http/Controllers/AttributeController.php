@@ -11,6 +11,7 @@ class AttributeController extends Controller
     public function index()
     {
         $attributes = Attribute::with('values')->get();
+
         return view('product_management.attributes.index', compact('attributes'));
     }
 
@@ -33,7 +34,7 @@ class AttributeController extends Controller
             foreach ($values as $value) {
                 AttributeValue::create([
                     'attribute_id' => $attribute->id,
-                    'value' => trim($value)
+                    'value' => trim($value),
                 ]);
             }
         }
@@ -43,7 +44,7 @@ class AttributeController extends Controller
 
     public function edit(Attribute $attribute)
     {
-         return view('product_management.attributes.edit', compact('attribute'));
+        return view('product_management.attributes.edit', compact('attribute'));
     }
 
     public function update(Request $request, Attribute $attribute)
@@ -61,6 +62,7 @@ class AttributeController extends Controller
     public function destroy(Attribute $attribute)
     {
         $attribute->delete();
+
         return redirect()->route('attributes.index')->with('success', 'Attribute deleted successfully.');
     }
 }

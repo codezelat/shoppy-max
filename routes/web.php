@@ -1,12 +1,11 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Admin\UserManagementController;
-use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\PermissionManagementController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\RoleManagementController;
+use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\GuestProductController;
-use App\Http\Controllers\ProductImportController;
+use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -38,9 +37,6 @@ Route::middleware('auth')->group(function () {
     Route::resource('cities', \App\Http\Controllers\CityController::class);
 });
 
-
-
-
 // Product Management Routes
 Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
     Route::get('products/export', [\App\Http\Controllers\ProductController::class, 'export'])->name('products.export');
@@ -48,13 +44,13 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
     Route::post('products/bulk-destroy', [\App\Http\Controllers\ProductController::class, 'bulkDestroy'])->name('products.destroy.bulk');
     Route::get('products/print-barcodes-bulk', [\App\Http\Controllers\ProductController::class, 'bulkPrintBarcode'])->name('products.barcode.bulk');
     Route::get('variants/{variant}/print-barcode', [\App\Http\Controllers\ProductController::class, 'printBarcode'])->name('products.barcode.print');
-    
+
     // Product Import
     Route::get('products/import', [\App\Http\Controllers\ProductImportController::class, 'show'])->name('products.import.show');
     Route::get('products/import/template', [\App\Http\Controllers\ProductImportController::class, 'downloadTemplate'])->name('products.import.template');
     Route::post('products/import/preview', [\App\Http\Controllers\ProductImportController::class, 'preview'])->name('products.import.preview');
     Route::post('products/import/store', [\App\Http\Controllers\ProductImportController::class, 'store'])->name('products.import.store');
-    
+
     Route::resource('products', \App\Http\Controllers\ProductController::class);
     Route::resource('categories', \App\Http\Controllers\CategoryController::class);
     Route::resource('sub-categories', \App\Http\Controllers\SubCategoryController::class);
@@ -74,18 +70,18 @@ Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function (
     Route::get('/create', [\App\Http\Controllers\OrderController::class, 'create'])->name('create');
     Route::post('/', [\App\Http\Controllers\OrderController::class, 'store'])->name('store');
     Route::get('/call-list', [\App\Http\Controllers\OrderController::class, 'callList'])->name('call-list');
-    
+
     // Search APIs
     Route::get('/search-products', [\App\Http\Controllers\OrderController::class, 'searchProducts'])->name('search-products');
     Route::get('/search-resellers', [\App\Http\Controllers\OrderController::class, 'searchResellers'])->name('search-resellers');
-    
+
     // CRUD & PDF
     Route::get('/{order}', [\App\Http\Controllers\OrderController::class, 'show'])->name('show');
     Route::get('/{order}/edit', [\App\Http\Controllers\OrderController::class, 'edit'])->name('edit');
     Route::put('/{order}', [\App\Http\Controllers\OrderController::class, 'update'])->name('update');
     Route::delete('/{order}', [\App\Http\Controllers\OrderController::class, 'destroy'])->name('destroy');
     Route::get('/{order}/pdf', [\App\Http\Controllers\OrderController::class, 'downloadPdf'])->name('pdf');
-    
+
     // Status update
     Route::post('/{id}/status', [\App\Http\Controllers\OrderController::class, 'updateStatus'])->name('status.update');
 
@@ -137,5 +133,3 @@ Route::middleware(['auth'])->prefix('reports')->name('reports.')->group(function
 });
 
 require __DIR__.'/auth.php';
-
-

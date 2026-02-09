@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\City;
+use App\Models\PurchaseItem;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
@@ -22,16 +22,16 @@ class ReportController extends Controller
         $totalOrders = Order::count();
         $pendingOrders = Order::where('status', 'pending')->count();
         $todaySales = Order::where('status', 'delivered')->whereDate('created_at', Carbon::today())->sum('total_amount');
-        
+
         // Month-wise Sales for Chart
         $monthlySales = Order::select(
-            DB::raw('sum(total_amount) as sums'), 
+            DB::raw('sum(total_amount) as sums'),
             DB::raw("strftime('%Y-%m', created_at) as month")
         )
-        ->groupBy('month')
-        ->orderBy('month', 'desc')
-        ->limit(6)
-        ->get();
+            ->groupBy('month')
+            ->orderBy('month', 'desc')
+            ->limit(6)
+            ->get();
 
         return view('reports.index', compact('totalSales', 'totalOrders', 'pendingOrders', 'todaySales', 'monthlySales'));
     }
@@ -48,7 +48,7 @@ class ReportController extends Controller
             ->groupBy('cities.province')
             ->orderBy('total_sales', 'desc')
             ->get();
-            
+
         return view('reports.province', compact('provinceSales'));
     }
 
@@ -59,48 +59,48 @@ class ReportController extends Controller
     {
         $query = Order::with(['items', 'courierPayment'])
             ->where('status', 'delivered');
-            
+
         if ($request->has('start_date') && $request->has('end_date')) {
             $query->whereBetween('created_at', [$request->input('start_date'), $request->input('end_date')]);
         }
-        
+
         $orders = $query->get();
-        
+
         $data = [
             'total_sales' => 0,
             'cogs' => 0, // Cost of Goods Sold from FIFO
             'courier_cost' => 0, // Real courier cost
             'delivery_income' => 0, // Delivery fees charged
             'gross_profit' => 0,
-            'net_profit' => 0
+            'net_profit' => 0,
         ];
-        
+
         foreach ($orders as $order) {
             $data['total_sales'] += $order->total_amount; // Includes product price + delivery fee usually, assuming total_amount is final bill.
-            
+
             // COGS
-            $orderCogs = $order->items->sum('total_price') - $order->items->sum(function($item){
-                 return ($item->unit_price - $item->cost_price) * $item->quantity; 
-                 // Wait, cost_price is unit cost. 
-                 // Margin = (Unit Price - Cost Price) * Qty
-                 // COGS = Cost Price * Qty
+            $orderCogs = $order->items->sum('total_price') - $order->items->sum(function ($item) {
+                return ($item->unit_price - $item->cost_price) * $item->quantity;
+                // Wait, cost_price is unit cost.
+                // Margin = (Unit Price - Cost Price) * Qty
+                // COGS = Cost Price * Qty
             });
             // Simpler:
-            $orderCogs = $order->items->sum(function($item) {
+            $orderCogs = $order->items->sum(function ($item) {
                 return $item->cost_price * $item->quantity;
             });
             $data['cogs'] += $orderCogs;
-            
+
             // Logistics
             $data['courier_cost'] += $order->courier_cost; // What we pay courier
             $data['delivery_income'] += $order->delivery_fee; // What we charge customer (if separated in total, or part of it)
             // Assuming total_amount includes delivery_fee.
         }
-        
+
         $data['gross_profit'] = $data['total_sales'] - $data['cogs'];
         $data['net_profit'] = $data['gross_profit'] - $data['courier_cost'];
         // Note: Operational expenses (OpEx) aren't tracked here yet.
-        
+
         return view('reports.profit_loss', compact('data'));
     }
 
@@ -109,19 +109,31 @@ class ReportController extends Controller
      */
     public function stockReport()
     {
-        $products = Product::with(['purchaseItems' => function($q) {
-            $q->where('remaining_quantity', '>', 0);
-        }])->get();
-        
-        // Calculate Valuation per product based on FIFO batches
-        $products->map(function($product) {
-            $product->stock_value = $product->purchaseItems->sum(function($item) {
-                return $item->remaining_quantity * $item->purchasing_price;
-            });
-            return $product;
-        });
-        
-        return view('reports.stock', compact('products'));
+        // Use pagination and subqueries for better performance
+
+        // Calculate Global Totals directly from DB
+        $totalStockValue = PurchaseItem::where('remaining_quantity', '>', 0)
+            ->sum(DB::raw('remaining_quantity * purchase_price'));
+
+        $totalItemsInStock = PurchaseItem::where('remaining_quantity', '>', 0)
+            ->sum('remaining_quantity');
+
+        // Fetch paginated products with eager loaded purchase items and their purchase details
+        $products = Product::with(['purchaseItems' => function ($q) {
+            $q->where('remaining_quantity', '>', 0)->with('purchase');
+        }])
+            ->addSelect(['stock_value' => PurchaseItem::selectRaw('sum(remaining_quantity * purchase_price)')
+                ->whereColumn('product_id', 'products.id')
+                ->where('remaining_quantity', '>', 0),
+            ])
+            ->paginate(20);
+
+        // No need to map and calculate stock_value in PHP as we use addSelect,
+        // OR we can calculate it on the fly in the view if needed, but addSelect is cleaner for sorting if required later.
+        // However, standard  attribute access would work if we append it, but we are using paginator.
+        // The addSelect puts it into the model attributes.
+
+        return view('reports.stock', compact('products', 'totalStockValue', 'totalItemsInStock'));
     }
 
     /**
@@ -129,11 +141,11 @@ class ReportController extends Controller
      */
     public function packetCount()
     {
-        $packers = User::withCount(['packedOrders' => function($q){
-             // Count dispatched orders packed by user
-             $q->where('status', 'dispatched')->orWhere('status', 'delivered');
+        $packers = User::withCount(['packedOrders' => function ($q) {
+            // Count dispatched orders packed by user
+            $q->where('status', 'dispatched')->orWhere('status', 'delivered');
         }])->get(); // Filter by role if needed
-        
+
         return view('reports.packet_count', compact('packers'));
     }
 
@@ -145,7 +157,7 @@ class ReportController extends Controller
         $productSales = DB::table('order_items')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
             ->select(
-                'order_items.product_name', 
+                'order_items.product_name',
                 'order_items.sku',
                 DB::raw('sum(order_items.quantity) as total_qty'),
                 DB::raw('sum(order_items.total_price) as total_revenue'),
@@ -155,24 +167,24 @@ class ReportController extends Controller
             ->groupBy('order_items.product_id', 'order_items.product_name', 'order_items.sku', 'orders.status')
             ->orderBy('total_qty', 'desc')
             ->get();
-            
+
         return view('reports.product_sales', compact('productSales'));
     }
-    
+
     /**
      * User Wise Sales Report (Sales Rep/Reseller Performance).
      */
     public function userSales()
     {
         // Assuming 'user_id' on order is the creator/sales rep
-        $userSales = User::withSum(['orders' => function($q) {
+        $userSales = User::withSum(['orders' => function ($q) {
             $q->where('status', 'delivered');
         }], 'total_amount')
-        ->withCount(['orders' => function($q) {
-            $q->where('status', 'delivered');
-        }])
-        ->get();
-        
+            ->withCount(['orders' => function ($q) {
+                $q->where('status', 'delivered');
+            }])
+            ->get();
+
         return view('reports.user_sales', compact('userSales'));
     }
 }

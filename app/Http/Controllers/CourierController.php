@@ -18,12 +18,13 @@ class CourierController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
         $couriers = $query->latest()->paginate(10);
+
         return view('couriers.index', compact('couriers'));
     }
 
@@ -90,9 +91,9 @@ class CourierController extends Controller
     {
         // Check for orders
         if ($courier->orders()->exists()) {
-             return back()->with('error', 'Cannot delete courier with associated orders. Deactivate instead.');
+            return back()->with('error', 'Cannot delete courier with associated orders. Deactivate instead.');
         }
-        
+
         $courier->delete();
 
         return redirect()->route('couriers.index')->with('success', 'Courier deleted successfully.');

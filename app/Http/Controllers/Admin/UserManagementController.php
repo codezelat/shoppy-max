@@ -3,19 +3,20 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\User;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class UserManagementController extends Controller
 {
     public function index()
     {
         $users = User::with('roles')->paginate(10);
+
         return view('admin.users.index', compact('users'));
     }
 
@@ -23,6 +24,7 @@ class UserManagementController extends Controller
     {
         $roles = Role::all();
         $permissions = Permission::all();
+
         return view('admin.users.create', compact('roles', 'permissions'));
     }
 
@@ -58,7 +60,7 @@ class UserManagementController extends Controller
         $permissions = Permission::all();
         $userRoles = $user->roles->pluck('id')->toArray();
         $userPermissions = $user->permissions->pluck('id')->toArray();
-        
+
         return view('admin.users.edit', compact('user', 'roles', 'permissions', 'userRoles', 'userPermissions'));
     }
 
@@ -66,7 +68,7 @@ class UserManagementController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,'.$user->id],
         ]);
 
         $user->update([

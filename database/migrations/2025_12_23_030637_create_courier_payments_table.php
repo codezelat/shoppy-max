@@ -15,11 +15,11 @@ return new class extends Migration
             $table->id();
             $table->foreignId('courier_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
-            
+
             $table->decimal('amount', 10, 2);
             $table->date('payment_date');
             $table->string('reference_number')->nullable();
-            
+
             $table->timestamps();
         });
     }

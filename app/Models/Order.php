@@ -2,9 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Order extends Model
@@ -89,12 +88,12 @@ class Order extends Model
     {
         return $this->belongsTo(City::class);
     }
-    
+
     public function courier()
     {
         return $this->belongsTo(Courier::class);
     }
-    
+
     public function courierPayment()
     {
         return $this->belongsTo(CourierPayment::class);

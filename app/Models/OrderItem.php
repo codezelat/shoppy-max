@@ -2,9 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class OrderItem extends Model
 {
@@ -23,8 +22,6 @@ class OrderItem extends Model
         'total_price',
         'subtotal', // Use total_price or subtotal depending on schema, migration didn't add subtotal but existing had total_price
     ];
-    
-
 
     protected $casts = [
         'unit_price' => 'decimal:2',

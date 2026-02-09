@@ -11,15 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasColumn('cities', 'province')) {
+        if (! Schema::hasColumn('cities', 'province')) {
             Schema::table('cities', function (Blueprint $table) {
                 $table->string('province')->nullable()->after('district');
             });
         }
-        
 
-        
-        if (!Schema::hasColumn('order_items', 'cost_price')) {
+        if (! Schema::hasColumn('order_items', 'cost_price')) {
             Schema::table('order_items', function (Blueprint $table) {
                 $table->decimal('cost_price', 10, 2)->default(0)->after('unit_price'); // FIFO Cost Snapshot
             });
@@ -34,9 +32,7 @@ return new class extends Migration
         Schema::table('cities', function (Blueprint $table) {
             $table->dropColumn('province');
         });
-        
 
-        
         Schema::table('order_items', function (Blueprint $table) {
             $table->dropColumn('cost_price');
         });

@@ -12,32 +12,32 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            if (!Schema::hasColumn('orders', 'order_date')) {
+            if (! Schema::hasColumn('orders', 'order_date')) {
                 $table->date('order_date')->after('order_number')->useCurrent();
             }
-            if (!Schema::hasColumn('orders', 'order_type')) {
+            if (! Schema::hasColumn('orders', 'order_type')) {
                 $table->string('order_type')->default('direct')->after('order_date'); // 'direct', 'reseller'
             }
-            if (!Schema::hasColumn('orders', 'customer_id')) {
+            if (! Schema::hasColumn('orders', 'customer_id')) {
                 $table->foreignId('customer_id')->nullable()->after('reseller_id')->constrained()->nullOnDelete();
             }
-            if (!Schema::hasColumn('orders', 'total_cost')) {
+            if (! Schema::hasColumn('orders', 'total_cost')) {
                 $table->decimal('total_cost', 15, 2)->default(0)->after('total_amount');
             }
-            if (!Schema::hasColumn('orders', 'total_commission')) {
+            if (! Schema::hasColumn('orders', 'total_commission')) {
                 $table->decimal('total_commission', 15, 2)->default(0)->after('total_cost');
             }
         });
 
         Schema::table('order_items', function (Blueprint $table) {
-            if (!Schema::hasColumn('order_items', 'product_variant_id')) {
-                 $table->foreignId('product_variant_id')->nullable()->after('product_id')->constrained()->nullOnDelete();
+            if (! Schema::hasColumn('order_items', 'product_variant_id')) {
+                $table->foreignId('product_variant_id')->nullable()->after('product_id')->constrained()->nullOnDelete();
             }
-            if (!Schema::hasColumn('order_items', 'base_price')) {
-                 $table->decimal('base_price', 15, 2)->default(0)->after('unit_price'); // Snapshot of limit_price/cost
+            if (! Schema::hasColumn('order_items', 'base_price')) {
+                $table->decimal('base_price', 15, 2)->default(0)->after('unit_price'); // Snapshot of limit_price/cost
             }
-            if (!Schema::hasColumn('order_items', 'subtotal')) {
-                 $table->decimal('subtotal', 15, 2)->default(0)->after('total_price');
+            if (! Schema::hasColumn('order_items', 'subtotal')) {
+                $table->decimal('subtotal', 15, 2)->default(0)->after('total_price');
             }
         });
     }
@@ -61,10 +61,10 @@ return new class extends Migration
 
         Schema::table('order_items', function (Blueprint $table) {
             $columns = ['product_variant_id', 'base_price', 'subtotal'];
-             foreach ($columns as $column) {
+            foreach ($columns as $column) {
                 if (Schema::hasColumn('order_items', $column)) {
                     if ($column === 'product_variant_id') {
-                         $table->dropForeign(['product_variant_id']);
+                        $table->dropForeign(['product_variant_id']);
                     }
                     $table->dropColumn($column);
                 }

@@ -11,6 +11,7 @@ class PurchaseItem extends Model
         'product_id',
         'product_name',
         'quantity',
+        'remaining_quantity',
         'purchase_price',
         'total',
     ];

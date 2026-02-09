@@ -11,6 +11,7 @@ class PermissionManagementController extends Controller
     public function index()
     {
         $permissions = Permission::paginate(10);
+
         return view('admin.permissions.index', compact('permissions'));
     }
 
@@ -39,7 +40,7 @@ class PermissionManagementController extends Controller
     public function update(Request $request, Permission $permission)
     {
         $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:permissions,name,' . $permission->id],
+            'name' => ['required', 'string', 'max:255', 'unique:permissions,name,'.$permission->id],
         ]);
 
         $permission->update(['name' => $request->name]);
@@ -54,7 +55,7 @@ class PermissionManagementController extends Controller
         $criticalPermissions = [
             'view users', 'create users', 'edit users', 'delete users',
             'view roles', 'create roles', 'edit roles', 'delete roles',
-            'view permissions', 'assign permissions'
+            'view permissions', 'assign permissions',
         ];
 
         if (in_array($permission->name, $criticalPermissions)) {

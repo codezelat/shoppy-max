@@ -17,14 +17,14 @@ return new class extends Migration
             $table->foreignId('supplier_id')->constrained()->onDelete('cascade');
             $table->date('purchase_date');
             $table->string('currency')->default('LKR');
-            
+
             // Financials
             $table->decimal('sub_total', 12, 2)->default(0);
             $table->string('discount_type')->default('fixed'); // fixed or percentage
             $table->decimal('discount_value', 12, 2)->default(0); // The entered value (e.g., 10 for 10%)
             $table->decimal('discount_amount', 12, 2)->default(0); // The calculated amount to subtract
             $table->decimal('net_total', 12, 2)->default(0);
-            
+
             // Payments
             $table->decimal('paid_amount', 12, 2)->default(0);
             $table->string('payment_method')->nullable(); // Cash, Card, Cheque, Other

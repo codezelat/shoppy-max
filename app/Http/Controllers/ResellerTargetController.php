@@ -19,10 +19,10 @@ class ResellerTargetController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('ref_id', 'like', "%{$search}%")
-                  ->orWhereHas('reseller', function ($q) use ($search) {
-                      $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('business_name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('reseller', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                            ->orWhere('business_name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -41,6 +41,7 @@ class ResellerTargetController extends Controller
     public function create()
     {
         $resellers = Reseller::orderBy('name')->get();
+
         return view('resellers.targets.create', compact('resellers'));
     }
 
@@ -73,6 +74,7 @@ class ResellerTargetController extends Controller
     public function edit(ResellerTarget $resellerTarget)
     {
         $resellers = Reseller::orderBy('name')->get();
+
         return view('resellers.targets.edit', compact('resellerTarget', 'resellers'));
     }
 

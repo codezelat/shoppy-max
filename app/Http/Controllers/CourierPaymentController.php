@@ -19,11 +19,11 @@ class CourierPaymentController extends Controller
         // Search
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->whereHas('courier', function($cq) use ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('courier', function ($cq) use ($search) {
                     $cq->where('name', 'like', "%{$search}%");
                 })
-                ->orWhere('reference_number', 'like', "%{$search}%");
+                    ->orWhere('reference_number', 'like', "%{$search}%");
             });
         }
 
@@ -41,7 +41,7 @@ class CourierPaymentController extends Controller
         }
 
         $payments = $query->latest('payment_date')->paginate(20);
-        
+
         return view('courier-payments.index', compact('payments'));
     }
 
@@ -51,6 +51,7 @@ class CourierPaymentController extends Controller
     public function create()
     {
         $couriers = Courier::where('is_active', true)->orderBy('name')->get();
+
         return view('courier-payments.create', compact('couriers'));
     }
 
@@ -82,6 +83,7 @@ class CourierPaymentController extends Controller
     public function edit(CourierPayment $courierPayment)
     {
         $couriers = Courier::where('is_active', true)->orderBy('name')->get();
+
         return view('courier-payments.edit', compact('courierPayment', 'couriers'));
     }
 

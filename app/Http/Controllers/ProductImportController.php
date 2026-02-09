@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Product;
+use App\Exports\ProductTemplateExport;
 use App\Models\Category;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\SubCategory;
 use App\Models\Unit;
-use App\Models\ProductVariant;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\ProductTemplateExport;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProductImportController extends Controller
 {
@@ -43,122 +42,134 @@ class ProductImportController extends Controller
         $hasErrors = false;
 
         // Pre-fetch related data for quick validation/lookup
-        $categories = Category::all()->keyBy(function($item) { return strtolower($item->name); });
-        $subCategories = SubCategory::all()->keyBy(function($item) { return strtolower($item->name); });
-        $units = Unit::all()->keyBy(function($item) { return strtolower($item->name); });
-        
-        $existingSkus = ProductVariant::pluck('sku')->map(fn($sku) => strtolower($sku))->toArray();
+        $categories = Category::all()->keyBy(function ($item) {
+            return strtolower($item->name);
+        });
+        $subCategories = SubCategory::all()->keyBy(function ($item) {
+            return strtolower($item->name);
+        });
+        $units = Unit::all()->keyBy(function ($item) {
+            return strtolower($item->name);
+        });
+
+        $existingSkus = ProductVariant::pluck('sku')->map(fn ($sku) => strtolower($sku))->toArray();
         $fileSkus = [];
-        
+
         // Grouping Logic: We process rows but need to identify products
         // In this preview, we just list flattened variants but attach product-level flags
 
         foreach ($rows as $index => $row) {
-             // Columns: 
-             // 0=Name, 1=Cat, 2=SubCat, 3=Desc, 4=Unit, 5=Value, 6=SKU, 7=Price, 8=Limit, 9=Qty, 10=Alert, 11=ImageURL
-             if (empty($row[0])) continue;
+            // Columns:
+            // 0=Name, 1=Cat, 2=SubCat, 3=Desc, 4=Unit, 5=Value, 6=SKU, 7=Price, 8=Limit, 9=Qty, 10=Alert, 11=ImageURL
+            if (empty($row[0])) {
+                continue;
+            }
 
-             $name = trim($row[0]);
-             $catName = isset($row[1]) ? trim($row[1]) : null;
-             $subCatName = isset($row[2]) ? trim($row[2]) : null;
-             $desc = isset($row[3]) ? trim($row[3]) : null;
-             $unitName = isset($row[4]) ? trim($row[4]) : null;
-             $unitValue = isset($row[5]) ? trim($row[5]) : null;
-             $sku = isset($row[6]) ? trim($row[6]) : null;
-             $price = isset($row[7]) ? (float) $row[7] : 0;
-             $limit = isset($row[8]) ? (float) $row[8] : null;
-             $qty = isset($row[9]) ? (int) $row[9] : 0;
-             $alert = isset($row[10]) ? (int) $row[10] : 0;
-             $imageUrl = isset($row[11]) ? trim($row[11]) : null;
+            $name = trim($row[0]);
+            $catName = isset($row[1]) ? trim($row[1]) : null;
+            $subCatName = isset($row[2]) ? trim($row[2]) : null;
+            $desc = isset($row[3]) ? trim($row[3]) : null;
+            $unitName = isset($row[4]) ? trim($row[4]) : null;
+            $unitValue = isset($row[5]) ? trim($row[5]) : null;
+            $sku = isset($row[6]) ? trim($row[6]) : null;
+            $price = isset($row[7]) ? (float) $row[7] : 0;
+            $limit = isset($row[8]) ? (float) $row[8] : null;
+            $qty = isset($row[9]) ? (int) $row[9] : 0;
+            $alert = isset($row[10]) ? (int) $row[10] : 0;
+            $imageUrl = isset($row[11]) ? trim($row[11]) : null;
 
-             $errors = [];
-             $rowStatus = 'OK'; // OK, ERROR, MISSING_DATA
+            $errors = [];
+            $rowStatus = 'OK'; // OK, ERROR, MISSING_DATA
 
-             // 1. Validation: Category
-             $catId = null;
-             if (!$catName) {
-                 $errors['category'] = "Required";
-             } else {
-                 $key = strtolower($catName);
-                 if (isset($categories[$key])) {
-                     $catId = $categories[$key]->id;
-                 } else {
-                     $errors['category'] = "MISSING_CATEGORY"; // Special code for UI
-                 }
-             }
+            // 1. Validation: Category
+            $catId = null;
+            if (! $catName) {
+                $errors['category'] = 'Required';
+            } else {
+                $key = strtolower($catName);
+                if (isset($categories[$key])) {
+                    $catId = $categories[$key]->id;
+                } else {
+                    $errors['category'] = 'MISSING_CATEGORY'; // Special code for UI
+                }
+            }
 
-             // 2. Validation: Sub Category
-             $subCatId = null;
-             if ($subCatName) {
-                 $key = strtolower($subCatName);
-                 if (isset($subCategories[$key])) {
-                     $subCatObj = $subCategories[$key];
-                     if ($catId && $subCatObj->category_id != $catId) {
-                         $errors['sub_category'] = "Mismatch"; 
-                     } else {
-                         $subCatId = $subCatObj->id;
-                     }
-                 } else {
-                     $errors['sub_category'] = "MISSING_SUB_CATEGORY";
-                 }
-             }
+            // 2. Validation: Sub Category
+            $subCatId = null;
+            if ($subCatName) {
+                $key = strtolower($subCatName);
+                if (isset($subCategories[$key])) {
+                    $subCatObj = $subCategories[$key];
+                    if ($catId && $subCatObj->category_id != $catId) {
+                        $errors['sub_category'] = 'Mismatch';
+                    } else {
+                        $subCatId = $subCatObj->id;
+                    }
+                } else {
+                    $errors['sub_category'] = 'MISSING_SUB_CATEGORY';
+                }
+            }
 
-             // 3. Validation: Unit
-             $unitId = null;
-             if (!$unitName) {
-                 $errors['unit'] = "Required";
-             } else {
-                 $key = strtolower($unitName);
-                 if (isset($units[$key])) {
-                     $unitId = $units[$key]->id;
-                 } else {
-                      $errors['unit'] = "MISSING_UNIT";
-                 }
-             }
+            // 3. Validation: Unit
+            $unitId = null;
+            if (! $unitName) {
+                $errors['unit'] = 'Required';
+            } else {
+                $key = strtolower($unitName);
+                if (isset($units[$key])) {
+                    $unitId = $units[$key]->id;
+                } else {
+                    $errors['unit'] = 'MISSING_UNIT';
+                }
+            }
 
-             // 4. Validation: SKU
-             if (!$sku) {
-                 $errors['sku'] = "Required";
-             } else {
-                 $skuLower = strtolower($sku);
-                 if (in_array($skuLower, $existingSkus)) {
-                     $errors['sku'] = "Exists in DB";
-                 } elseif (in_array($skuLower, $fileSkus)) {
-                     $errors['sku'] = "Duplicate in File";
-                 }
-                 $fileSkus[] = $skuLower;
-             }
+            // 4. Validation: SKU
+            if (! $sku) {
+                $errors['sku'] = 'Required';
+            } else {
+                $skuLower = strtolower($sku);
+                if (in_array($skuLower, $existingSkus)) {
+                    $errors['sku'] = 'Exists in DB';
+                } elseif (in_array($skuLower, $fileSkus)) {
+                    $errors['sku'] = 'Duplicate in File';
+                }
+                $fileSkus[] = $skuLower;
+            }
 
-             // 5. Validation: Price & Qty
-             if ($price <= 0) $errors['price'] = "Invalid";
-             if ($qty < 0) $errors['qty'] = "Invalid";
-             
-             // Check if only "Missing" errors exist or actual logic errors
-             if (!empty($errors)) {
-                 $hasErrors = true;
-             } else {
-                 $validRowsCount++;
-             }
+            // 5. Validation: Price & Qty
+            if ($price <= 0) {
+                $errors['price'] = 'Invalid';
+            }
+            if ($qty < 0) {
+                $errors['qty'] = 'Invalid';
+            }
 
-             $previewData[] = [
-                 'row_id' => $index, // for tracking
-                 'name' => $name,
-                 'category_id' => $catId,
-                 'category_name' => $catName,
-                 'sub_category_id' => $subCatId,
-                 'sub_category_name' => $subCatName,
-                 'description' => $desc,
-                 'unit_id' => $unitId,
-                 'unit_name' => $unitName,
-                 'unit_value' => $unitValue,
-                 'sku' => $sku,
-                 'selling_price' => $price,
-                 'limit_price' => $limit,
-                 'quantity' => $qty,
-                 'alert_quantity' => $alert,
-                 'image_url' => $imageUrl,
-                 'errors' => $errors
-             ];
+            // Check if only "Missing" errors exist or actual logic errors
+            if (! empty($errors)) {
+                $hasErrors = true;
+            } else {
+                $validRowsCount++;
+            }
+
+            $previewData[] = [
+                'row_id' => $index, // for tracking
+                'name' => $name,
+                'category_id' => $catId,
+                'category_name' => $catName,
+                'sub_category_id' => $subCatId,
+                'sub_category_name' => $subCatName,
+                'description' => $desc,
+                'unit_id' => $unitId,
+                'unit_name' => $unitName,
+                'unit_value' => $unitValue,
+                'sku' => $sku,
+                'selling_price' => $price,
+                'limit_price' => $limit,
+                'quantity' => $qty,
+                'alert_quantity' => $alert,
+                'image_url' => $imageUrl,
+                'errors' => $errors,
+            ];
         }
 
         session(['product_import_preview_data' => $previewData]);
@@ -170,12 +181,12 @@ class ProductImportController extends Controller
     {
         $previewData = session('product_import_preview_data');
 
-        if (!$previewData) {
+        if (! $previewData) {
             return redirect()->route('products.import.show')->with('error', 'Session expired. Please upload again.');
         }
 
         $count = 0;
-        
+
         // Regroup by Product Name to avoid creating duplicate products if rows are scrambled
         // (Though usually file is sorted, better safe)
         $groupedData = collect($previewData)->groupBy('name');
@@ -185,20 +196,20 @@ class ProductImportController extends Controller
                 // Use the FIRST valid row's creation data for the product
                 // Find a row that has valid product data? Or just take the first one?
                 $firstRow = $variants->first();
-                
+
                 // Skip if critical product errors exist?
-                // Actually we rely on UI to block import if errors exist. 
+                // Actually we rely on UI to block import if errors exist.
                 // But if user skips invalid rows, we proceed with valid ones.
-                
+
                 // 1. Find or Create Product
                 $product = Product::where('name', $productName)->first();
 
-                if (!$product) {
+                if (! $product) {
                     $image = null;
-                    if (!empty($firstRow['image_url'])) {
+                    if (! empty($firstRow['image_url'])) {
                         // Attempt upload
                         try {
-                             $image = \CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary::uploadApi()->upload($firstRow['image_url'], ['verify' => false])['secure_url'];
+                            $image = \CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary::uploadApi()->upload($firstRow['image_url'], ['verify' => false])['secure_url'];
                         } catch (\Exception $e) {
                             // Ignore image error, continue creation?
                         }
@@ -215,13 +226,17 @@ class ProductImportController extends Controller
 
                 // 2. Add Variants
                 foreach ($variants as $row) {
-                    if (!empty($row['errors'])) continue;
+                    if (! empty($row['errors'])) {
+                        continue;
+                    }
 
                     // Check duplicate SKU again to be safe
-                    if (ProductVariant::where('sku', $row['sku'])->exists()) continue;
+                    if (ProductVariant::where('sku', $row['sku'])->exists()) {
+                        continue;
+                    }
 
-                    $variantImage = null; // Currently template supports 1 image per row, usually mapping to Product Image. 
-                    // If user provides specific variant image logic, we'd need another column. 
+                    $variantImage = null; // Currently template supports 1 image per row, usually mapping to Product Image.
+                    // If user provides specific variant image logic, we'd need another column.
                     // For now, let's assume image_url on row applies to Product if new, or ignored if variant?
                     // "Expert" decision: If product exists, maybe update image? No, safer to leave.
                     // Let's assume URL is for the PRODUCT.

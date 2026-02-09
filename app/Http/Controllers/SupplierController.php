@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Supplier;
-use Illuminate\Http\Request;
-use App\Rules\SriLankaMobile;
 use App\Rules\SriLankaLandline;
+use App\Rules\SriLankaMobile;
+use Illuminate\Http\Request;
 
 class SupplierController extends Controller
 {
@@ -20,9 +20,9 @@ class SupplierController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('business_name', 'like', "%{$search}%")
-                  ->orWhere('mobile', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('business_name', 'like', "%{$search}%")
+                    ->orWhere('mobile', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -36,14 +36,15 @@ class SupplierController extends Controller
         }
         if ($request->has('export')) {
             $suppliers = $query->get();
-            
+
             if ($request->input('export') === 'excel') {
                 return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\SuppliersExport($suppliers), 'suppliers.xlsx');
             }
-            
+
             if ($request->input('export') === 'pdf') {
                 $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.suppliers_pdf', compact('suppliers'));
                 $pdf->setPaper('a4', 'landscape');
+
                 return $pdf->stream('suppliers.pdf');
             }
         }
@@ -60,6 +61,7 @@ class SupplierController extends Controller
     {
         $countries = config('locations.countries');
         $slData = config('locations.sri_lanka');
+
         return view('contacts.suppliers.create', compact('countries', 'slData'));
     }
 
@@ -102,6 +104,7 @@ class SupplierController extends Controller
     {
         $countries = config('locations.countries');
         $slData = config('locations.sri_lanka');
+
         return view('contacts.suppliers.edit', compact('supplier', 'countries', 'slData'));
     }
 

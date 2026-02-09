@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
-use Illuminate\Http\Request;
-use App\Rules\SriLankaMobile;
 use App\Rules\SriLankaLandline;
+use App\Rules\SriLankaMobile;
+use Illuminate\Http\Request;
 
 class CustomerController extends Controller
 {
@@ -23,10 +23,10 @@ class CustomerController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('business_name', 'like', "%{$search}%")
-                  ->orWhere('mobile', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('address', 'like', "%{$search}%");
+                    ->orWhere('business_name', 'like', "%{$search}%")
+                    ->orWhere('mobile', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%");
             });
         }
 
@@ -40,14 +40,15 @@ class CustomerController extends Controller
 
         if ($request->has('export')) {
             $customers = $query->get();
-            
+
             if ($request->input('export') === 'excel') {
                 return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\CustomersExport($customers), 'customers.xlsx');
             }
-            
+
             if ($request->input('export') === 'pdf') {
                 $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.customers_pdf', compact('customers'));
                 $pdf->setPaper('a4', 'landscape');
+
                 return $pdf->stream('customers.pdf');
             }
         }
@@ -67,6 +68,7 @@ class CustomerController extends Controller
     {
         $countries = config('locations.countries');
         $slData = config('locations.sri_lanka');
+
         return view('contacts.customers.create', compact('countries', 'slData'));
     }
 
@@ -108,6 +110,7 @@ class CustomerController extends Controller
     {
         $countries = config('locations.countries');
         $slData = config('locations.sri_lanka');
+
         return view('contacts.customers.edit', compact('customer', 'countries', 'slData'));
     }
 

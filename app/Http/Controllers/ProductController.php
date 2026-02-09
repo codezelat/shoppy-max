@@ -2,17 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
+use App\Exports\ProductsExport;
 use App\Models\Category;
-use App\Models\SubCategory; // Make sure SubCategory model is imported
+use App\Models\Product; // Make sure SubCategory model is imported
+use App\Models\ProductVariant;
+use App\Models\SubCategory;
 use App\Models\Unit;
-use App\Models\Attribute;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\ProductsExport;
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Picqer\Barcode\BarcodeGeneratorHTML;
-use App\Models\ProductVariant;
 
 class ProductController extends Controller
 {
@@ -22,12 +21,12 @@ class ProductController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->input('search');
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('barcode_data', 'like', "%{$search}%")
-                  ->orWhereHas('variants', function($subQ) use ($search) {
-                      $subQ->where('sku', 'like', "%{$search}%");
-                  });
+                    ->orWhere('barcode_data', 'like', "%{$search}%")
+                    ->orWhereHas('variants', function ($subQ) use ($search) {
+                        $subQ->where('sku', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -39,20 +38,22 @@ class ProductController extends Controller
         $products->appends($request->all());
 
         $categories = Category::all();
+
         return view('product_management.products.index', compact('products', 'categories'));
     }
 
-    public function export(Request $request) 
+    public function export(Request $request)
     {
-        return Excel::download(new ProductsExport($request->all()), 'products_' . date('Y-m-d_H-i') . '.xlsx');
+        return Excel::download(new ProductsExport($request->all()), 'products_'.date('Y-m-d_H-i').'.xlsx');
     }
 
     public function create()
     {
         $categories = Category::all();
-        $subCategories = SubCategory::all(); 
+        $subCategories = SubCategory::all();
         $units = Unit::all();
-        return view('product_management.products.create', compact('categories', 'subCategories', 'units')); 
+
+        return view('product_management.products.create', compact('categories', 'subCategories', 'units'));
     }
 
     public function store(Request $request)
@@ -65,7 +66,7 @@ class ProductController extends Controller
             'warranty_period' => 'nullable|integer|min:0',
             'warranty_period_type' => 'nullable|in:years,months,days',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            
+
             // Variants Validation
             'variants' => 'required|array|min:1',
             'variants.*.unit_id' => 'required|exists:units,id',
@@ -100,7 +101,7 @@ class ProductController extends Controller
             $variantImage = null;
             // Handle variant image upload check
             if ($request->hasFile("variants.{$index}.image")) {
-                 $variantImage = Cloudinary::uploadApi()->upload($request->file("variants.{$index}.image")->getRealPath(), ['verify' => false])['secure_url'];
+                $variantImage = Cloudinary::uploadApi()->upload($request->file("variants.{$index}.image")->getRealPath(), ['verify' => false])['secure_url'];
             }
 
             $product->variants()->create([
@@ -124,6 +125,7 @@ class ProductController extends Controller
         $categories = Category::all();
         $subCategories = SubCategory::all();
         $units = Unit::all();
+
         return view('product_management.products.edit', compact('product', 'categories', 'subCategories', 'units'));
     }
 
@@ -142,11 +144,11 @@ class ProductController extends Controller
             'variants.*.id' => 'nullable|exists:product_variants,id',
             'variants.*.unit_id' => 'required|exists:units,id',
             'variants.*.unit_value' => 'nullable|string|max:50',
-            'variants.*.sku' => 'required|string|distinct', 
+            'variants.*.sku' => 'required|string|distinct',
             // We can't easily use unique rule with ignore inside array validation in Laravel validation simple syntax
             // We'll rely on DB constraints or manual check if needed, but 'distinct' helps within the request.
             // For proper DB unique check ignoring self: we might need custom closure or loop check.
-            
+
             'variants.*.selling_price' => 'required|numeric|min:0',
             'variants.*.limit_price' => 'nullable|numeric|min:0',
             'variants.*.quantity' => 'required|integer|min:0', // Allowing manual update here for now
@@ -158,7 +160,7 @@ class ProductController extends Controller
         if ($request->hasFile('image')) {
             $validated['image'] = Cloudinary::uploadApi()->upload($request->file('image')->getRealPath(), ['verify' => false])['secure_url'];
         }
-        
+
         $product->update([
             'name' => $validated['name'],
             'category_id' => $validated['category_id'],
@@ -174,8 +176,8 @@ class ProductController extends Controller
 
         foreach ($request->variants as $index => $variantData) {
             $variantImage = null;
-             if ($request->hasFile("variants.{$index}.image")) {
-                 $variantImage = Cloudinary::uploadApi()->upload($request->file("variants.{$index}.image")->getRealPath(), ['verify' => false])['secure_url'];
+            if ($request->hasFile("variants.{$index}.image")) {
+                $variantImage = Cloudinary::uploadApi()->upload($request->file("variants.{$index}.image")->getRealPath(), ['verify' => false])['secure_url'];
             }
 
             if (isset($variantData['id']) && $variantData['id']) {
@@ -218,26 +220,29 @@ class ProductController extends Controller
     {
         try {
             $product->delete(); // Cascades deletes variants
+
             return redirect()->route('products.index')->with('success', 'Product deleted successfully.');
         } catch (\Exception $e) {
-            return back()->with('error', 'Error deleting product: ' . $e->getMessage());
+            return back()->with('error', 'Error deleting product: '.$e->getMessage());
         }
     }
+
     public function success(Product $product)
     {
         $product->load('variants.unit');
+
         return view('product_management.products.success', compact('product'));
     }
 
     public function printBarcode(ProductVariant $variant)
     {
-        $generator = new BarcodeGeneratorHTML();
+        $generator = new BarcodeGeneratorHTML;
         $barcode = $generator->getBarcode($variant->sku, $generator::TYPE_CODE_128);
-        
+
         return view('product_management.products.barcode_preview', compact('variant', 'barcode'));
     }
 
-    public function bulkPrintBarcode(Request $request) 
+    public function bulkPrintBarcode(Request $request)
     {
         $request->validate([
             'products' => 'required|string', // Comma separated IDs
@@ -245,9 +250,9 @@ class ProductController extends Controller
 
         $productIds = explode(',', $request->products);
         $variants = ProductVariant::whereIn('product_id', $productIds)
-                        ->with(['product'])
-                        ->orderBy('product_id')
-                        ->get();
+            ->with(['product'])
+            ->orderBy('product_id')
+            ->get();
 
         if ($variants->isEmpty()) {
             return back()->with('error', 'No variants found for selected products.');
@@ -255,7 +260,7 @@ class ProductController extends Controller
 
         $pdf = app('dompdf.wrapper');
         $pdf->loadView('product_management.products.barcode-pdf', compact('variants'));
-        
+
         return $pdf->stream('barcodes.pdf');
     }
 
@@ -264,19 +269,20 @@ class ProductController extends Controller
         $request->validate([
             'products' => 'required|string',
         ]);
-        
+
         $ids = explode(',', $request->products);
-        
+
         // Use logic that ensures observers are fired (if needed) or just bulk delete
         // For deleting images etc, we might need loop. But for now, simple delete.
         Product::whereIn('id', $ids)->delete();
-        
-        return back()->with('success', count($ids) . ' products deleted successfully.');
+
+        return back()->with('success', count($ids).' products deleted successfully.');
     }
 
     public function show(Product $product)
     {
         $product->load(['category', 'subCategory', 'variants.unit']);
+
         return response()->json($product);
     }
 }

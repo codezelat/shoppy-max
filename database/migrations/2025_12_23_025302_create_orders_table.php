@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('order_number')->unique();
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null'); // Creator (Admin or Reseller)
             $table->foreignId('reseller_id')->nullable()->constrained('users')->onDelete('set null'); // If linked to a reseller
-            
+
             // Customer Details (Denormalized for snapshot or linked if Customer model exists, sticking to requirements for now)
             $table->string('customer_name')->nullable();
             $table->string('customer_phone')->nullable();
@@ -25,21 +25,21 @@ return new class extends Migration
 
             // Order Status
             $table->string('status')->default('pending'); // pending, on_hold, confirmed, packing, dispatched, delivered, returned, cancelled
-            
+
             // Payment
             $table->string('payment_method')->default('cod'); // cod, online
             $table->string('payment_status')->default('pending'); // pending, paid, failed
-            
+
             // Financials
             $table->decimal('total_amount', 10, 2)->default(0);
-            
+
             // Meta
             $table->text('sales_note')->nullable();
-            
+
             // Logistics
             $table->string('waybill_number')->nullable();
             $table->string('courier_id')->nullable(); // Using string for now or foreign key if courier table exists
-            
+
             // Workflow Tracking
             $table->foreignId('packed_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamp('dispatched_at')->nullable();

@@ -4,22 +4,19 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\PurchaseItem;
-use Illuminate\Support\Facades\DB;
 
 class StockService
 {
     /**
      * Deduct stock using FIFO method and calculate weighted cost price.
-     * 
-     * @param Product $product
-     * @param int $quantity
+     *
      * @return float Weighted Cost Price per Item
      */
     public function deductStock(Product $product, int $quantity): float
     {
         $remainingToDeduct = $quantity;
         $totalCost = 0;
-        
+
         // Product master stock deduction (simple count)
         $product->quantity -= $quantity;
         $product->save();
@@ -28,14 +25,16 @@ class StockService
         // Get verified batches with stock, ordered by oldest first
         $batches = PurchaseItem::where('product_id', $product->id)
             ->where('remaining_quantity', '>', 0)
-            ->whereHas('purchase', function($q) {
+            ->whereHas('purchase', function ($q) {
                 $q->where('status', 'verified');
             })
             ->orderBy('created_at', 'asc') // FIFO
             ->get();
 
         foreach ($batches as $batch) {
-            if ($remainingToDeduct <= 0) break;
+            if ($remainingToDeduct <= 0) {
+                break;
+            }
 
             $available = $batch->remaining_quantity;
             $batchCost = $batch->purchasing_price;
@@ -44,14 +43,14 @@ class StockService
                 // Take all needed from this batch
                 $batch->remaining_quantity -= $remainingToDeduct;
                 $batch->save();
-                
+
                 $totalCost += ($remainingToDeduct * $batchCost);
                 $remainingToDeduct = 0;
             } else {
                 // Take whatever is available
                 $batch->remaining_quantity = 0;
                 $batch->save();
-                
+
                 $totalCost += ($available * $batchCost);
                 $remainingToDeduct -= $available;
             }

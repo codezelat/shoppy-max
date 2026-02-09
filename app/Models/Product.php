@@ -38,6 +38,11 @@ class Product extends Model
         return $this->hasMany(ProductVariant::class);
     }
 
+    public function purchaseItems()
+    {
+        return $this->hasMany(PurchaseItem::class);
+    }
+
     public function getTotalQuantityAttribute()
     {
         return $this->variants->sum('quantity');
@@ -56,23 +61,29 @@ class Product extends Model
             return number_format($min, 2);
         }
 
-        return number_format($min, 2) . ' - ' . number_format($max, 2);
+        return number_format($min, 2).' - '.number_format($max, 2);
     }
 
     public function getStockStatusAttribute()
     {
-        if ($this->variants->isEmpty()) return 'Out of Stock';
+        if ($this->variants->isEmpty()) {
+            return 'Out of Stock';
+        }
 
         $totalQty = $this->total_quantity;
-        if ($totalQty == 0) return 'Out of Stock';
+        if ($totalQty == 0) {
+            return 'Out of Stock';
+        }
 
         // Check if any variant is low on stock
         $hasLowStock = $this->variants->contains(function ($variant) {
             return $variant->quantity <= $variant->alert_quantity;
         });
 
-        if ($hasLowStock) return 'Low Stock';
+        if ($hasLowStock) {
+            return 'Low Stock';
+        }
 
-        return 'In Stock'; 
+        return 'In Stock';
     }
 }

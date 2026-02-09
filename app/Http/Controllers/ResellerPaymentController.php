@@ -20,10 +20,10 @@ class ResellerPaymentController extends Controller
         if ($search) {
             $query->whereHas('reseller', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('business_name', 'like', "%{$search}%");
+                    ->orWhere('business_name', 'like', "%{$search}%");
             })->orWhere('reference_id', 'like', "%{$search}%");
         }
-        
+
         if ($request->has('method') && $request->input('method') != '') {
             $query->where('payment_method', $request->input('method'));
         }
@@ -48,6 +48,7 @@ class ResellerPaymentController extends Controller
     public function create()
     {
         $resellers = Reseller::all();
+
         return view('resellers.payments.create', compact('resellers'));
     }
 
@@ -83,6 +84,7 @@ class ResellerPaymentController extends Controller
     public function edit(ResellerPayment $resellerPayment)
     {
         $resellers = Reseller::all();
+
         return view('resellers.payments.edit', compact('resellerPayment', 'resellers'));
     }
 
@@ -92,7 +94,8 @@ class ResellerPaymentController extends Controller
     public function downloadInvoice(ResellerPayment $resellerPayment)
     {
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('resellers.payments.invoice', ['payment' => $resellerPayment]);
-        return $pdf->download('receipt-' . str_pad($resellerPayment->id, 6, '0', STR_PAD_LEFT) . '.pdf');
+
+        return $pdf->download('receipt-'.str_pad($resellerPayment->id, 6, '0', STR_PAD_LEFT).'.pdf');
     }
 
     /**
@@ -101,32 +104,32 @@ class ResellerPaymentController extends Controller
     public function downloadBulkInvoices(Request $request)
     {
         $zip = new \ZipArchive;
-        $fileName = 'payment_vouchers_' . date('Y-m-d_His') . '.zip';
-        
+        $fileName = 'payment_vouchers_'.date('Y-m-d_His').'.zip';
+
         // Ensure the directory exists
-        if (!file_exists(storage_path('app/public/temp'))) {
+        if (! file_exists(storage_path('app/public/temp'))) {
             mkdir(storage_path('app/public/temp'), 0755, true);
         }
-        $zipPath = storage_path('app/public/temp/' . $fileName);
+        $zipPath = storage_path('app/public/temp/'.$fileName);
 
-        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== TRUE) {
-             return back()->with('error', 'Could not create Zip file.');
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return back()->with('error', 'Could not create Zip file.');
         }
 
-        // Logic: 
+        // Logic:
         // 1. If 'payment_ids' array is present (from checkboxes), use that.
-        // 2. Else if 'select_all_matching' is present/implied by absence of IDs but presence of filters? 
+        // 2. Else if 'select_all_matching' is present/implied by absence of IDs but presence of filters?
         //    Actually, simpler: If IDs -> use IDs. Else -> use filters.
-        
+
         $paymentIds = $request->input('payment_ids');
-        
+
         if ($paymentIds) {
-            // Explode if it's a comma-separated string (sometimes happens with hidden inputs), 
+            // Explode if it's a comma-separated string (sometimes happens with hidden inputs),
             // but usually array if from checkboxes.
             if (is_string($paymentIds)) {
                 $paymentIds = explode(',', $paymentIds);
             }
-            
+
             $payments = ResellerPayment::with('reseller')->whereIn('id', $paymentIds)->get();
         } else {
             // Fallback to Filters
@@ -136,10 +139,10 @@ class ResellerPaymentController extends Controller
             if ($search) {
                 $query->whereHas('reseller', function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('business_name', 'like', "%{$search}%");
+                        ->orWhere('business_name', 'like', "%{$search}%");
                 })->orWhere('reference_id', 'like', "%{$search}%");
             }
-            
+
             if ($request->has('method') && $request->input('method') != '') {
                 $query->where('payment_method', $request->input('method'));
             }
@@ -147,11 +150,11 @@ class ResellerPaymentController extends Controller
             if ($request->filled('start_date')) {
                 $query->whereDate('payment_date', '>=', $request->input('start_date'));
             }
-    
+
             if ($request->filled('end_date')) {
                 $query->whereDate('payment_date', '<=', $request->input('end_date'));
             }
-            
+
             $payments = $query->get();
         }
 
@@ -162,7 +165,7 @@ class ResellerPaymentController extends Controller
         foreach ($payments as $payment) {
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('resellers.payments.invoice', ['payment' => $payment]);
             $content = $pdf->output();
-            $zip->addFromString('voucher-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT) . '.pdf', $content);
+            $zip->addFromString('voucher-'.str_pad($payment->id, 6, '0', STR_PAD_LEFT).'.pdf', $content);
         }
         $zip->close();
 
@@ -193,7 +196,7 @@ class ResellerPaymentController extends Controller
             // Adjust Reseller Due (Subtracting difference: if new amount is higher, due decreases more)
             $reseller = Reseller::find($request->reseller_id);
             // Example: Due 1000. Paid 500 (Old). Due becomes 500.
-            // Update Payment to 800 (diff +300). 
+            // Update Payment to 800 (diff +300).
             // Due should be 200. (500 - 300).
             $reseller->due_amount -= $difference;
             $reseller->save();
@@ -208,14 +211,14 @@ class ResellerPaymentController extends Controller
     public function cancel(ResellerPayment $resellerPayment)
     {
         if ($resellerPayment->status === 'cancelled') {
-             return redirect()->route('reseller-payments.index')->with('error', 'Payment is already cancelled.');
+            return redirect()->route('reseller-payments.index')->with('error', 'Payment is already cancelled.');
         }
 
         DB::transaction(function () use ($resellerPayment) {
             // Reverse the financial impact (Add back the amount to Due)
             $reseller = $resellerPayment->reseller;
             $reseller->increment('due_amount', $resellerPayment->amount);
-            
+
             // Mark as cancelled
             $resellerPayment->update(['status' => 'cancelled']);
         });

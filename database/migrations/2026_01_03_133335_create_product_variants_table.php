@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -41,7 +41,7 @@ return new class extends Migration
                 'limit_price' => $product->limit_price,
                 'alert_quantity' => $product->alert_quantity,
                 'quantity' => $product->quantity,
-                'image' => null, 
+                'image' => null,
                 'created_at' => $product->created_at,
                 'updated_at' => $product->updated_at,
             ]);
@@ -50,9 +50,10 @@ return new class extends Migration
         // Remove columns from products table safely
         Schema::table('products', function (Blueprint $table) {
             if (Schema::hasColumn('products', 'unit_id')) {
-                 try {
+                try {
                     $table->dropForeign(['unit_id']);
-                } catch (\Exception $e) {}
+                } catch (\Exception $e) {
+                }
             }
         });
 
@@ -71,7 +72,7 @@ return new class extends Migration
                     $columnsToDrop[] = $col;
                 }
             }
-            if (!empty($columnsToDrop)) {
+            if (! empty($columnsToDrop)) {
                 $table->dropColumn($columnsToDrop);
             }
         });
@@ -104,10 +105,10 @@ return new class extends Migration
                 'quantity' => $firstVariant->quantity,
             ]);
         }
-        
+
         // Restore unique constraint on SKU after populating
         Schema::table('products', function (Blueprint $table) {
-             $table->unique('sku');
+            $table->unique('sku');
         });
 
         Schema::dropIfExists('product_variants');

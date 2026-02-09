@@ -15,20 +15,22 @@ class PackingController extends Controller
     public function index()
     {
         $orders = Order::whereIn('status', ['confirmed', 'packing'])
-                       ->orderBy('created_at', 'asc')
-                       ->get();
+            ->orderBy('created_at', 'asc')
+            ->get();
+
         return view('orders.packing.index', compact('orders'));
     }
-    
+
     /**
      * Packing Interface for a specific order (Scanner UI).
      */
     public function process($id)
     {
         $order = Order::with('items')->findOrFail($id);
+
         return view('orders.packing.process', compact('order'));
     }
-    
+
     /**
      * Mark as Packed / Create Waybill if not exists.
      */
@@ -39,17 +41,17 @@ class PackingController extends Controller
         $order->packed_by = Auth::id();
         $order->dispatched_at = now();
         $order->save();
-        
+
         OrderLog::create([
             'order_id' => $order->id,
             'user_id' => Auth::id(),
             'action' => 'packed_dispatched',
             'description' => 'Order packed and marked dispatched.',
         ]);
-        
+
         return redirect()->route('orders.packing.index')->with('success', 'Order packed successfully.');
     }
-    
+
     /**
      * Create Packing Batch (Placeholder).
      */
