@@ -426,12 +426,10 @@ class OrderController extends Controller
         DB::beginTransaction();
         try {
             // 1. Revert Stock for OLD items
+            $order->load(['items.variant']);
             foreach ($order->items as $item) {
-                if ($item->product_variant_id) {
-                    $variant = ProductVariant::find($item->product_variant_id);
-                    if ($variant) {
-                        $variant->increment('quantity', $item->quantity);
-                    }
+                if ($item->variant) {
+                    $item->variant->increment('quantity', $item->quantity);
                 }
             }
             
@@ -554,12 +552,10 @@ class OrderController extends Controller
         DB::beginTransaction();
         try {
             // Restore Stock
+            $order->load(['items.variant']);
             foreach ($order->items as $item) {
-                if ($item->product_variant_id) {
-                    $variant = ProductVariant::find($item->product_variant_id);
-                    if ($variant) {
-                        $variant->increment('quantity', $item->quantity);
-                    }
+                if ($item->variant) {
+                    $item->variant->increment('quantity', $item->quantity);
                 }
             }
 
