@@ -23,7 +23,7 @@ class OrderController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Order::with(['user', 'reseller', 'customer', 'items', 'courier']); 
+        $query = Order::with(['user', 'reseller', 'customer', 'items', 'courier']);
 
         // 1. Search (Order Number, Customer Name, Mobile)
         if ($request->filled('search')) {
@@ -89,7 +89,7 @@ class OrderController extends Controller
             }
         }
         $nextOrderNumber = 'ORD-' . $dateStr . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
-        
+
         $couriers = Courier::all();
         $slData = config('locations.sri_lanka');
 
@@ -102,13 +102,13 @@ class OrderController extends Controller
     public function searchProducts(Request $request)
     {
         $query = $request->get('q');
-        
+
         $products = Product::with(['variants.unit'])
             ->where('name', 'like', "%{$query}%")
             ->orWhere('description', 'like', "%{$query}%") // Optional: Search description too
             ->limit(20)
             ->get();
-            
+
         // Flatten variants for easier frontend consumption
         $results = [];
         foreach ($products as $product) {
@@ -131,7 +131,7 @@ class OrderController extends Controller
                 ];
             }
         }
-        
+
         return response()->json($results);
     }
 
@@ -141,13 +141,13 @@ class OrderController extends Controller
     public function searchResellers(Request $request)
     {
         $query = $request->get('q');
-        
+
         $resellers = Reseller::where('name', 'like', "%{$query}%")
             ->orWhere('business_name', 'like', "%{$query}%")
             ->orWhere('mobile', 'like', "%{$query}%")
             ->limit(20)
             ->get(['id', 'name', 'business_name', 'mobile']);
-            
+
         return response()->json($resellers);
     }
 
@@ -160,14 +160,14 @@ class OrderController extends Controller
             'order_type' => 'required|in:reseller,direct',
             'order_date' => 'required|date',
             'reseller_id' => 'required_if:order_type,reseller|nullable|exists:resellers,id',
-            
+
             // Customer Details
             'customer.name' => 'required|string|max:255',
             'customer.mobile' => 'required|string|max:20',
             'customer.landline' => 'nullable|string|max:20',
             'customer.address' => 'required|string',
             'customer.city' => 'nullable|string', // Optional if we just store address string
-            
+
             // Products
             'items' => 'required|array|min:1',
             'items.*.id' => 'required|exists:product_variants,id',
@@ -205,7 +205,7 @@ class OrderController extends Controller
 
             // 2. Create Order
             $orderNumber = $this->generateOrderNumber();
-            
+
             $order = new Order();
             $order->order_number = $orderNumber;
             $order->order_date = $validated['order_date'];
@@ -213,26 +213,26 @@ class OrderController extends Controller
             $order->user_id = Auth::id(); // Admin creating the order
             $order->reseller_id = $validated['order_type'] === 'reseller' ? $validated['reseller_id'] : null;
             $order->customer_id = $customer->id;
-            
+
             // Fallback legacy fields (optional, but good for redundancy if migrated)
             $order->customer_name = $customer->name;
             $order->customer_phone = $customer->mobile;
             $order->customer_address = $customer->address;
 
             $order->status = $validated['order_status'] ?? 'pending';
-            
+
             // New Fields
             $order->courier_id = $validated['courier_id'] ?? null;
             $order->courier_charge = $validated['courier_charge'] ?? 0;
             $order->payment_method = $validated['payment_method'] ?? 'COD';
             $order->call_status = $validated['call_status'] ?? 'pending';
             $order->sales_note = $validated['sales_note'] ?? null;
-            
+
             // Capture Address Snapshot
             $order->customer_city = $validated['customer']['city'] ?? null;
             $order->customer_district = $validated['customer']['district'] ?? null;
             $order->customer_province = $validated['customer']['province'] ?? null;
-            
+
             $order->save();
 
             $totalAmount = 0;
@@ -242,12 +242,12 @@ class OrderController extends Controller
             // 3. Process Items
             foreach ($validated['items'] as $itemData) {
                 $variant = ProductVariant::with('product')->find($itemData['id']);
-                
+
                 // Stock Validation (Optional: Validation rule could handle this, but explicit check is safer)
                 if ($variant->quantity < $itemData['quantity']) {
                     throw new \Exception("Insufficient stock for {$variant->product->name} (SKU: {$variant->sku})");
                 }
-                
+
                 // Limit Price Validation
                 if ($itemData['selling_price'] < $variant->limit_price) {
                      throw new \Exception("Selling price for {$variant->product->name} (SKU: {$variant->sku}) cannot be lower than limit price ({$variant->limit_price})");
@@ -257,7 +257,7 @@ class OrderController extends Controller
                 $unitPrice = $itemData['selling_price'];
                 $basePrice = $variant->limit_price; // Assuming limit_price IS the base/cost price for commission calc
                 $subtotal = $unitPrice * $qty;
-                
+
                 $itemCost = $basePrice * $qty;
                 $itemCommission = ($unitPrice - $basePrice) * $qty;
 
@@ -280,7 +280,7 @@ class OrderController extends Controller
                 // Accumulate Totals
                 $totalAmount += $subtotal;
                 $totalCost += $itemCost;
-                
+
                 // Commission only applies for Reseller orders
                 if ($order->order_type === 'reseller') {
                     $totalCommission += $itemCommission;
@@ -303,7 +303,7 @@ class OrderController extends Controller
                 'redirect' => route('orders.index'),
                 'order_number' => $orderNumber
             ]);
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -312,7 +312,7 @@ class OrderController extends Controller
             ], 422);
         }
     }
-    
+
     /**
      * Generate unique order number.
      */
@@ -320,7 +320,7 @@ class OrderController extends Controller
     {
         $dateStr = date('Ymd');
         $latestOrder = Order::whereDate('created_at', today())->latest()->first();
-        
+
         $sequence = 1;
         if ($latestOrder) {
              $parts = explode('-', $latestOrder->order_number);
@@ -336,10 +336,10 @@ class OrderController extends Controller
                 $sequence++;
             }
         } while ($exists);
-        
+
         return $number;
     }
-    
+
     /**
      * Log action helper.
      */
@@ -379,7 +379,7 @@ class OrderController extends Controller
         $order->load(['items.variant', 'customer', 'reseller']);
         $couriers = Courier::all();
         $slData = config('locations.sri_lanka');
-        
+
         return view('orders.edit', [
             'order' => $order,
             'orderFull' => $order,
@@ -397,14 +397,14 @@ class OrderController extends Controller
             'order_type' => 'required|in:reseller,direct',
             'order_date' => 'required|date',
             'reseller_id' => 'required_if:order_type,reseller|nullable|exists:resellers,id',
-            
+
             // Customer Details
             'customer.name' => 'required|string|max:255',
             'customer.mobile' => 'required|string|max:20',
             'customer.landline' => 'nullable|string|max:20',
             'customer.address' => 'required|string',
             'customer.city' => 'nullable|string',
-            
+
             // Products
             'items' => 'required|array|min:1',
             'items.*.id' => 'required|exists:product_variants,id',
@@ -425,6 +425,8 @@ class OrderController extends Controller
 
         DB::beginTransaction();
         try {
+            // 1. Revert Stock for OLD items
+            foreach ($order->items as $item) {
             // 1. Revert Stock for OLD items
             $variantQuantities = [];
             foreach ($order->items as $item) {
@@ -467,7 +469,7 @@ class OrderController extends Controller
             $order->customer_name = $customer->name;
             $order->customer_phone = $customer->mobile;
             $order->customer_address = $customer->address;
-            
+
              // Create/Update Logic for New Fields
             $order->status = $validated['order_status'] ?? $order->status;
             $order->courier_id = $validated['courier_id'] ?? null;
@@ -489,12 +491,12 @@ class OrderController extends Controller
             // 4. Process NEW Items
             foreach ($validated['items'] as $itemData) {
                 $variant = ProductVariant::with('product')->find($itemData['id']);
-                
+
                 // Stock Check
                 if ($variant->quantity < $itemData['quantity']) {
                     throw new \Exception("Insufficient stock for {$variant->product->name} (SKU: {$variant->sku})");
                 }
-                
+
                 // Limit Price Check
                 if ($itemData['selling_price'] < $variant->limit_price) {
                      throw new \Exception("Selling price for {$variant->product->name} (SKU: {$variant->sku}) cannot be lower than limit price ({$variant->limit_price})");
@@ -504,7 +506,7 @@ class OrderController extends Controller
                 $unitPrice = $itemData['selling_price'];
                 $basePrice = $variant->limit_price;
                 $subtotal = $unitPrice * $qty;
-                
+
                 $itemCost = $basePrice * $qty;
                 $itemCommission = ($unitPrice - $basePrice) * $qty;
 
@@ -516,7 +518,7 @@ class OrderController extends Controller
                     'sku' => $variant->sku,
                     'quantity' => $qty,
                     'unit_price' => $unitPrice,
-                    'base_price' => $basePrice, 
+                    'base_price' => $basePrice,
                     'total_price' => $subtotal,
                     'subtotal' => $subtotal,
                 ]);
@@ -527,7 +529,7 @@ class OrderController extends Controller
                 // Accumulate totals
                 $totalAmount += $subtotal;
                 $totalCost += $itemCost;
-                
+
                 if ($order->order_type === 'reseller') {
                     $totalCommission += $itemCommission;
                 }
@@ -588,11 +590,11 @@ class OrderController extends Controller
     public function callList(Request $request)
     {
         $query = Order::with(['customer', 'reseller', 'items']);
-        
-        // Default to 'pending' call status if not specified, 
+
+        // Default to 'pending' call status if not specified,
         // OR user might want to see all. Let's start with all but maybe sort by pending.
         // Actually, user said "Focused and filtering on call status".
-        
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -607,7 +609,7 @@ class OrderController extends Controller
         if ($request->filled('call_status')) {
             $query->where('call_status', $request->call_status);
         }
-        
+
         if ($request->filled('date_from')) {
             $query->whereDate('order_date', '>=', $request->date_from);
         }
@@ -626,7 +628,7 @@ class OrderController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $order = Order::findOrFail($id);
-        
+
         $validated = $request->validate([
             'status' => 'nullable|in:pending,hold,confirm,shipped,delivered,cancelled',
             'call_status' => 'nullable|in:pending,confirm,cancel',
@@ -636,11 +638,11 @@ class OrderController extends Controller
         if (array_key_exists('status', $validated)) {
             $order->status = $validated['status'];
         }
-        
+
         if (array_key_exists('call_status', $validated)) {
             $order->call_status = $validated['call_status'];
         }
-        
+
         if (array_key_exists('sales_note', $validated)) {
              $order->sales_note = $validated['sales_note'];
         }
