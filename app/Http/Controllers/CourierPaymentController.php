@@ -115,4 +115,13 @@ class CourierPaymentController extends Controller
         return redirect()->route('courier-payments.index')
             ->with('success', 'Courier payment deleted successfully.');
     }
+
+    /**
+     * Display the specified courier payment.
+     */
+    public function show(CourierPayment $courierPayment)
+    {
+        $courierPayment->load(['courier', 'orders.city', 'orders.customer', 'orders.courier']); // Eager load relationships
+        return view('courier-payments.show', compact('courierPayment'));
+    }
 }
