@@ -61,8 +61,11 @@
                                  <input type="file" name="excel_file" id="excel_file" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400">
 <button type="button" onclick="uploadExcel()" class="text-white bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-6 py-2.5 shadow-lg shadow-blue-500/50 dark:shadow-blue-800/80 focus:outline-none transition-all transform hover:scale-105">Upload</button>
                              </div>
-                             <div class="mt-2 text-right">
-                                 <a href="#" class="text-xs text-orange-600 dark:text-orange-400 hover:underline">Courier Template Download</a>
+                             <div class="mt-3 text-right">
+                                 <a href="#" class="inline-flex items-center px-4 py-2 text-sm font-medium text-green-700 bg-white border border-green-300 rounded-lg shadow-sm hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:bg-gray-700 dark:text-green-400 dark:border-green-600 dark:hover:bg-gray-600 transition-all duration-200">
+                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                     Download Excel Template
+                                 </a>
                              </div>
                         </div>
                     </div>
@@ -75,19 +78,27 @@
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <div class="md:col-span-1">
                         <label for="waybill" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Waybill</label>
-                        <input type="text" id="waybill" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Scan or Enter Waybill">
+                        <input type="text" id="waybill" onblur="searchWaybill()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Scan or Enter Waybill">
+                        <input type="hidden" id="manual_order_id"> <!-- Hidden ID to store fetched order -->
+                        <input type="hidden" id="manual_phone1">
+                        <input type="hidden" id="manual_phone2">
+                        <input type="hidden" id="manual_city">
+                        <input type="hidden" id="manual_remarks">
+                        <input type="hidden" id="manual_order_no">
+                        <input type="hidden" id="manual_destination">
+                        <input type="hidden" id="manual_description">
                     </div>
                     <div class="md:col-span-1">
                         <label for="cod_amount" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">COD Amount</label>
-                        <input type="number" id="cod_amount" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" readonly>
+                        <input type="number" id="cod_amount" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500">
                     </div>
                     <div class="md:col-span-1">
                         <label for="delivery_charge" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Delivery Charge</label>
-                        <input type="number" id="delivery_charge" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" readonly>
+                        <input type="number" id="delivery_charge" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500">
                     </div>
                     <div class="md:col-span-1">
                         <label for="recipient" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Recipient</label>
-                        <input type="text" id="recipient" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" readonly>
+                        <input type="text" id="recipient" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500">
                     </div>
                     <div class="md:col-span-1">
                         <button type="button" onclick="addToTable()" class="w-full text-white bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 shadow-lg shadow-blue-500/50 dark:shadow-blue-800/80 focus:outline-none transition-all transform hover:scale-105">
@@ -138,70 +149,115 @@
         </div>
     </div>
 
-    <!-- Toast Notification Mixin -->
     <script>
-        const Toast = Swal.mixin({
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true,
-            didOpen: (toast) => {
-                toast.addEventListener('mouseenter', Swal.stopTimer)
-                toast.addEventListener('mouseleave', Swal.resumeTimer)
+        // Helper to get Toast or fallback
+        function getToast() {
+            if (typeof Swal !== 'undefined') {
+                return Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    didOpen: (toast) => {
+                        toast.addEventListener('mouseenter', Swal.stopTimer)
+                        toast.addEventListener('mouseleave', Swal.resumeTimer)
+                    }
+                });
             }
-        });
+            return null;
+        }
 
         function showSuccess(message) {
-            Toast.fire({
-                icon: 'success',
-                title: message
-            });
+            const toast = getToast();
+            if (toast) {
+                toast.fire({ icon: 'success', title: message });
+            } else {
+                alert('Success: ' + message);
+            }
         }
 
         function showError(message) {
-            Toast.fire({
-                icon: 'error',
-                title: message
-            });
+            const toast = getToast();
+            if (toast) {
+                toast.fire({ icon: 'error', title: message });
+            } else {
+                alert('Error: ' + message);
+            }
         }
 
-        function addToTable() {
-            const waybillInput = document.getElementById('waybill');
-            const waybill = waybillInput.value.trim();
-            
-            if (!waybill) {
-                showError('Please enter a Waybill Number');
-                waybillInput.focus();
-                return;
-            }
-
-            // Show loading state
-            const btn = document.querySelector('button[onclick="addToTable()"]');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = 'Adding...';
-            btn.disabled = true;
+        function searchWaybill() {
+            const waybill = document.getElementById('waybill').value.trim();
+            if (!waybill) return;
 
             fetch(`{{ route('courier-receive.search-order') }}?query=${waybill}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        appendRow(data.data);
-                        showSuccess('Order added successfully');
-                        waybillInput.value = ''; // Clear input
-                        waybillInput.focus(); // Refocus for rapid entry
+                        const order = data.data;
+                        document.getElementById('manual_order_id').value = order.id;
+                        document.getElementById('cod_amount').value = order.amount;
+                        document.getElementById('delivery_charge').value = order.delivery_fee;
+                        document.getElementById('recipient').value = order.customer_name;
+                        
+                        document.getElementById('manual_order_no').value = order.order_no;
+                        document.getElementById('manual_phone1').value = order.phone1;
+                        document.getElementById('manual_phone2').value = order.phone2;
+                        document.getElementById('manual_city').value = order.city;
+                        document.getElementById('manual_destination').value = order.destination;
+                        document.getElementById('manual_description').value = order.description;
+                        document.getElementById('manual_remarks').value = order.remarks;
+
+                        showSuccess('Order found: ' + order.waybill_number);
                     } else {
                         showError('Order not found!');
+                        document.getElementById('manual_order_id').value = '';
                     }
                 })
                 .catch(err => {
                     console.error(err);
-                    showError('An error occurred while searching.');
-                })
-                .finally(() => {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
+                    showError('Validation Error: ' + err.message);
                 });
+        }
+
+        function addToTable() {
+            const waybill = document.getElementById('waybill').value.trim();
+            const orderId = document.getElementById('manual_order_id').value;
+
+            if (!waybill) {
+                showError('Please enter a Waybill Number');
+                return;
+            }
+            if (!orderId) {
+                showError('Please search for a valid order first (click away from Waybill field).');
+                return;
+            }
+
+            // Construct order object from current input values (allowing for edits)
+            const order = {
+                id: orderId,
+                waybill_number: waybill,
+                order_no: document.getElementById('manual_order_no').value,
+                customer_name: document.getElementById('recipient').value, 
+                destination: document.getElementById('manual_destination').value,
+                description: document.getElementById('manual_description').value,
+                phone1: document.getElementById('manual_phone1').value,
+                phone2: document.getElementById('manual_phone2').value,
+                delivery_fee: document.getElementById('delivery_charge').value, 
+                amount: document.getElementById('cod_amount').value, 
+                city: document.getElementById('manual_city').value,
+                remarks: document.getElementById('manual_remarks').value
+            };
+
+            appendRow(order);
+            
+            document.getElementById('waybill').value = '';
+            document.getElementById('manual_order_id').value = '';
+            document.getElementById('cod_amount').value = '';
+            document.getElementById('delivery_charge').value = '';
+            document.getElementById('recipient').value = '';
+            
+            document.getElementById('waybill').focus();
         }
 
         function appendRow(order) {
@@ -235,11 +291,6 @@
                 </td>
             `;
             tbody.appendChild(tr);
-
-            // Auto-fill manual info fields for visual verification
-            document.getElementById('cod_amount').value = order.amount;
-            document.getElementById('delivery_charge').value = order.delivery_fee;
-            document.getElementById('recipient').value = order.customer_name;
         }
 
         function removeRow(btn) {
@@ -259,7 +310,6 @@
                 return;
             }
 
-            // Show loading
             const btn = document.querySelector('button[onclick="uploadExcel()"]');
             const originalText = btn.innerHTML;
             btn.innerHTML = 'Uploading...';
@@ -278,7 +328,6 @@
                     if (data.data.length > 0) {
                          data.data.forEach(order => appendRow(order));
                          showSuccess(`Successfully imported ${data.data.length} orders.`);
-                         // Clear file input
                          fileField.value = '';
                     } else {
                         showError('No matching orders found in the file.');
