@@ -31,53 +31,142 @@
         
         <!-- Advanced Header & Search -->
         <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
-            <div class="flex flex-col lg:flex-row gap-4 items-center justify-between">
-                
+            <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <!-- Left: Search & Filters -->
-                <div class="w-full lg:flex-1">
-                    <form method="GET" action="{{ route('products.index') }}" class="flex flex-col md:flex-row gap-3">
-                        
-                        <!-- Search Bar -->
-                         <div class="relative w-full md:w-96">
-                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 1 1 14 0Z"/>
-                                </svg>
+                <div class="w-full xl:flex-1">
+                    <form method="GET" action="{{ route('products.index') }}" class="space-y-3">
+                        <!-- Row 1: Core Filters -->
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
+                            <!-- Search -->
+                            <div class="relative xl:col-span-5">
+                                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                    <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 1 1 14 0Z"/>
+                                    </svg>
+                                </div>
+                                <input type="search" name="search" value="{{ request('search') }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Search products, SKU, barcode...">
                             </div>
-                            <input type="search" name="search" value="{{ request('search') }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Search products, SKU, barcode..." required>
+
+                            <!-- Category -->
+                            <div class="xl:col-span-2" x-data="searchableFilterSelect({
+                                name: 'category_id',
+                                placeholder: 'All Categories',
+                                selected: @js((string) request('category_id', '')),
+                                options: @js($categories->map(fn($category) => ['id' => (string) $category->id, 'text' => $category->name])->values()),
+                                changeEvent: 'products-category-filter-changed',
+                                listenEvent: 'products-category-set-from-subcategory',
+                            })">
+                                <input type="hidden" :name="name" :value="selected">
+                                <div class="relative" @click.away="open = false">
+                                    <button type="button" @click="toggle()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white flex items-center justify-between">
+                                        <span class="truncate text-left" x-text="selectedText() || placeholder"></span>
+                                        <svg class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </button>
+                                    <div x-show="open" class="absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-64 overflow-auto" style="display: none;">
+                                        <div class="p-2 sticky top-0 bg-white dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                                            <input x-ref="searchInput" type="text" x-model="search" class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 dark:bg-gray-600 dark:border-gray-500 dark:text-white" placeholder="Search category...">
+                                        </div>
+                                        <button type="button" @click="clearSelection()" x-show="selected !== ''" class="w-full text-left px-4 py-2 text-xs text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-600">Clear selection</button>
+                                        <template x-for="option in filteredOptions" :key="option.id">
+                                            <button type="button" @click="select(option)" class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-sm text-gray-700 dark:text-gray-200">
+                                                <span x-text="option.text"></span>
+                                            </button>
+                                        </template>
+                                        <div x-show="filteredOptions.length === 0" class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">No results found</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sub Category -->
+                            <div class="xl:col-span-3" x-data="searchableFilterSelect({
+                                name: 'sub_category_id',
+                                placeholder: 'All Sub Categories',
+                                selected: @js((string) request('sub_category_id', '')),
+                                options: @js($subCategories->map(fn($subCategory) => ['id' => (string) $subCategory->id, 'text' => $subCategory->name, 'category_id' => (string) $subCategory->category_id])->values()),
+                                dependentCategoryEvent: 'products-category-filter-changed',
+                                selectedCategoryId: @js((string) request('category_id', '')),
+                                parentCategoryEvent: 'products-category-set-from-subcategory',
+                            })">
+                                <input type="hidden" :name="name" :value="selected">
+                                <div class="relative" @click.away="open = false">
+                                    <button type="button" @click="toggle()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white flex items-center justify-between">
+                                        <span class="truncate text-left" x-text="selectedText() || placeholder"></span>
+                                        <svg class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </button>
+                                    <div x-show="open" class="absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-64 overflow-auto" style="display: none;">
+                                        <div class="p-2 sticky top-0 bg-white dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                                            <input x-ref="searchInput" type="text" x-model="search" class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 dark:bg-gray-600 dark:border-gray-500 dark:text-white" placeholder="Search sub category...">
+                                        </div>
+                                        <button type="button" @click="clearSelection()" x-show="selected !== ''" class="w-full text-left px-4 py-2 text-xs text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-600">Clear selection</button>
+                                        <template x-for="option in filteredOptions" :key="option.id">
+                                            <button type="button" @click="select(option)" class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-sm text-gray-700 dark:text-gray-200">
+                                                <span x-text="option.text"></span>
+                                            </button>
+                                        </template>
+                                        <div x-show="filteredOptions.length === 0" class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">No results found</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Unit + Value (In-Stock Only) -->
+                            <div class="xl:col-span-2" x-data="searchableFilterSelect({
+                                name: 'variant_unit',
+                                placeholder: 'All Units / Values',
+                                selected: @js((string) request('variant_unit', '')),
+                                options: @js($variantUnitOptions),
+                            })">
+                                <input type="hidden" :name="name" :value="selected">
+                                <div class="relative" @click.away="open = false">
+                                    <button type="button" @click="toggle()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white flex items-center justify-between">
+                                        <span class="truncate text-left" x-text="selectedText() || placeholder"></span>
+                                        <svg class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </button>
+                                    <div x-show="open" class="absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-64 overflow-auto" style="display: none;">
+                                        <div class="p-2 sticky top-0 bg-white dark:bg-gray-700 border-b border-gray-100 dark:border-gray-600">
+                                            <input x-ref="searchInput" type="text" x-model="search" class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 dark:bg-gray-600 dark:border-gray-500 dark:text-white" placeholder="Search value/unit (e.g. 5 ml)...">
+                                        </div>
+                                        <button type="button" @click="clearSelection()" x-show="selected !== ''" class="w-full text-left px-4 py-2 text-xs text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-600">Clear selection</button>
+                                        <template x-for="option in filteredOptions" :key="option.id">
+                                            <button type="button" @click="select(option)" class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-sm text-gray-700 dark:text-gray-200">
+                                                <span x-text="option.text"></span>
+                                            </button>
+                                        </template>
+                                        <div x-show="filteredOptions.length === 0" class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">No results found</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Category Dropdown -->
-                        <div class="w-full md:w-48">
-                            <select name="category_id" onchange="this.form.submit()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-                                <option value="">All Categories</option>
-                                @foreach($categories as $category)
-                                    <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>
-                                        {{ $category->name }}
-                                    </option>
-                                @endforeach
-                            </select>
+                        <!-- Row 2: Actions -->
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                Filter order: category, sub category, then value + unit.
+                            </p>
+                            <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                <button type="submit" class="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 transition-colors">
+                                    Apply Filters
+                                </button>
+
+                                @if(request('search') || request('category_id') || request('sub_category_id') || request('variant_unit') || request('unit_id'))
+                                    <a href="{{ route('products.index') }}" class="flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500 transition-colors">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        Clear
+                                    </a>
+                                @endif
+                            </div>
                         </div>
-                        
-                        @if(request('search') || request('category_id'))
-                             <a href="{{ route('products.index') }}" class="flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500 transition-colors">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                Clear
-                            </a>
-                        @endif
                     </form>
                 </div>
 
                 <!-- Right: Actions -->
-                <div class="flex items-center gap-3 w-full lg:w-auto justify-end">
-                    
+                <div class="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-end xl:w-auto">
                     <div class="inline-flex rounded-md shadow-sm" role="group">
-                        <a href="{{ route('products.import.show') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-blue-500 dark:focus:text-white">
+                        <a href="{{ route('products.import.show') }}" class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-blue-500 dark:focus:text-white">
                             <svg class="w-3 h-3 me-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                             Import
                         </a>
                     </div>
-                    
+
                     <a href="{{ route('products.create') }}" class="inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white transition-colors bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
                         <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                         New Product
@@ -111,6 +200,7 @@
                         <th scope="col" class="px-6 py-3">Product Info</th>
                         <th scope="col" class="px-6 py-3">Details</th>
                         <th scope="col" class="px-6 py-3 text-right">Price</th>
+                        <th scope="col" class="px-6 py-3 text-right">Limit Price</th>
                         <th scope="col" class="px-6 py-3 text-right">Stock</th>
                         <th scope="col" class="px-6 py-3 text-center">Action</th>
                     </tr>
@@ -153,6 +243,11 @@
                                     <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300 border border-blue-400 w-fit mb-1">
                                         {{ $product->category->name ?? 'Uncategorized' }}
                                     </span>
+                                    @if($product->subCategory)
+                                        <span class="text-xs text-gray-600 dark:text-gray-300 mb-1">
+                                            Sub Category: {{ $product->subCategory->name }}
+                                        </span>
+                                    @endif
                                     <span class="text-xs text-gray-500">
                                         Units: {{ $product->variants->map(function($v) { return ($v->unit_value ? $v->unit_value . ' ' : '') . $v->unit->short_name; })->unique()->join(', ') }}
                                     </span>
@@ -160,6 +255,9 @@
                             </td>
                             <td class="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">
                                 {{ $product->price_display }}
+                            </td>
+                            <td class="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">
+                                {{ $product->limit_price_display }}
                             </td>
                             <td class="px-6 py-4 text-right">
                                 @php
@@ -194,7 +292,7 @@
                         </tr>
                     @empty
                         <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                            <td colspan="6" class="px-6 py-8 text-center">
+                            <td colspan="7" class="px-6 py-8 text-center">
                                 <div class="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
                                     <svg class="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
                                     <p class="text-lg font-medium">No products found</p>
@@ -263,6 +361,7 @@
                                         <th scope="col" class="px-4 py-2">Unit</th>
                                         <th scope="col" class="px-4 py-2">SKU</th>
                                         <th scope="col" class="px-4 py-2 text-right">Price</th>
+                                        <th scope="col" class="px-4 py-2 text-right">Limit Price</th>
                                         <th scope="col" class="px-4 py-2 text-right">Stock</th>
                                         <th scope="col" class="px-4 py-2 text-center">Action</th>
                                     </tr>
@@ -273,6 +372,7 @@
                                             <td class="px-4 py-2" x-text="(variant.unit_value ? variant.unit_value + ' ' : '') + variant.unit.short_name + ' (' + variant.unit.name + ')'"></td>
                                             <td class="px-4 py-2 font-mono text-xs" x-text="variant.sku"></td>
                                             <td class="px-4 py-2 text-right" x-text="'Rs. ' + parseFloat(variant.selling_price).toFixed(2)"></td>
+                                            <td class="px-4 py-2 text-right" x-text="variant.limit_price !== null ? 'Rs. ' + parseFloat(variant.limit_price).toFixed(2) : 'N/A'"></td>
                                             <td class="px-4 py-2 text-right">
                                                  <span :class="variant.quantity <= (variant.alert_quantity || 0) ? 'text-red-600 bg-red-100' : 'text-green-600 bg-green-100'" class="px-2 py-0.5 rounded text-xs font-medium" x-text="variant.quantity"></span>
                                             </td>
@@ -383,6 +483,146 @@
 
 
 <script>
+    function searchableFilterSelect(config) {
+        return {
+            open: false,
+            search: '',
+            selected: config.selected || '',
+            options: config.options || [],
+            name: config.name,
+            placeholder: config.placeholder || 'Select',
+            changeEvent: config.changeEvent || null,
+            listenEvent: config.listenEvent || null,
+            dependentCategoryEvent: config.dependentCategoryEvent || null,
+            parentCategoryEvent: config.parentCategoryEvent || null,
+            selectedCategoryId: config.selectedCategoryId || '',
+
+            init() {
+                if (this.listenEvent) {
+                    window.addEventListener(this.listenEvent, (event) => {
+                        this.setSelectedFromEvent(event.detail?.categoryId || '');
+                    });
+                }
+
+                if (this.dependentCategoryEvent) {
+                    window.addEventListener(this.dependentCategoryEvent, (event) => {
+                        this.setCategory(event.detail?.categoryId || '');
+                    });
+                    this.setCategory(this.selectedCategoryId);
+                }
+
+                if (this.parentCategoryEvent && this.selected) {
+                    this.dispatchParentCategoryForSelection();
+                }
+            },
+
+            get visibleOptions() {
+                if (!this.dependentCategoryEvent || !this.selectedCategoryId) {
+                    return this.options;
+                }
+
+                return this.options.filter((option) => String(option.category_id || '') === String(this.selectedCategoryId));
+            },
+
+            get filteredOptions() {
+                const term = this.search.trim().toLowerCase();
+                if (!term) {
+                    return this.visibleOptions;
+                }
+
+                return this.visibleOptions.filter((option) => (option.text || '').toLowerCase().includes(term));
+            },
+
+            selectedText() {
+                const option = this.options.find((item) => String(item.id) === String(this.selected));
+                return option ? option.text : '';
+            },
+
+            select(option) {
+                this.selected = String(option.id);
+                this.search = '';
+                this.open = false;
+                this.dispatchChange();
+                this.dispatchParentCategoryForOption(option);
+            },
+
+            clearSelection() {
+                this.selected = '';
+                this.search = '';
+                this.open = false;
+                this.dispatchChange();
+            },
+
+            toggle() {
+                this.open = !this.open;
+                if (this.open) {
+                    this.$nextTick(() => this.$refs.searchInput?.focus());
+                }
+            },
+
+            setCategory(categoryId) {
+                this.selectedCategoryId = String(categoryId || '');
+
+                if (!this.selected) {
+                    return;
+                }
+
+                const stillVisible = this.visibleOptions.some((option) => String(option.id) === String(this.selected));
+                if (!stillVisible) {
+                    this.selected = '';
+                }
+            },
+
+            setSelectedFromEvent(categoryId) {
+                const normalizedId = String(categoryId || '');
+                if (!normalizedId) {
+                    return;
+                }
+
+                const exists = this.options.some((option) => String(option.id) === normalizedId);
+                if (!exists) {
+                    return;
+                }
+
+                if (String(this.selected) !== normalizedId) {
+                    this.selected = normalizedId;
+                }
+
+                this.dispatchChange();
+            },
+
+            dispatchParentCategoryForSelection() {
+                const selectedOption = this.options.find((item) => String(item.id) === String(this.selected));
+                this.dispatchParentCategoryForOption(selectedOption);
+            },
+
+            dispatchParentCategoryForOption(option) {
+                if (!this.parentCategoryEvent) {
+                    return;
+                }
+
+                const categoryId = option?.category_id ? String(option.category_id) : '';
+                if (!categoryId) {
+                    return;
+                }
+
+                window.dispatchEvent(new CustomEvent(this.parentCategoryEvent, {
+                    detail: { categoryId },
+                }));
+            },
+
+            dispatchChange() {
+                if (!this.changeEvent) {
+                    return;
+                }
+
+                window.dispatchEvent(new CustomEvent(this.changeEvent, {
+                    detail: { categoryId: this.selected },
+                }));
+            },
+        }
+    }
+
     function productManager() {
         return {
             selected: [],

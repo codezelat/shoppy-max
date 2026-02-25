@@ -10,4 +10,9 @@ class Unit extends Model
     use HasFactory;
 
     protected $fillable = ['name', 'short_name'];
+
+    public function variants()
+    {
+        return $this->hasMany(ProductVariant::class);
+    }
 }

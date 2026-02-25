@@ -23,6 +23,7 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, Shoul
     public function collection()
     {
         $query = \App\Models\ProductVariant::query()->with(['product.category', 'product.subCategory', 'unit']);
+        [$selectedUnitId, $selectedUnitValue, $isValueSpecificUnitFilter] = $this->resolveVariantUnitFilter();
 
         // Check for specific product IDs (Bulk Export Selected)
         if (isset($this->request['product_ids']) && $this->request['product_ids']) {
@@ -45,6 +46,29 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, Shoul
             $query->whereHas('product', function($q) {
                 $q->where('category_id', $this->request['category_id']);
             });
+        }
+
+        if (isset($this->request['sub_category_id']) && $this->request['sub_category_id']) {
+            $query->whereHas('product', function($q) {
+                $q->where('sub_category_id', $this->request['sub_category_id']);
+            });
+        }
+
+        if ($selectedUnitId) {
+            // Unit/value filter should export only in-stock matching variants.
+            $query->where('unit_id', $selectedUnitId)
+                ->where('quantity', '>', 0);
+
+            if ($isValueSpecificUnitFilter) {
+                if ($selectedUnitValue === '') {
+                    $query->where(function ($variantQuery) {
+                        $variantQuery->whereNull('unit_value')
+                            ->orWhere('unit_value', '');
+                    });
+                } else {
+                    $query->where('unit_value', $selectedUnitValue);
+                }
+            }
         }
 
         return $query->get();
@@ -84,5 +108,22 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, Shoul
             $variant->alert_quantity,
             $variant->product->created_at->format('Y-m-d H:i:s'),
         ];
+    }
+
+    private function resolveVariantUnitFilter(): array
+    {
+        if (!empty($this->request['variant_unit'])) {
+            [$rawUnitId, $encodedValue] = array_pad(explode('::', (string) $this->request['variant_unit'], 2), 2, '');
+
+            if (ctype_digit($rawUnitId)) {
+                return [(int) $rawUnitId, urldecode($encodedValue), true];
+            }
+        }
+
+        if (!empty($this->request['unit_id'])) {
+            return [(int) $this->request['unit_id'], null, false];
+        }
+
+        return [null, null, false];
     }
 }

@@ -11,7 +11,7 @@ use App\Models\ProductVariant;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProductTemplateExport;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class ProductImportController extends Controller
 {
@@ -37,39 +37,49 @@ class ProductImportController extends Controller
             return back()->with('error', 'The file is empty or invalid.');
         }
 
+        $headerRow = $data[0][0] ?? [];
+        $columnMap = $this->resolveImportColumnMap($headerRow);
         $rows = array_slice($data[0], 1); // Skip header
         $previewData = [];
         $validRowsCount = 0;
         $hasErrors = false;
 
         // Pre-fetch related data for quick validation/lookup
-        $categories = Category::all()->keyBy(function($item) { return strtolower($item->name); });
-        $subCategories = SubCategory::all()->keyBy(function($item) { return strtolower($item->name); });
-        $units = Unit::all()->keyBy(function($item) { return strtolower($item->name); });
+        $categories = Category::all()->keyBy(fn($item) => $this->normalizeLookup($item->name));
+        $subCategoriesByName = SubCategory::all()->groupBy(fn($item) => $this->normalizeLookup($item->name));
+        $units = Unit::all()->keyBy(fn($item) => $this->normalizeLookup($item->name));
         
-        $existingSkus = ProductVariant::pluck('sku')->map(fn($sku) => strtolower($sku))->toArray();
-        $fileSkus = [];
+        $reservedSkus = ProductVariant::pluck('sku')->map(fn($sku) => mb_strtolower($sku))->toArray();
         
         // Grouping Logic: We process rows but need to identify products
         // In this preview, we just list flattened variants but attach product-level flags
 
         foreach ($rows as $index => $row) {
-             // Columns: 
-             // 0=Name, 1=Cat, 2=SubCat, 3=Desc, 4=Unit, 5=Value, 6=SKU, 7=Price, 8=Limit, 9=Qty, 10=Alert, 11=ImageURL
-             if (empty($row[0])) continue;
+             // Supported template columns:
+             // Product Name, Category, Sub Category, Description, Unit Name, Unit Value, (optional legacy SKU), Selling Price, Limit Price, Quantity, Alert Quantity, Image URL
+             $name = $this->readTextColumn($row, $columnMap['name']);
+             if (!$name) continue;
 
-             $name = trim($row[0]);
-             $catName = isset($row[1]) ? trim($row[1]) : null;
-             $subCatName = isset($row[2]) ? trim($row[2]) : null;
-             $desc = isset($row[3]) ? trim($row[3]) : null;
-             $unitName = isset($row[4]) ? trim($row[4]) : null;
-             $unitValue = isset($row[5]) ? trim($row[5]) : null;
-             $sku = isset($row[6]) ? trim($row[6]) : null;
-             $price = isset($row[7]) ? (float) $row[7] : 0;
-             $limit = isset($row[8]) ? (float) $row[8] : null;
-             $qty = isset($row[9]) ? (int) $row[9] : 0;
-             $alert = isset($row[10]) ? (int) $row[10] : 0;
-             $imageUrl = isset($row[11]) ? trim($row[11]) : null;
+             $catName = $this->readTextColumn($row, $columnMap['category']);
+             $subCatName = $this->readTextColumn($row, $columnMap['sub_category']);
+             $desc = $this->readTextColumn($row, $columnMap['description']);
+             $unitName = $this->readTextColumn($row, $columnMap['unit_name']);
+             $unitValue = $this->readTextColumn($row, $columnMap['unit_value']);
+
+             $priceRaw = $this->readRawColumn($row, $columnMap['selling_price']);
+             $price = is_numeric($priceRaw) ? (float) $priceRaw : null;
+
+             $limitRaw = $this->readRawColumn($row, $columnMap['limit_price']);
+             $limit = trim((string) $limitRaw) === '' ? null : (is_numeric($limitRaw) ? (float) $limitRaw : null);
+             $limitInvalid = trim((string) $limitRaw) !== '' && !is_numeric($limitRaw);
+
+             $qtyRaw = $this->readRawColumn($row, $columnMap['quantity']);
+             $qty = is_numeric($qtyRaw) ? (int) $qtyRaw : null;
+
+             $alertRaw = $this->readRawColumn($row, $columnMap['alert_quantity']);
+             $alert = trim((string) $alertRaw) === '' ? 0 : (is_numeric($alertRaw) ? (int) $alertRaw : null);
+             $imageUrl = $this->readTextColumn($row, $columnMap['image_url']);
+             $sku = null;
 
              $errors = [];
              $rowStatus = 'OK'; // OK, ERROR, MISSING_DATA
@@ -79,7 +89,7 @@ class ProductImportController extends Controller
              if (!$catName) {
                  $errors['category'] = "Required";
              } else {
-                 $key = strtolower($catName);
+                 $key = $this->normalizeLookup($catName);
                  if (isset($categories[$key])) {
                      $catId = $categories[$key]->id;
                  } else {
@@ -90,13 +100,23 @@ class ProductImportController extends Controller
              // 2. Validation: Sub Category
              $subCatId = null;
              if ($subCatName) {
-                 $key = strtolower($subCatName);
-                 if (isset($subCategories[$key])) {
-                     $subCatObj = $subCategories[$key];
-                     if ($catId && $subCatObj->category_id != $catId) {
-                         $errors['sub_category'] = "Mismatch"; 
+                 $key = $this->normalizeLookup($subCatName);
+                 $matchingByName = $subCategoriesByName->get($key, collect());
+
+                 if ($matchingByName->isNotEmpty()) {
+                     if ($catId) {
+                         $subCatObj = $matchingByName->firstWhere('category_id', $catId);
+                         if (!$subCatObj) {
+                             $errors['sub_category'] = "Mismatch";
+                         } else {
+                             $subCatId = $subCatObj->id;
+                         }
                      } else {
-                         $subCatId = $subCatObj->id;
+                         if ($matchingByName->count() > 1) {
+                             $errors['sub_category'] = "Ambiguous";
+                         } else {
+                             $subCatId = $matchingByName->first()->id;
+                         }
                      }
                  } else {
                      $errors['sub_category'] = "MISSING_SUB_CATEGORY";
@@ -105,41 +125,37 @@ class ProductImportController extends Controller
 
              // 3. Validation: Unit
              $unitId = null;
+             $unitShortName = null;
              if (!$unitName) {
                  $errors['unit'] = "Required";
              } else {
-                 $key = strtolower($unitName);
+                 $key = $this->normalizeLookup($unitName);
                  if (isset($units[$key])) {
                      $unitId = $units[$key]->id;
+                     $unitShortName = $units[$key]->short_name ?? null;
                  } else {
                       $errors['unit'] = "MISSING_UNIT";
                  }
              }
 
-             // 4. Validation: SKU
-             if (!$sku) {
-                 $errors['sku'] = "Required";
+             // 4. SKU is auto-generated for import variants.
+             if (!$unitId) {
+                 $errors['sku'] = "Auto generation needs a valid Unit";
              } else {
-                 $skuLower = strtolower($sku);
-                 if (in_array($skuLower, $existingSkus)) {
-                     $errors['sku'] = "Exists in DB";
-                 } elseif (in_array($skuLower, $fileSkus)) {
-                     $errors['sku'] = "Duplicate in File";
+                 try {
+                     $sku = $this->generateUniqueSku($name, $unitValue, $unitShortName, $reservedSkus);
+                 } catch (\RuntimeException $e) {
+                     $errors['sku'] = "Auto generation failed";
                  }
-                 $fileSkus[] = $skuLower;
              }
 
              // 5. Validation: Price & Qty
-             if ($price <= 0) $errors['price'] = "Invalid";
-             if ($qty < 0) $errors['qty'] = "Invalid";
+             if ($price === null || $price <= 0) $errors['price'] = "Invalid";
+             if ($limitInvalid || ($limit !== null && $limit < 0)) $errors['limit_price'] = "Invalid";
+             if ($limit !== null && $price !== null && $limit > $price) $errors['limit_price'] = "Must be <= price";
+             if ($qty === null || $qty < 0) $errors['qty'] = "Invalid";
+             if ($alert === null || $alert < 0) $errors['alert_qty'] = "Invalid";
              
-             // Check if only "Missing" errors exist or actual logic errors
-             if (!empty($errors)) {
-                 $hasErrors = true;
-             } else {
-                 $validRowsCount++;
-             }
-
              $previewData[] = [
                  'row_id' => $index, // for tracking
                  'name' => $name,
@@ -161,6 +177,11 @@ class ProductImportController extends Controller
              ];
         }
 
+        $this->markConflictingCategoryRows($previewData);
+
+        $validRowsCount = collect($previewData)->filter(fn ($row) => empty($row['errors']))->count();
+        $hasErrors = collect($previewData)->contains(fn ($row) => !empty($row['errors']));
+
         session(['product_import_preview_data' => $previewData]);
 
         return view('product_management.products.import', compact('previewData', 'validRowsCount', 'hasErrors'));
@@ -178,20 +199,35 @@ class ProductImportController extends Controller
         
         // Regroup by Product Name to avoid creating duplicate products if rows are scrambled
         // (Though usually file is sorted, better safe)
-        $groupedData = collect($previewData)->groupBy('name');
+        $groupedData = collect($previewData)->groupBy(fn($row) => $this->normalizeLookup($row['name'] ?? ''));
 
-        DB::transaction(function () use ($groupedData, &$count) {
-            foreach ($groupedData as $productName => $variants) {
+        $reservedSkus = ProductVariant::pluck('sku')->map(fn($sku) => mb_strtolower($sku))->toArray();
+        $unitShortNamesById = Unit::query()
+            ->pluck('short_name', 'id')
+            ->map(fn($shortName) => $shortName ? (string) $shortName : null)
+            ->toArray();
+
+        DB::transaction(function () use ($groupedData, &$count, &$reservedSkus, $unitShortNamesById) {
+            foreach ($groupedData as $normalizedName => $variants) {
                 // Use the FIRST valid row's creation data for the product
-                // Find a row that has valid product data? Or just take the first one?
-                $firstRow = $variants->first();
+                $validVariants = $variants->filter(fn($row) => empty($row['errors']))->values();
+                if ($validVariants->isEmpty()) {
+                    continue;
+                }
+                $firstRow = $validVariants->first();
+                $productName = trim((string) ($firstRow['name'] ?? ''));
+                if ($productName === '') {
+                    continue;
+                }
                 
                 // Skip if critical product errors exist?
                 // Actually we rely on UI to block import if errors exist. 
                 // But if user skips invalid rows, we proceed with valid ones.
                 
                 // 1. Find or Create Product
-                $product = Product::where('name', $productName)->first();
+                $product = Product::query()
+                    ->whereRaw('LOWER(name) = ?', [mb_strtolower($productName)])
+                    ->first();
 
                 if (!$product) {
                     $image = null;
@@ -207,18 +243,27 @@ class ProductImportController extends Controller
                     $product = Product::create([
                         'name' => $productName,
                         'category_id' => $firstRow['category_id'],
-                        'sub_category_id' => $firstRow['sub_category_id'],
+                        'sub_category_id' => $firstRow['sub_category_id'] ?: null,
                         'description' => $firstRow['description'],
                         'image' => $image,
                     ]);
                 }
 
                 // 2. Add Variants
-                foreach ($variants as $row) {
-                    if (!empty($row['errors'])) continue;
+                foreach ($validVariants as $row) {
+                    $sku = trim((string) ($row['sku'] ?? ''));
+                    $normalizedSku = $sku !== '' ? mb_strtolower($sku) : '';
 
-                    // Check duplicate SKU again to be safe
-                    if (ProductVariant::where('sku', $row['sku'])->exists()) continue;
+                    if ($sku === '' || in_array($normalizedSku, $reservedSkus, true)) {
+                        $sku = $this->generateUniqueSku(
+                            $productName,
+                            $row['unit_value'] ?? null,
+                            $unitShortNamesById[$row['unit_id']] ?? null,
+                            $reservedSkus
+                        );
+                    } else {
+                        $reservedSkus[] = $normalizedSku;
+                    }
 
                     $variantImage = null; // Currently template supports 1 image per row, usually mapping to Product Image. 
                     // If user provides specific variant image logic, we'd need another column. 
@@ -228,10 +273,10 @@ class ProductImportController extends Controller
 
                     $product->variants()->create([
                         'unit_id' => $row['unit_id'],
-                        'unit_value' => $row['unit_value'],
-                        'sku' => $row['sku'],
+                        'unit_value' => trim((string) $row['unit_value']) !== '' ? $row['unit_value'] : null,
+                        'sku' => $sku,
                         'selling_price' => $row['selling_price'],
-                        'limit_price' => $row['limit_price'],
+                        'limit_price' => $row['limit_price'] !== null ? $row['limit_price'] : null,
                         'quantity' => $row['quantity'],
                         'alert_quantity' => $row['alert_quantity'],
                         // 'image' => ... // Variant specific image not in simple template yet
@@ -244,5 +289,149 @@ class ProductImportController extends Controller
         session()->forget('product_import_preview_data');
 
         return redirect()->route('products.index')->with('success', "Successfully processed $count variants.");
+    }
+
+    private function normalizeLookup(?string $value): string
+    {
+        return mb_strtolower(trim((string) $value));
+    }
+
+    private function readRawColumn(array $row, ?int $index)
+    {
+        if ($index === null) {
+            return null;
+        }
+
+        return $row[$index] ?? null;
+    }
+
+    private function readTextColumn(array $row, ?int $index): ?string
+    {
+        if ($index === null) {
+            return null;
+        }
+
+        $value = trim((string) ($row[$index] ?? ''));
+        return $value === '' ? null : $value;
+    }
+
+    private function resolveImportColumnMap(array $headerRow): array
+    {
+        $normalizedHeaders = [];
+        foreach ($headerRow as $index => $header) {
+            $normalizedHeaders[$this->normalizeImportHeader($header)] = $index;
+        }
+
+        $map = [
+            'name' => $this->findHeaderIndex($normalizedHeaders, ['product name', 'name']),
+            'category' => $this->findHeaderIndex($normalizedHeaders, ['category']),
+            'sub_category' => $this->findHeaderIndex($normalizedHeaders, ['sub category', 'subcategory']),
+            'description' => $this->findHeaderIndex($normalizedHeaders, ['description']),
+            'unit_name' => $this->findHeaderIndex($normalizedHeaders, ['unit name', 'unit']),
+            'unit_value' => $this->findHeaderIndex($normalizedHeaders, ['unit value', 'value']),
+            'sku' => $this->findHeaderIndex($normalizedHeaders, ['sku']), // legacy files
+            'selling_price' => $this->findHeaderIndex($normalizedHeaders, ['selling price', 'price']),
+            'limit_price' => $this->findHeaderIndex($normalizedHeaders, ['limit price']),
+            'quantity' => $this->findHeaderIndex($normalizedHeaders, ['quantity', 'qty']),
+            'alert_quantity' => $this->findHeaderIndex($normalizedHeaders, ['alert quantity', 'alert qty', 'alert']),
+            'image_url' => $this->findHeaderIndex($normalizedHeaders, ['image url', 'image']),
+        ];
+
+        // Fallback for files without recognizable headers.
+        if ($map['name'] === null || $map['category'] === null || $map['unit_name'] === null) {
+            $hasLegacySkuColumn = count($headerRow) >= 12;
+
+            return [
+                'name' => 0,
+                'category' => 1,
+                'sub_category' => 2,
+                'description' => 3,
+                'unit_name' => 4,
+                'unit_value' => 5,
+                'sku' => $hasLegacySkuColumn ? 6 : null,
+                'selling_price' => $hasLegacySkuColumn ? 7 : 6,
+                'limit_price' => $hasLegacySkuColumn ? 8 : 7,
+                'quantity' => $hasLegacySkuColumn ? 9 : 8,
+                'alert_quantity' => $hasLegacySkuColumn ? 10 : 9,
+                'image_url' => $hasLegacySkuColumn ? 11 : 10,
+            ];
+        }
+
+        return $map;
+    }
+
+    private function findHeaderIndex(array $normalizedHeaders, array $candidates): ?int
+    {
+        foreach ($candidates as $candidate) {
+            if (array_key_exists($candidate, $normalizedHeaders)) {
+                return $normalizedHeaders[$candidate];
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeImportHeader($header): string
+    {
+        $normalized = mb_strtolower(trim((string) $header));
+        $normalized = str_replace('*', '', $normalized);
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+
+        return trim((string) $normalized);
+    }
+
+    private function generateUniqueSku(string $productName, ?string $unitValue, ?string $unitShortName, array &$reservedSkus): string
+    {
+        $nameToken = strtoupper(substr(preg_replace('/[^A-Z0-9]/', '', Str::ascii($productName)), 0, 3));
+        $nameToken = str_pad($nameToken !== '' ? $nameToken : 'PRO', 3, 'X');
+
+        $valueToken = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) $unitValue));
+        $unitToken = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) $unitShortName));
+        $specToken = $valueToken . $unitToken;
+        $specToken = $specToken !== '' ? substr($specToken, 0, 10) : 'GEN';
+
+        for ($attempt = 0; $attempt < 50; $attempt++) {
+            $suffix = strtoupper(Str::random(4));
+            $sku = "SK{$nameToken}-{$specToken}-{$suffix}";
+            $normalizedSku = mb_strtolower($sku);
+
+            if (in_array($normalizedSku, $reservedSkus, true)) {
+                continue;
+            }
+
+            $reservedSkus[] = $normalizedSku;
+            return $sku;
+        }
+
+        throw new \RuntimeException('Unable to generate unique SKU.');
+    }
+
+    private function markConflictingCategoryRows(array &$previewData): void
+    {
+        $rowsByNormalizedName = [];
+
+        foreach ($previewData as $index => $row) {
+            $normalizedName = $this->normalizeLookup($row['name'] ?? '');
+            if ($normalizedName === '') {
+                continue;
+            }
+            $rowsByNormalizedName[$normalizedName][] = $index;
+        }
+
+        foreach ($rowsByNormalizedName as $rowIndexes) {
+            $categoryIds = collect($rowIndexes)
+                ->map(fn ($rowIndex) => $previewData[$rowIndex]['category_id'] ?? null)
+                ->filter(fn ($categoryId) => !is_null($categoryId))
+                ->unique()
+                ->values();
+
+            if ($categoryIds->count() <= 1) {
+                continue;
+            }
+
+            foreach ($rowIndexes as $rowIndex) {
+                $previewData[$rowIndex]['errors']['category'] = 'Conflicting category for same product name in file';
+            }
+        }
     }
 }

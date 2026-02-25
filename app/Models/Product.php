@@ -21,7 +21,7 @@ class Product extends Model
         'warranty_period_type',
     ];
 
-    protected $appends = ['total_quantity', 'price_display'];
+    protected $appends = ['total_quantity', 'price_display', 'limit_price_display'];
 
     public function category()
     {
@@ -51,6 +51,30 @@ class Product extends Model
 
         $min = $this->variants->min('selling_price');
         $max = $this->variants->max('selling_price');
+
+        if ($min == $max) {
+            return number_format($min, 2);
+        }
+
+        return number_format($min, 2) . ' - ' . number_format($max, 2);
+    }
+
+    public function getLimitPriceDisplayAttribute()
+    {
+        if ($this->variants->isEmpty()) {
+            return 'N/A';
+        }
+
+        $limits = $this->variants
+            ->pluck('limit_price')
+            ->filter(fn ($value) => $value !== null);
+
+        if ($limits->isEmpty()) {
+            return 'N/A';
+        }
+
+        $min = $limits->min();
+        $max = $limits->max();
 
         if ($min == $max) {
             return number_format($min, 2);

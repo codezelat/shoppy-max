@@ -26,7 +26,6 @@ class ProductTemplateExport implements FromCollection, WithHeadings, WithTitle, 
                 'Wireless Bluetooth Headphones', // Description
                 'Bottle',              // Unit Name (Must match exactly, e.g. Bottle, Box, Piece)
                 '1',                // Unit Value (e.g. 500, 1.5)
-                'SKU-123456',       // SKU (Must be unique)
                 '2500.00',          // Selling Price
                 '3000.00',          // Limit Price
                 '50',               // Quantity
@@ -45,7 +44,6 @@ class ProductTemplateExport implements FromCollection, WithHeadings, WithTitle, 
             'Description',
             'Unit Name*',
             'Unit Value',
-            'SKU*',
             'Selling Price*',
             'Limit Price',
             'Quantity*',

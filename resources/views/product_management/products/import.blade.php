@@ -42,6 +42,9 @@
                 <div class="mt-2 text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">
                     <strong>Note:</strong> If you use the same "Product Name" for multiple rows, they will be treated as variants of the same product.
                 </div>
+                <div class="mt-2 text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                    <strong>SKU:</strong> SKU is auto-generated during import and enforced as unique.
+                </div>
             </div>
 
             <div class="flex justify-center mb-8">
@@ -84,7 +87,7 @@
                             <th scope="col" class="px-6 py-3">Product Name</th>
                             <th scope="col" class="px-6 py-3">Category</th>
                             <th scope="col" class="px-6 py-3">Variant (Unit)</th>
-                            <th scope="col" class="px-6 py-3">SKU</th>
+                            <th scope="col" class="px-6 py-3">SKU (Auto)</th>
                             <th scope="col" class="px-6 py-3">Price</th>
                             <th scope="col" class="px-6 py-3">Qty</th>
                             <th scope="col" class="px-6 py-3">Result</th>
