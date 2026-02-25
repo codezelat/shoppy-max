@@ -67,6 +67,7 @@
                         <th scope="col" class="px-6 py-3">Courier Name</th>
                         <th scope="col" class="px-6 py-3">Contact Details</th>
                         <th scope="col" class="px-6 py-3">Address</th>
+                        <th scope="col" class="px-6 py-3">Charges</th>
                         <th scope="col" class="px-6 py-3">Status</th>
                         <th scope="col" class="px-6 py-3 text-center">Actions</th>
                     </tr>
@@ -106,6 +107,19 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4">
+                                @if(!empty($courier->rates) && is_array($courier->rates))
+                                    <div class="flex flex-wrap gap-1.5 max-w-xs">
+                                        @foreach($courier->rates as $rate)
+                                            <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs dark:bg-blue-900 dark:text-blue-200">
+                                                Rs. {{ number_format((float) $rate, 2) }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <span class="text-gray-400 text-xs">No set values</span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-4">
                                 @if($courier->is_active)
                                     <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300">Active</span>
                                 @else
@@ -129,7 +143,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                                 <div class="flex flex-col items-center justify-center py-6">
                                     <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     <p class="text-base">No couriers found.</p>

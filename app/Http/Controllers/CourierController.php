@@ -45,10 +45,13 @@ class CourierController extends Controller
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
+            'rates' => 'nullable|array',
+            'rates.*' => 'numeric|min:0',
             'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
+        $validated['rates'] = $this->normalizeRates($validated['rates'] ?? []);
 
         Courier::create($validated);
 
@@ -73,10 +76,13 @@ class CourierController extends Controller
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
+            'rates' => 'nullable|array',
+            'rates.*' => 'numeric|min:0',
             'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
+        $validated['rates'] = $this->normalizeRates($validated['rates'] ?? []);
 
         $courier->update($validated);
 
@@ -96,5 +102,27 @@ class CourierController extends Controller
         $courier->delete();
 
         return redirect()->route('couriers.index')->with('success', 'Courier deleted successfully.');
+    }
+
+    private function normalizeRates(array $rates): array
+    {
+        $normalized = collect($rates)
+            ->map(function ($rate) {
+                if ($rate === null || $rate === '') {
+                    return null;
+                }
+
+                if (!is_numeric($rate)) {
+                    return null;
+                }
+
+                return number_format((float) $rate, 2, '.', '');
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return $normalized;
     }
 }

@@ -32,7 +32,7 @@
             <h2 class="mt-4 text-2xl font-bold text-gray-900 dark:text-white">Edit Courier: {{ $courier->name }}</h2>
         </div>
 
-        <form action="{{ route('couriers.update', $courier) }}" method="POST">
+        <form action="{{ route('couriers.update', $courier) }}" method="POST" x-data="courierRatesForm(@js(old('rates', $courier->rates ?? [])))">
             @csrf
             @method('PUT')
             
@@ -63,6 +63,37 @@
                                 <textarea name="address" id="address" rows="3" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">{{ old('address', $courier->address) }}</textarea>
                                 @error('address') <p class="mt-2 text-sm text-red-600 dark:text-red-500">{{ $message }}</p> @enderror
                             </div>
+                        </div>
+                    </x-form-section>
+
+                    <x-form-section title="Courier Charges" description="Add allowed courier charge values. Use comma or Enter to add each value.">
+                        <div class="space-y-4">
+                            <label for="rate_input" class="block text-sm font-medium text-gray-900 dark:text-white">Charge Values</label>
+                            <input id="rate_input" type="text" x-model="draftRate" @keydown.enter.prevent="commitDraft()" @keydown.comma.prevent="commitDraft()"
+                                @blur="commitDraft()"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                placeholder="Type values like 300, 500, 800 and press comma or Enter">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Only numeric values are allowed.</p>
+
+                            <template x-for="(rate, index) in rates" :key="`rate-${index}-${rate}`">
+                                <input type="hidden" name="rates[]" :value="rate">
+                            </template>
+
+                            <div class="flex flex-wrap gap-2" x-show="rates.length > 0">
+                                <template x-for="(rate, index) in rates" :key="`rate-chip-${index}-${rate}`">
+                                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm dark:bg-blue-900 dark:text-blue-200">
+                                        <span x-text="`Rs. ${rate}`"></span>
+                                        <button type="button" @click="removeRate(index)" class="text-blue-700 hover:text-blue-900 dark:text-blue-200 dark:hover:text-white" aria-label="Remove rate">
+                                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </button>
+                                    </span>
+                                </template>
+                            </div>
+                            <p x-show="rates.length === 0" class="text-xs text-gray-500 dark:text-gray-400">No charge values added yet.</p>
+                            @error('rates') <p class="mt-2 text-sm text-red-600 dark:text-red-500">{{ $message }}</p> @enderror
+                            @error('rates.*') <p class="mt-2 text-sm text-red-600 dark:text-red-500">{{ $message }}</p> @enderror
                         </div>
                     </x-form-section>
                 </div>
@@ -124,4 +155,47 @@
             </div>
         </form>
     </x-form-layout>
+
+    <script>
+        function courierRatesForm(initialRates = []) {
+            const normalized = Array.isArray(initialRates)
+                ? initialRates
+                    .map((value) => {
+                        const parsed = Number(value);
+                        return Number.isFinite(parsed) && parsed >= 0 ? parsed.toFixed(2) : null;
+                    })
+                    .filter((value) => value !== null)
+                : [];
+
+            return {
+                rates: [...new Set(normalized)],
+                draftRate: '',
+                commitDraft() {
+                    if (!this.draftRate) {
+                        return;
+                    }
+
+                    const chunks = this.draftRate.split(',');
+                    for (const chunk of chunks) {
+                        const value = chunk.trim();
+                        if (!value) {
+                            continue;
+                        }
+                        const parsed = Number(value);
+                        if (!Number.isFinite(parsed) || parsed < 0) {
+                            continue;
+                        }
+                        const normalizedValue = parsed.toFixed(2);
+                        if (!this.rates.includes(normalizedValue)) {
+                            this.rates.push(normalizedValue);
+                        }
+                    }
+                    this.draftRate = '';
+                },
+                removeRate(index) {
+                    this.rates.splice(index, 1);
+                },
+            };
+        }
+    </script>
 </x-app-layout>
