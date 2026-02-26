@@ -36,7 +36,7 @@
         <div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Courier Waybill Queue</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Only confirmed orders without a waybill appear here. Printing generates waybill numbers and removes them from this queue.</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Only call-confirmed orders without a waybill appear here. Printing generates waybill numbers and removes them from this queue.</p>
             </div>
             <div class="flex items-center gap-2">
                 <a href="{{ route('orders.waybill.index') }}" class="inline-flex items-center px-4 py-2.5 text-sm font-medium text-gray-800 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
@@ -60,7 +60,7 @@
                 <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ number_format($stats['eligible'] ?? 0) }}</p>
             </div>
             <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900/20">
-                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Total Confirmed</p>
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Total Call Confirmed</p>
                 <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ number_format($stats['confirm_total'] ?? 0) }}</p>
             </div>
             <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900/20">
@@ -86,7 +86,7 @@
                     <div class="lg:col-span-2">
                         <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
                         <div class="block w-full p-2.5 text-sm text-green-700 border border-green-300 rounded-lg bg-green-50 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300">
-                            Confirm (fixed)
+                            Call Confirm (fixed)
                         </div>
                     </div>
                     <div class="lg:col-span-2">

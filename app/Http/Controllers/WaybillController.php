@@ -17,7 +17,8 @@ class WaybillController extends Controller
             ->where('is_active', true)
             ->withCount([
                 'orders as printable_orders_count' => function ($query) {
-                    $query->where('status', 'confirm')
+                    $query->where('call_status', 'confirm')
+                        ->where('status', '!=', 'cancel')
                         ->where(function ($waybillQuery) {
                             $waybillQuery->whereNull('waybill_number')
                                 ->orWhere('waybill_number', '');
@@ -42,7 +43,8 @@ class WaybillController extends Controller
         $ordersQuery = Order::query()
             ->with('customer')
             ->where('courier_id', $courier->id)
-            ->where('status', 'confirm')
+            ->where('call_status', 'confirm')
+            ->where('status', '!=', 'cancel')
             ->where(function ($waybillQuery) {
                 $waybillQuery->whereNull('waybill_number')
                     ->orWhere('waybill_number', '');
@@ -78,7 +80,8 @@ class WaybillController extends Controller
 
         $statsBaseQuery = Order::query()
             ->where('courier_id', $courier->id)
-            ->where('status', 'confirm');
+            ->where('call_status', 'confirm')
+            ->where('status', '!=', 'cancel');
 
         $stats = [
             'eligible' => (clone $statsBaseQuery)
@@ -116,7 +119,8 @@ class WaybillController extends Controller
 
         $orders = Order::query()
             ->whereIn('id', $orderIds)
-            ->where('status', 'confirm')
+            ->where('call_status', 'confirm')
+            ->where('status', '!=', 'cancel')
             ->where(function ($waybillQuery) {
                 $waybillQuery->whereNull('waybill_number')
                     ->orWhere('waybill_number', '');
@@ -125,7 +129,7 @@ class WaybillController extends Controller
             ->get();
 
         if ($orders->isEmpty()) {
-            return back()->with('error', 'Only confirmed orders without waybill numbers can be printed.');
+            return back()->with('error', 'Only call-confirmed orders without waybill numbers can be printed.');
         }
 
         // Generate waybill numbers before rendering print.

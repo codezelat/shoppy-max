@@ -16,9 +16,12 @@ use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Database\QueryException;
 
 class OrderController extends Controller
 {
+    private const DEFAULT_CUSTOMER_COUNTRY = 'Sri Lanka';
+
     private const DELIVERY_STATUSES = [
         'pending',
         'waybill_printed',
@@ -139,14 +142,7 @@ class OrderController extends Controller
 
         // Predict next order number for UI
         $dateStr = $today->format('Ymd');
-        $latestOrder = Order::whereDate('created_at', $today->toDateString())->latest()->first();
-        $sequence = 1;
-        if ($latestOrder) {
-            $parts = explode('-', $latestOrder->order_number);
-            if (count($parts) === 3 && $parts[1] === $dateStr) {
-                $sequence = intval($parts[2]) + 1;
-            }
-        }
+        $sequence = $this->getNextOrderSequenceForDate($today);
         $nextOrderNumber = 'ORD-' . $dateStr . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
         
         $couriers = Courier::all();
@@ -434,14 +430,7 @@ class OrderController extends Controller
             // Note: User logic "customer we specify" implies we can create new on the fly.
             $customer = Customer::updateOrCreate(
                 ['mobile' => $validated['customer']['mobile']],
-                [
-                    'name' => $validated['customer']['name'],
-                    'landline' => $validated['customer']['landline'] ?? null,
-                    'address' => $validated['customer']['address'],
-                    'city' => $selectedCity->city_name,
-                    // Add other fields if strictly required by schema (e.g. country default)
-                    'country' => 'Sri Lanka', // Default
-                ]
+                $this->buildCustomerDataFromOrderInput($validated['customer'], $selectedCity)
             );
 
             // 2. Create Order
@@ -580,6 +569,20 @@ class OrderController extends Controller
                 'order_number' => $orderNumber
             ]);
             
+        } catch (QueryException $e) {
+            DB::rollBack();
+
+            if ($this->isOrderNumberUniqueViolation($e)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order ID collision detected. Please try submitting again.',
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -596,25 +599,52 @@ class OrderController extends Controller
     {
         $today = now();
         $dateStr = $today->format('Ymd');
-        $latestOrder = Order::whereDate('created_at', $today->toDateString())->latest()->first();
-        
-        $sequence = 1;
-        if ($latestOrder) {
-             $parts = explode('-', $latestOrder->order_number);
-             if (count($parts) === 3 && $parts[1] === $dateStr) {
-                 $sequence = intval($parts[2]) + 1;
-             }
-        }
+        $sequence = $this->getNextOrderSequenceForDate($today);
 
         do {
             $number = 'ORD-' . $dateStr . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
-            $exists = Order::where('order_number', $number)->exists();
+            $exists = Order::withTrashed()->where('order_number', $number)->exists();
             if ($exists) {
                 $sequence++;
             }
         } while ($exists);
         
         return $number;
+    }
+
+    private function getNextOrderSequenceForDate($date): int
+    {
+        $dateStr = $date->format('Ymd');
+        $prefix = 'ORD-' . $dateStr . '-';
+
+        $latestNumber = Order::withTrashed()
+            ->where('order_number', 'like', $prefix . '%')
+            ->orderByDesc('order_number')
+            ->value('order_number');
+
+        if (!$latestNumber) {
+            return 1;
+        }
+
+        $parts = explode('-', (string) $latestNumber);
+        if (count($parts) === 3 && $parts[1] === $dateStr && ctype_digit((string) $parts[2])) {
+            return ((int) $parts[2]) + 1;
+        }
+
+        return 1;
+    }
+
+    private function isOrderNumberUniqueViolation(QueryException $exception): bool
+    {
+        $message = strtolower($exception->getMessage());
+
+        if (!str_contains($message, 'order_number')) {
+            return false;
+        }
+
+        return str_contains($message, 'unique')
+            || str_contains($message, 'duplicate')
+            || str_contains($message, 'constraint failed');
     }
     
     /**
@@ -862,13 +892,7 @@ class OrderController extends Controller
             // 3. Update Customer & Order Details
             $customer = Customer::updateOrCreate(
                 ['mobile' => $validated['customer']['mobile']],
-                [
-                    'name' => $validated['customer']['name'],
-                    'landline' => $validated['customer']['landline'] ?? null,
-                    'address' => $validated['customer']['address'],
-                    'city' => $selectedCity->city_name,
-                    'country' => 'Sri Lanka',
-                ]
+                $this->buildCustomerDataFromOrderInput($validated['customer'], $selectedCity)
             );
 
             // Order date is system-managed and not editable after creation.
@@ -1229,6 +1253,39 @@ class OrderController extends Controller
     {
         $normalized = mb_strtolower(trim($value));
         return preg_replace('/\s+/', ' ', $normalized) ?? '';
+    }
+
+    private function buildCustomerDataFromOrderInput(array $customerInput, City $selectedCity): array
+    {
+        $country = trim((string) ($customerInput['country'] ?? ''));
+        if ($country === '') {
+            $country = self::DEFAULT_CUSTOMER_COUNTRY;
+        }
+
+        $province = trim((string) ($selectedCity->province ?? ''));
+        if ($province === '') {
+            $province = trim((string) ($customerInput['province'] ?? ''));
+        }
+
+        $district = trim((string) ($selectedCity->district ?? ''));
+        if ($district === '') {
+            $district = trim((string) ($customerInput['district'] ?? ''));
+        }
+
+        $city = trim((string) ($selectedCity->city_name ?? ''));
+        if ($city === '') {
+            $city = trim((string) ($customerInput['city'] ?? ''));
+        }
+
+        return [
+            'name' => trim((string) ($customerInput['name'] ?? '')),
+            'landline' => (($customerInput['landline'] ?? null) === '' ? null : ($customerInput['landline'] ?? null)),
+            'address' => trim((string) ($customerInput['address'] ?? '')),
+            'country' => $country,
+            'province' => $province,
+            'district' => $district,
+            'city' => $city,
+        ];
     }
 
     private function buildProductSearchScore(string $normalizedTerm, array $termTokens, array $fields, int $stock): int
