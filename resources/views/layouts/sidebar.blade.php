@@ -217,6 +217,16 @@
                     </ul>
                 </li>
 
+                <!-- User Logs -->
+                <li>
+                    <a href="{{ route('user-logs.index') }}" class="flex items-center p-2 text-base transition duration-75 rounded-lg group {{ request()->routeIs('user-logs.*') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                        <svg class="flex-shrink-0 w-5 h-5 transition duration-75 {{ request()->routeIs('user-logs.*') ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V9a2 2 0 00-2-2h-2M9 5a3 3 0 006 0M9 5a3 3 0 016 0M9 13h6M9 17h6"></path>
+                        </svg>
+                        <span class="ms-3">User Logs</span>
+                    </a>
+                </li>
+
                 <!-- Reports (part of same admin section) -->
                 <li>
                     <a href="{{ route('reports.index') }}" class="flex items-center p-2 text-base transition duration-75 rounded-lg group {{ request()->routeIs('reports.index') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}">

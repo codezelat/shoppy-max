@@ -134,6 +134,9 @@ class WaybillController extends Controller
                 $order->waybill_number = 'WB-' . $order->order_number;
             }
             $order->delivery_status = 'waybill_printed';
+            if (!$order->waybill_printed_at) {
+                $order->waybill_printed_at = now();
+            }
             $order->save();
         }
 

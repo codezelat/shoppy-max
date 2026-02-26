@@ -259,7 +259,7 @@ class PurchaseController extends Controller
      */
     public function searchSuppliers(Request $request)
     {
-        $query = trim((string) $request->get('q', ''));
+        $query = trim((string) $request->query('q', ''));
         if (mb_strlen($query) < 2) {
             return response()->json([]);
         }
@@ -290,7 +290,7 @@ class PurchaseController extends Controller
      */
     public function searchProducts(Request $request)
     {
-        $query = trim((string) $request->get('q', ''));
+        $query = trim((string) $request->query('q', ''));
         if (mb_strlen($query) < 2) {
             return response()->json([]);
         }

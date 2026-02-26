@@ -162,7 +162,7 @@ class OrderController extends Controller
      */
     public function searchProducts(Request $request)
     {
-        $term = trim((string) $request->get('q', ''));
+        $term = trim((string) $request->query('q', ''));
         if (mb_strlen($term) < 2) {
             return response()->json([]);
         }
@@ -269,7 +269,7 @@ class OrderController extends Controller
      */
     public function searchResellers(Request $request)
     {
-        $query = trim((string) $request->get('q', ''));
+        $query = trim((string) $request->query('q', ''));
         if (mb_strlen($query) < 2) {
             return response()->json([]);
         }
@@ -308,7 +308,7 @@ class OrderController extends Controller
      */
     public function searchCustomers(Request $request)
     {
-        $query = trim((string) $request->get('q', ''));
+        $query = trim((string) $request->query('q', ''));
         if (mb_strlen($query) < 2) {
             return response()->json([]);
         }
@@ -476,6 +476,7 @@ class OrderController extends Controller
                 ? 'cancel'
                 : ($requestedCallStatus === 'cancel' ? 'pending' : $requestedCallStatus);
             $order->delivery_status = $this->normalizeDeliveryStatus('pending', (string) $order->status);
+            $this->applyDeliveryTimelineTimestamps($order);
             $order->sales_note = $validated['sales_note'] ?? null;
             
             // Capture Address Snapshot
@@ -633,7 +634,7 @@ class OrderController extends Controller
      */
     public function show(Order $order)
     {
-        $order->load(['items.variant.unit', 'customer', 'reseller', 'user', 'courier']);
+        $order->load(['items.variant.unit', 'items.variant.product', 'customer', 'reseller', 'user', 'courier']);
         return view('orders.show', compact('order'));
     }
 
@@ -642,7 +643,7 @@ class OrderController extends Controller
      */
     public function printView(Order $order)
     {
-        $order->load(['items.variant.unit', 'customer', 'reseller', 'user', 'courier']);
+        $order->load(['items.variant.unit', 'items.variant.product', 'customer', 'reseller', 'user', 'courier']);
 
         return view('orders.print', compact('order'));
     }
@@ -652,7 +653,7 @@ class OrderController extends Controller
      */
     public function downloadPdf(Order $order)
     {
-        $order->load(['items.variant.unit', 'customer', 'reseller', 'user', 'courier']);
+        $order->load(['items.variant.unit', 'items.variant.product', 'customer', 'reseller', 'user', 'courier']);
         $pdf = Pdf::loadView('orders.pdf', compact('order'))->setPaper('a4');
         return $pdf->download('invoice-' . $order->order_number . '.pdf');
     }
@@ -880,6 +881,9 @@ class OrderController extends Controller
             $order->customer_address = $customer->address;
             
              // Create/Update Logic for New Fields
+            $previousOrderStatus = (string) $order->status;
+            $previousDeliveryStatus = (string) ($order->delivery_status ?? 'pending');
+
             $order->status = $validated['order_status'] ?? $order->status;
             $order->courier_id = $validated['courier_id'] ?? null;
             $order->courier_charge = $validated['courier_charge'] ?? 0;
@@ -891,6 +895,7 @@ class OrderController extends Controller
                 : (($requestedCallStatus === 'cancel' || empty($requestedCallStatus)) ? 'pending' : $requestedCallStatus);
             $requestedDeliveryStatus = $validated['delivery_status'] ?? $order->delivery_status;
             $order->delivery_status = $this->normalizeDeliveryStatus($requestedDeliveryStatus, (string) $order->status);
+            $this->applyDeliveryTimelineTimestamps($order, $previousOrderStatus, $previousDeliveryStatus);
             $order->sales_note = $validated['sales_note'] ?? null;
              // Capture Address Snapshot
             $order->customer_city = $selectedCity->city_name;
@@ -1071,6 +1076,8 @@ class OrderController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $order = Order::findOrFail($id);
+        $previousOrderStatus = (string) $order->status;
+        $previousDeliveryStatus = (string) ($order->delivery_status ?? 'pending');
         
         $validated = $request->validate([
             'status' => 'nullable|in:pending,hold,confirm,cancel',
@@ -1106,6 +1113,7 @@ class OrderController extends Controller
              $order->sales_note = $validated['sales_note'];
         }
 
+        $this->applyDeliveryTimelineTimestamps($order, $previousOrderStatus, $previousDeliveryStatus);
         $order->save();
         $this->syncOrderCommission($order);
         $this->syncResellerReturnFeePenalty($order);
@@ -1162,6 +1170,59 @@ class OrderController extends Controller
         }
 
         return $requestedStatus;
+    }
+
+    private function applyDeliveryTimelineTimestamps(
+        Order $order,
+        ?string $previousOrderStatus = null,
+        ?string $previousDeliveryStatus = null
+    ): void {
+        $orderStatus = strtolower((string) ($order->status ?? ''));
+        $deliveryStatus = strtolower((string) ($order->delivery_status ?? 'pending'));
+        $previousOrderStatus = strtolower((string) ($previousOrderStatus ?? ''));
+        $previousDeliveryStatus = strtolower((string) ($previousDeliveryStatus ?? ''));
+
+        if (
+            $orderStatus === 'cancel'
+            && ($previousOrderStatus !== 'cancel' || !$order->cancelled_at)
+        ) {
+            $this->setOrderTimelineTimestamp($order, 'cancelled_at');
+        }
+
+        if ($deliveryStatus === 'waybill_printed' && ($previousDeliveryStatus !== 'waybill_printed' || !$order->waybill_printed_at)) {
+            $this->setOrderTimelineTimestamp($order, 'waybill_printed_at');
+        }
+
+        if ($deliveryStatus === 'picked_from_rack' && ($previousDeliveryStatus !== 'picked_from_rack' || !$order->picked_at)) {
+            $this->setOrderTimelineTimestamp($order, 'picked_at');
+        }
+
+        if ($deliveryStatus === 'packed' && ($previousDeliveryStatus !== 'packed' || !$order->packed_at)) {
+            $this->setOrderTimelineTimestamp($order, 'packed_at');
+        }
+
+        if ($deliveryStatus === 'dispatched' && ($previousDeliveryStatus !== 'dispatched' || !$order->dispatched_at)) {
+            $this->setOrderTimelineTimestamp($order, 'dispatched_at');
+        }
+
+        if ($deliveryStatus === 'delivered' && ($previousDeliveryStatus !== 'delivered' || !$order->delivered_at)) {
+            $this->setOrderTimelineTimestamp($order, 'delivered_at');
+        }
+
+        if ($deliveryStatus === 'returned' && ($previousDeliveryStatus !== 'returned' || !$order->returned_at)) {
+            $this->setOrderTimelineTimestamp($order, 'returned_at');
+        }
+
+        if ($deliveryStatus === 'cancel' && ($previousDeliveryStatus !== 'cancel' || !$order->cancelled_at)) {
+            $this->setOrderTimelineTimestamp($order, 'cancelled_at');
+        }
+    }
+
+    private function setOrderTimelineTimestamp(Order $order, string $field): void
+    {
+        if (!isset($order->{$field}) || !$order->{$field}) {
+            $order->{$field} = now();
+        }
     }
 
     private function normalizeSearchText(string $value): string

@@ -37,7 +37,10 @@ class PackingController extends Controller
         $order = Order::findOrFail($id);
         $order->status = 'confirm';
         $order->packed_by = Auth::id();
-        $order->dispatched_at = now();
+        $order->delivery_status = 'packed';
+        if (!$order->packed_at) {
+            $order->packed_at = now();
+        }
         $order->save();
         
         OrderLog::create([

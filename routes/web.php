@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('direct-resellers', \App\Http\Controllers\DirectResellerController::class)
         ->parameters(['direct-resellers' => 'directReseller']);
     Route::resource('cities', \App\Http\Controllers\CityController::class);
+    Route::get('user-logs', [\App\Http\Controllers\UserLogController::class, 'index'])->name('user-logs.index');
 });
 
 
