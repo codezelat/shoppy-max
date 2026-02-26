@@ -746,7 +746,7 @@ class DemoSystemSeeder extends Seeder
                 'order_date' => now()->subDays(2)->toDateString(),
                 'order_type' => 'direct',
                 'status' => 'cancelled',
-                'call_status' => 'cancel',
+                'call_status' => 'hold',
                 'payment_method' => 'COD',
                 'customer' => 'Ruwan Maduranga',
                 'reseller' => null,

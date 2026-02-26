@@ -68,7 +68,7 @@
                         <option value="">All Call Status</option>
                         <option value="pending" {{ request('call_status') == 'pending' ? 'selected' : '' }}>Pending</option>
                         <option value="confirm" {{ request('call_status') == 'confirm' ? 'selected' : '' }}>Confirm</option>
-                        <option value="cancel" {{ request('call_status') == 'cancel' ? 'selected' : '' }}>Cancel</option>
+                        <option value="hold" {{ request('call_status') == 'hold' ? 'selected' : '' }}>Hold</option>
                     </select>
                 </div>
 
@@ -188,7 +188,7 @@
                                     $callColors = [
                                         'pending' => 'text-gray-600 bg-gray-100',
                                         'confirm' => 'text-blue-600 bg-blue-100',
-                                        'cancel' => 'text-red-600 bg-red-100',
+                                        'hold' => 'text-orange-700 bg-orange-100',
                                     ];
                                 @endphp
                                 <div class="flex flex-col gap-1">

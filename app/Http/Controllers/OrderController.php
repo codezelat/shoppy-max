@@ -288,7 +288,7 @@ class OrderController extends Controller
             'payments.*.amount' => 'required_with:payments|numeric|min:0.01',
             'payments.*.date' => 'required_with:payments|date',
             'payments.*.note' => 'nullable|string|max:255',
-            'call_status' => 'nullable|string',
+            'call_status' => 'nullable|in:pending,confirm,hold',
             'sales_note' => 'nullable|string',
             'order_status' => 'nullable|string',
             'customer.district' => 'nullable|string',
@@ -636,7 +636,7 @@ class OrderController extends Controller
             'payments.*.amount' => 'required_with:payments|numeric|min:0.01',
             'payments.*.date' => 'required_with:payments|date',
             'payments.*.note' => 'nullable|string|max:255',
-            'call_status' => 'nullable|string',
+            'call_status' => 'nullable|in:pending,confirm,hold',
             'sales_note' => 'nullable|string',
             'order_status' => 'nullable|string',
             'customer.district' => 'nullable|string',
@@ -874,7 +874,7 @@ class OrderController extends Controller
         
         $validated = $request->validate([
             'status' => 'nullable|in:pending,hold,confirm,shipped,delivered,cancelled',
-            'call_status' => 'nullable|in:pending,confirm,cancel',
+            'call_status' => 'nullable|in:pending,confirm,hold',
             'sales_note' => 'nullable|string',
         ]);
 

@@ -49,7 +49,7 @@
                         <option value="">All Call Status</option>
                         <option value="pending" {{ request('call_status') == 'pending' ? 'selected' : '' }}>Pending</option>
                         <option value="confirm" {{ request('call_status') == 'confirm' ? 'selected' : '' }}>Confirm</option>
-                        <option value="cancel" {{ request('call_status') == 'cancel' ? 'selected' : '' }}>Cancel</option>
+                        <option value="hold" {{ request('call_status') == 'hold' ? 'selected' : '' }}>Hold</option>
                     </select>
                 </div>
 
@@ -149,11 +149,11 @@
                                 <div class="relative">
                                     <select @change="updateStatus($event.target.value)" 
                                             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                                            :class="{'opacity-50 pointer-events-none': updating, 'bg-green-50 text-green-800 border-green-300': currentStatus === 'confirm', 'bg-red-50 text-red-800 border-red-300': currentStatus === 'cancel'}"
+                                            :class="{'opacity-50 pointer-events-none': updating, 'bg-green-50 text-green-800 border-green-300': currentStatus === 'confirm', 'bg-orange-50 text-orange-800 border-orange-300': currentStatus === 'hold'}"
                                     >
                                         <option value="pending" :selected="currentStatus === 'pending'">Pending</option>
                                         <option value="confirm" :selected="currentStatus === 'confirm'">Confirm</option>
-                                        <option value="cancel" :selected="currentStatus === 'cancel'">Cancel</option>
+                                        <option value="hold" :selected="currentStatus === 'hold'">Hold</option>
                                     </select>
                                     <div x-show="updating" class="absolute inset-y-0 right-0 flex items-center pr-8 pointer-events-none">
                                         <svg class="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
