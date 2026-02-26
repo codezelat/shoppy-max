@@ -100,7 +100,7 @@ class PurchaseController extends Controller
             'discount_amount' => $request->discount_amount ?? 0,
             'net_total' => $request->net_total,
             'paid_amount' => $paidAmount,
-            'payments_data' => json_encode($paymentsData),
+            'payments_data' => $paymentsData,
             'payment_method' => null, // Deprecated, keeping for backward compatibility
             'payment_reference' => $request->payment_reference,
             'payment_account' => null, // Deprecated
@@ -195,7 +195,7 @@ class PurchaseController extends Controller
                 'discount_amount' => $request->discount_amount ?? 0,
                 'net_total' => $request->net_total,
                 'paid_amount' => $paidAmount,
-                'payments_data' => json_encode($paymentsData),
+                'payments_data' => $paymentsData,
                 'payment_method' => null, // Deprecated
                 'payment_reference' => $request->payment_reference,
                 'payment_account' => null, // Deprecated
@@ -223,6 +223,37 @@ class PurchaseController extends Controller
             DB::rollBack();
             return back()->with('error', 'Error updating purchase: ' . $e->getMessage())->withInput();
         }
+    }
+
+    /**
+     * Search suppliers for AJAX requests.
+     */
+    public function searchSuppliers(Request $request)
+    {
+        $query = trim((string) $request->get('q', ''));
+        if (mb_strlen($query) < 2) {
+            return response()->json([]);
+        }
+
+        $suppliers = Supplier::query()
+            ->where(function ($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%")
+                    ->orWhere('business_name', 'like', "%{$query}%")
+                    ->orWhere('mobile', 'like', "%{$query}%")
+                    ->orWhere('phone', 'like', "%{$query}%");
+            })
+            ->limit(20)
+            ->get(['id', 'name', 'business_name', 'mobile', 'phone']);
+
+        return response()->json($suppliers->map(function ($supplier) {
+            return [
+                'id' => $supplier->id,
+                'name' => $supplier->business_name ?? $supplier->name,
+                'business_name' => $supplier->business_name,
+                'contact_name' => $supplier->name,
+                'mobile' => $supplier->mobile ?? $supplier->phone,
+            ];
+        }));
     }
 
     /**

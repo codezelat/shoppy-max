@@ -49,19 +49,35 @@
                             supplierSearch: '', 
                             supplierOpen: false, 
                             selectedSupplier: null,
-                            suppliers: {{ json_encode($suppliers->map(fn($s) => ['id' => $s->id, 'name' => $s->business_name ?? $s->name])) }},
-                            get filteredSuppliers() {
-                                if (!this.supplierSearch) return this.suppliers;
-                                return this.suppliers.filter(s => 
-                                    s.name.toLowerCase().includes(this.supplierSearch.toLowerCase())
-                                );
+                            supplierResults: [],
+                            async searchSuppliers() {
+                                const query = (this.supplierSearch || '').trim();
+                                if (query.length < 2) {
+                                    this.supplierResults = [];
+                                    this.supplierOpen = false;
+                                    return;
+                                }
+                                try {
+                                    const response = await fetch(`{{ route('purchases.search-suppliers') }}?q=${encodeURIComponent(query)}`);
+                                    this.supplierResults = await response.json();
+                                    this.supplierOpen = true;
+                                } catch (error) {
+                                    console.error('Error searching suppliers:', error);
+                                }
                             },
                             selectSupplier(supplier) {
                                 this.selectedSupplier = supplier;
                                 this.supplierSearch = supplier.name;
                                 this.supplierOpen = false;
+                                this.supplierResults = [];
+                            },
+                            clearSupplier() {
+                                this.selectedSupplier = null;
+                                this.supplierSearch = '';
+                                this.supplierResults = [];
+                                this.supplierOpen = false;
                             }
-                        }">
+                        }" @click.outside="supplierOpen = false">
                             <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Supplier <span class="text-red-500">*</span></label>
                             <div class="relative">
                                 <div class="relative">
@@ -70,29 +86,29 @@
                                     </div>
                                     <input type="text" 
                                            x-model="supplierSearch"
-                                           @input="supplierOpen = true"
-                                           @focus="supplierOpen = true"
+                                           @input.debounce.300ms="searchSuppliers()"
+                                           @focus="if ((supplierSearch || '').trim().length >= 2) { searchSuppliers(); }"
+                                           @click="if ((supplierSearch || '').trim().length >= 2) { searchSuppliers(); }"
                                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" 
-                                           placeholder="Search supplier..."
+                                           placeholder="Search supplier by name, business name, or mobile..."
                                            required
                                            autocomplete="off">
+                                    <div x-show="selectedSupplier" class="absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <button type="button" @click="clearSupplier()" class="text-gray-400 hover:text-red-500 focus:outline-none">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 <!-- Dropdown Results -->
-                                <div x-show="supplierOpen" 
+                                <div x-show="supplierOpen && supplierResults.length > 0 && !selectedSupplier" 
                                      x-transition:enter="transition ease-out duration-200"
                                      x-transition:enter-start="opacity-0 scale-95"
                                      x-transition:enter-end="opacity-100 scale-100"
-                                     @click.outside="supplierOpen = false" 
                                      class="absolute z-50 w-full bg-white dark:bg-gray-800 rounded-lg shadow-2xl border-2 border-blue-200 dark:border-blue-600 mt-2 max-h-64 overflow-y-auto">
                                     
-                                    <div x-show="filteredSuppliers.length === 0" class="p-4 text-center">
-                                        <svg class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">No suppliers found</p>
-                                    </div>
-
-                                    <ul x-show="filteredSuppliers.length > 0" class="divide-y divide-gray-100 dark:divide-gray-700">
-                                        <template x-for="supplier in filteredSuppliers" :key="supplier.id">
+                                    <ul class="divide-y divide-gray-100 dark:divide-gray-700">
+                                        <template x-for="supplier in supplierResults" :key="supplier.id">
                                             <li @click="selectSupplier(supplier)" 
                                                 class="px-4 py-3 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer transition-colors group">
                                                 <div class="flex items-center justify-between">
@@ -102,6 +118,8 @@
                                                         </div>
                                                         <div class="flex-1 min-w-0">
                                                             <p class="font-semibold text-gray-900 dark:text-white truncate" x-text="supplier.name"></p>
+                                                            <p x-show="supplier.business_name && supplier.contact_name" class="text-xs text-gray-500 dark:text-gray-400" x-text="'Contact: ' + supplier.contact_name"></p>
+                                                            <p x-show="supplier.mobile" class="text-xs text-gray-500 dark:text-gray-400" x-text="supplier.mobile"></p>
                                                         </div>
                                                     </div>
                                                     <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
@@ -110,6 +128,9 @@
                                         </template>
                                     </ul>
                                 </div>
+                                
+                                <p x-show="(supplierSearch || '').trim().length >= 2 && supplierResults.length === 0 && !selectedSupplier" class="mt-1 text-xs text-gray-500 dark:text-gray-400">No matching suppliers found.</p>
+                                
                                 <input type="hidden" name="supplier_id" :value="selectedSupplier?.id" required>
                             </div>
                         </div>
