@@ -132,7 +132,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('receive-courier/{courier}/store', [\App\Http\Controllers\CourierReceiveController::class, 'store'])->name('courier-receive.store');   // Final store
 
     Route::resource('couriers', \App\Http\Controllers\CourierController::class);
-    Route::resource('courier-payments', \App\Http\Controllers\CourierPaymentController::class);
+    Route::get('courier-payments/create', function () {
+        return redirect()
+            ->route('courier-receive.index')
+            ->with('info', 'Add new courier payments from Receive Courier Payment.');
+    })->name('courier-payments.create');
+    Route::resource('courier-payments', \App\Http\Controllers\CourierPaymentController::class)->except(['create', 'store']);
     Route::resource('bank-accounts', \App\Http\Controllers\BankAccountController::class)->except(['show']);
     // Purchases
     Route::get('/purchases/{purchase}/pdf', [\App\Http\Controllers\PurchaseController::class, 'pdf'])->name('purchases.pdf');

@@ -8,6 +8,7 @@ use App\Models\CourierPayment;
 use App\Models\BankAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class CourierReceiveController extends Controller
 {
@@ -25,11 +26,8 @@ class CourierReceiveController extends Controller
      */
     public function show(Courier $courier)
     {
-        // Get confirmed orders via this courier and NOT yet paid/reconciled
-        // This logic might need adjustment based on specific business rules for "Receive"
-        $orders = Order::where('courier_id', $courier->id)
-            ->where('status', 'confirm')
-            ->whereNull('courier_payment_id')
+        // Get eligible orders for this courier and not yet linked to a courier payment
+        $orders = $this->eligibleOrdersQuery($courier)
             ->latest()
             ->take(50) // Limit for initial load
             ->get();
@@ -47,10 +45,20 @@ class CourierReceiveController extends Controller
     public function searchOrder(Request $request) 
     {
         $query = $request->get('query');
-        $order = Order::where(function($q) use ($query) {
+        $courierId = $request->integer('courier_id');
+
+        $orderQuery = Order::where(function($q) use ($query) {
                 $q->where('waybill_number', $query)
-                  ->orWhere('id', $query); // Assuming Order No is ID or another field
-            })
+                  ->orWhere('id', $query);
+            });
+
+        if ($courierId) {
+            $orderQuery->where('courier_id', $courierId)
+                ->where('status', 'confirm')
+                ->whereNull('courier_payment_id');
+        }
+
+        $order = $orderQuery
             ->with(['customer', 'city', 'courier']) // Eager load relationships
             ->first();
 
@@ -105,8 +113,8 @@ class CourierReceiveController extends Controller
 
                 $waybill = $row[0] ?? null; // Adjusted based on actual template
                 if ($waybill) {
-                    $order = Order::where('waybill_number', $waybill)
-                        ->where('courier_id', $courier->id)
+                    $order = $this->eligibleOrdersQuery($courier)
+                        ->where('waybill_number', $waybill)
                         ->first();
                     
                     if ($order) {
@@ -146,10 +154,19 @@ class CourierReceiveController extends Controller
             DB::transaction(function() use ($request, $courier) {
                 $selectedAccount = BankAccount::findOrFail($request->payment_account_id);
 
-                // 1. Calculate Total Amount from Orders
-                // Note: In a real scenario, we might want to sum up specific fields or use a user-provided total.
-                // Here we sum 'total_amount' of the selected orders.
-                $totalAmount = Order::whereIn('id', $request->order_ids)->sum('total_amount');
+                $eligibleOrders = $this->eligibleOrdersQuery($courier)
+                    ->whereIn('id', $request->order_ids)
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($eligibleOrders->count() !== count($request->order_ids)) {
+                    throw ValidationException::withMessages([
+                        'order_ids' => 'One or more selected orders are invalid for this courier or already reconciled.',
+                    ]);
+                }
+
+                // 1. Calculate total received amount from selected eligible orders.
+                $totalAmount = (float) $eligibleOrders->sum('total_amount');
 
                 // 2. Create Payment Record
                 $payment = CourierPayment::create([
@@ -164,16 +181,26 @@ class CourierReceiveController extends Controller
                 ]);
 
                 // 3. Update Orders
-                Order::whereIn('id', $request->order_ids)->update([
+                Order::whereIn('id', $eligibleOrders->pluck('id')->all())->update([
                     'courier_payment_id' => $payment->id,
-                    'payment_status' => 'Paid', // Assuming receiving payment means order is Paid/Reconciled
+                    'payment_status' => 'paid',
                 ]);
             });
 
             return redirect()->route('courier-receive.index')->with('success', 'Payment received and orders updated successfully.');
 
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return back()->with('error', 'Error processing payment: ' . $e->getMessage());
         }
+    }
+
+    private function eligibleOrdersQuery(Courier $courier)
+    {
+        return Order::query()
+            ->where('courier_id', $courier->id)
+            ->where('status', 'confirm')
+            ->whereNull('courier_payment_id');
     }
 }

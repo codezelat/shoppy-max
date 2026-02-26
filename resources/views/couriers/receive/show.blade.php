@@ -226,7 +226,7 @@
             const waybill = document.getElementById('waybill').value.trim();
             if (!waybill) return;
 
-            fetch(`{{ route('courier-receive.search-order') }}?query=${encodeURIComponent(waybill)}`)
+            fetch(`{{ route('courier-receive.search-order') }}?courier_id={{ $courier->id }}&query=${encodeURIComponent(waybill)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {

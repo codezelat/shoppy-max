@@ -29,9 +29,9 @@
 
     <div class="p-6 overflow-hidden bg-white rounded-md shadow-md dark:bg-gray-800">
         
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4 mb-6">
+        <div class="mb-6">
             <!-- Search Bar -->
-            <div class="flex-1 w-full md:max-w-lg">
+            <div class="w-full md:max-w-lg">
                 <form method="GET" action="{{ route('courier-payments.index') }}" class="relative flex gap-2">
                     <div class="relative flex-1">
                         <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
@@ -40,14 +40,6 @@
                         <input type="text" name="search" value="{{ request('search') }}" class="block w-full p-3 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Search Courier, Reference..." />
                     </div>
                 </form>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex flex-wrap items-center gap-3">
-                <a href="{{ route('courier-payments.create') }}" class="flex items-center justify-center text-white bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-primary-600 dark:hover:bg-primary-700 focus:outline-none dark:focus:ring-primary-800 transition-transform transform hover:scale-105 shadow-lg">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                    Add Payment
-                </a>
             </div>
         </div>
 

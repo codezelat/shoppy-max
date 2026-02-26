@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Courier;
 use App\Models\CourierPayment;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class CourierPaymentController extends Controller
 {
@@ -14,7 +14,7 @@ class CourierPaymentController extends Controller
      */
     public function index(Request $request)
     {
-        $query = CourierPayment::with('courier');
+        $query = CourierPayment::with(['courier', 'bankAccount']);
 
         // Search
         if ($request->filled('search')) {
@@ -46,37 +46,6 @@ class CourierPaymentController extends Controller
     }
 
     /**
-     * Show the form for creating a new courier payment.
-     */
-    public function create()
-    {
-        $couriers = Courier::where('is_active', true)->orderBy('name')->get();
-        return view('courier-payments.create', compact('couriers'));
-    }
-
-    /**
-     * Store a newly created courier payment.
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'courier_id' => 'required|exists:couriers,id',
-            'amount' => 'required|numeric|min:0',
-            'payment_date' => 'required|date',
-            'payment_method' => 'nullable|string',
-            'reference_number' => 'nullable|string|max:255',
-            'payment_note' => 'nullable|string',
-        ]);
-
-        $validated['user_id'] = Auth::id();
-
-        CourierPayment::create($validated);
-
-        return redirect()->route('courier-payments.index')
-            ->with('success', 'Courier payment recorded successfully.');
-    }
-
-    /**
      * Show the form for editing the specified courier payment.
      */
     public function edit(CourierPayment $courierPayment)
@@ -99,6 +68,17 @@ class CourierPaymentController extends Controller
             'payment_note' => 'nullable|string',
         ]);
 
+        if (
+            (int) $validated['courier_id'] !== (int) $courierPayment->courier_id
+            && $courierPayment->orders()->exists()
+        ) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'courier_id' => 'Courier cannot be changed while this payment is linked to orders.',
+                ]);
+        }
+
         $courierPayment->update($validated);
 
         return redirect()->route('courier-payments.index')
@@ -110,7 +90,14 @@ class CourierPaymentController extends Controller
      */
     public function destroy(CourierPayment $courierPayment)
     {
-        $courierPayment->delete();
+        DB::transaction(function () use ($courierPayment) {
+            $courierPayment->orders()->update([
+                'courier_payment_id' => null,
+                'payment_status' => 'pending',
+            ]);
+
+            $courierPayment->delete();
+        });
 
         return redirect()->route('courier-payments.index')
             ->with('success', 'Courier payment deleted successfully.');
