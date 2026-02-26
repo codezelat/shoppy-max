@@ -495,6 +495,20 @@
                                             <option value="Online Payment">Online Payment</option>
                                         </select>
                                     </div>
+                                    <div>
+                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Payment Status</label>
+                                        <select
+                                            x-model="form.payment_status"
+                                            :disabled="isPaymentStatusForcedPaid"
+                                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 disabled:bg-gray-100 disabled:text-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+                                        >
+                                            <option value="pending">Pending</option>
+                                            <option value="paid">Paid</option>
+                                        </select>
+                                        <p x-show="isPaymentStatusForcedPaid" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                            Auto-set to Paid because delivery is marked Delivered or Online Payment is fully paid.
+                                        </p>
+                                    </div>
                                     <div class="md:col-span-2">
                                         <div class="flex items-center justify-between mb-2">
                                             <label class="block text-sm font-medium text-gray-900 dark:text-white">
@@ -730,6 +744,7 @@
                     courier_charge: '',
                     discount_amount: 0,
                     payment_method: 'COD',
+                    payment_status: 'pending',
                     paid_amount: 0,
                     payments: [],
                     call_status: 'pending',
@@ -897,9 +912,15 @@
                             this.addPaymentEntry();
                         }
                         this.syncOrderStatusLock();
+                        this.syncPaymentStatusRules();
                     });
                     this.$watch('form.discount_amount', () => this.syncOrderStatusLock());
                     this.$watch('form.items', () => this.syncOrderStatusLock());
+                    this.$watch('form.delivery_status', () => this.syncPaymentStatusRules());
+                    this.$watch('form.payments', () => this.syncPaymentStatusRules());
+                    this.$watch('form.items', () => this.syncPaymentStatusRules());
+                    this.$watch('form.discount_amount', () => this.syncPaymentStatusRules());
+                    this.$watch('form.courier_charge', () => this.syncPaymentStatusRules());
                     this.$watch('form.order_status', () => this.syncCallStatusFromOrderStatus());
                     this.$watch('form.customer.mobile', (value) => {
                         if (this.selectedCustomer && String(value || '') !== String(this.selectedCustomer.mobile || '')) {
@@ -912,6 +933,7 @@
                     this.filterCities();
                     this.syncOrderStatusLock();
                     this.syncCallStatusFromOrderStatus();
+                    this.syncPaymentStatusRules();
                 },
 
                 currentDate() {
@@ -1195,6 +1217,25 @@
                     return remaining > 0 ? remaining : 0;
                 },
 
+                get isOnlinePaymentFullyPaid() {
+                    return this.form.payment_method === 'Online Payment' && this.remainingAmount <= 0;
+                },
+
+                get isPaymentStatusForcedPaid() {
+                    return this.form.delivery_status === 'delivered' || this.isOnlinePaymentFullyPaid;
+                },
+
+                syncPaymentStatusRules() {
+                    if (this.isPaymentStatusForcedPaid) {
+                        this.form.payment_status = 'paid';
+                        return;
+                    }
+
+                    if (!['pending', 'paid'].includes(this.form.payment_status)) {
+                        this.form.payment_status = 'pending';
+                    }
+                },
+
                 get isStatusLockedToPending() {
                     return this.form.payment_method === 'Online Payment' || this.discountAmount > 0;
                 },
@@ -1233,6 +1274,7 @@
                     this.syncOrderStatusLock();
                     this.syncCallStatusFromOrderStatus();
                     this.form.delivery_status = 'pending';
+                    this.syncPaymentStatusRules();
                     if (this.form.order_type === 'reseller' && !this.form.reseller_id) {
                         this.notify('warning', 'Please select a reseller.');
                         return;

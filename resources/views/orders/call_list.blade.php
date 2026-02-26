@@ -119,6 +119,80 @@
                                     this.updating = false;
                                     alert('Error updating status');
                                 });
+                            },
+                            async cancelOrder() {
+                                const orderNumber = {{ \Illuminate\Support\Js::from($order->order_number) }};
+                                const confirmText = `Cancel ${orderNumber}? This will set Order, Call, and Delivery statuses to Cancel.`;
+
+                                if (typeof Swal !== 'undefined') {
+                                    const result = await Swal.fire({
+                                        title: 'Cancel Order',
+                                        text: confirmText,
+                                        icon: 'warning',
+                                        showCancelButton: true,
+                                        confirmButtonColor: '#dc2626',
+                                        cancelButtonColor: '#6b7280',
+                                        confirmButtonText: 'Yes, Cancel Order',
+                                        cancelButtonText: 'Keep Order',
+                                    });
+
+                                    if (!result.isConfirmed) {
+                                        return;
+                                    }
+                                } else if (!confirm(confirmText)) {
+                                    return;
+                                }
+
+                                this.updating = true;
+                                fetch('{{ route('orders.status.update', $order->id) }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                    },
+                                    body: JSON.stringify({ status: 'cancel' })
+                                })
+                                .then(async (response) => {
+                                    const data = await response.json().catch(() => ({}));
+                                    this.updating = false;
+
+                                    if (!response.ok || !data.success) {
+                                        const message = data?.message || 'Failed to cancel order.';
+                                        if (typeof Swal !== 'undefined') {
+                                            await Swal.fire({
+                                                icon: 'error',
+                                                title: 'Cancel Failed',
+                                                text: message,
+                                            });
+                                        } else {
+                                            alert(message);
+                                        }
+                                        return;
+                                    }
+
+                                    if (typeof Swal !== 'undefined') {
+                                        await Swal.fire({
+                                            icon: 'success',
+                                            title: 'Order Cancelled',
+                                            text: `${orderNumber} was cancelled successfully.`,
+                                            timer: 1200,
+                                            showConfirmButton: false,
+                                        });
+                                    }
+                                    window.location.reload();
+                                })
+                                .catch(() => {
+                                    this.updating = false;
+                                    if (typeof Swal !== 'undefined') {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Cancel Failed',
+                                            text: 'An unexpected error occurred while cancelling the order.',
+                                        });
+                                    } else {
+                                        alert('An unexpected error occurred while cancelling the order.');
+                                    }
+                                });
                             }
                         }">
                             @php
@@ -184,6 +258,11 @@
                                     <a href="{{ route('orders.edit', $order) }}" class="text-blue-600 hover:text-blue-800" title="Edit">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                     </a>
+                                    <button type="button" @click="cancelOrder()" :disabled="updating" class="text-red-600 hover:text-red-800 disabled:opacity-40 disabled:cursor-not-allowed" title="Cancel Order">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
                                 </div>
                             </td>
                         </tr>

@@ -402,6 +402,7 @@ class OrderController extends Controller
             'payments.*.amount' => 'required_with:payments|numeric|min:0.01',
             'payments.*.date' => 'required_with:payments|date',
             'payments.*.note' => 'nullable|string|max:255',
+            'payment_status' => 'nullable|in:pending,paid',
             'call_status' => 'nullable|in:pending,confirm,hold,cancel',
             'sales_note' => 'nullable|string',
             'order_status' => 'nullable|in:pending,hold,confirm,cancel',
@@ -556,7 +557,13 @@ class OrderController extends Controller
             );
             $order->paid_amount = $paymentDetails['paid_amount'];
             $order->payments_data = $paymentDetails['payments_data'];
-            $order->payment_status = $paymentDetails['payment_status'];
+            $order->payment_status = $this->resolvePaymentStatus(
+                $validated['payment_status'] ?? 'pending',
+                (string) ($order->payment_method ?? 'COD'),
+                (float) $paymentDetails['paid_amount'],
+                (float) $order->total_amount,
+                (string) ($order->delivery_status ?? 'pending')
+            );
             $order->save();
 
             // 5. Log Action
@@ -723,6 +730,54 @@ class OrderController extends Controller
      */
     public function update(Request $request, Order $order)
     {
+        $isCoreLocked = strtolower((string) $order->status) !== 'pending';
+        if ($isCoreLocked) {
+            $validated = $request->validate([
+                'paid_amount' => 'nullable|numeric|min:0',
+                'payments' => 'nullable|array',
+                'payments.*.amount' => 'required_with:payments|numeric|min:0.01',
+                'payments.*.date' => 'required_with:payments|date',
+                'payments.*.note' => 'nullable|string|max:255',
+                'payment_status' => 'nullable|in:pending,paid',
+                'sales_note' => 'nullable|string',
+            ]);
+
+            DB::beginTransaction();
+            try {
+                $order->sales_note = $validated['sales_note'] ?? $order->sales_note;
+
+                $paymentDetails = $this->resolvePaymentDetails(
+                    (string) ($order->payment_method ?? 'COD'),
+                    $validated['payments'] ?? [],
+                    $validated['paid_amount'] ?? null,
+                    (float) $order->total_amount
+                );
+                $order->paid_amount = $paymentDetails['paid_amount'];
+                $order->payments_data = $paymentDetails['payments_data'];
+                $order->payment_status = $this->resolvePaymentStatus(
+                    $validated['payment_status'] ?? $order->payment_status ?? 'pending',
+                    (string) ($order->payment_method ?? 'COD'),
+                    (float) $paymentDetails['paid_amount'],
+                    (float) $order->total_amount,
+                    (string) ($order->delivery_status ?? 'pending')
+                );
+                $order->save();
+
+                DB::commit();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Order updated successfully!',
+                    'redirect' => route('orders.index'),
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ], 422);
+            }
+        }
+
         $validated = $request->validate([
             'order_type' => 'required|in:reseller,direct',
             'reseller_id' => [
@@ -759,6 +814,7 @@ class OrderController extends Controller
             'payments.*.amount' => 'required_with:payments|numeric|min:0.01',
             'payments.*.date' => 'required_with:payments|date',
             'payments.*.note' => 'nullable|string|max:255',
+            'payment_status' => 'nullable|in:pending,paid',
             'call_status' => 'nullable|in:pending,confirm,hold,cancel',
             'sales_note' => 'nullable|string',
             'order_status' => 'nullable|in:pending,hold,confirm,cancel',
@@ -910,7 +966,13 @@ class OrderController extends Controller
             );
             $order->paid_amount = $paymentDetails['paid_amount'];
             $order->payments_data = $paymentDetails['payments_data'];
-            $order->payment_status = $paymentDetails['payment_status'];
+            $order->payment_status = $this->resolvePaymentStatus(
+                $validated['payment_status'] ?? $order->payment_status ?? 'pending',
+                (string) ($order->payment_method ?? 'COD'),
+                (float) $paymentDetails['paid_amount'],
+                (float) $order->total_amount,
+                (string) ($order->delivery_status ?? 'pending')
+            );
             $order->save();
 
             DB::commit();
@@ -1313,5 +1375,29 @@ class OrderController extends Controller
             'payments_data' => $paymentsData,
             'payment_status' => $remaining <= 0 ? 'paid' : 'pending',
         ];
+    }
+
+    private function resolvePaymentStatus(
+        ?string $requestedStatus,
+        string $paymentMethod,
+        float $paidAmount,
+        float $totalAmount,
+        string $deliveryStatus
+    ): string {
+        $normalizedRequested = in_array($requestedStatus, ['pending', 'paid'], true)
+            ? $requestedStatus
+            : 'pending';
+
+        $normalizedDelivery = strtolower(trim($deliveryStatus));
+        $isOnlinePayment = trim($paymentMethod) === 'Online Payment';
+        $normalizedTotal = max(round($totalAmount, 2), 0);
+        $normalizedPaid = max(round($paidAmount, 2), 0);
+        $isOnlineFullyPaid = $isOnlinePayment && $normalizedPaid >= $normalizedTotal;
+
+        if ($normalizedDelivery === 'delivered' || $isOnlineFullyPaid) {
+            return 'paid';
+        }
+
+        return $normalizedRequested;
     }
 }
