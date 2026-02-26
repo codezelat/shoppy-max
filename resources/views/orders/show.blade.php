@@ -14,9 +14,9 @@
                 <a href="{{ route('orders.pdf', $order) }}" target="_blank" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 focus:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
                     Download PDF
                 </a>
-                <button onclick="window.print()" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 focus:bg-green-500 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                <a href="{{ route('orders.print', $order) }}" target="_blank" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 focus:bg-green-500 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
                     Print
-                </button>
+                </a>
             </div>
         </div>
     </x-slot>
@@ -34,7 +34,8 @@
                                 @php
                                     $colors = [
                                         'pending' => 'bg-yellow-100 text-yellow-800',
-                                        'confirmed' => 'bg-blue-100 text-blue-800',
+                                        'confirm' => 'bg-blue-100 text-blue-800',
+                                        'hold' => 'bg-amber-100 text-amber-800',
                                         'shipped' => 'bg-indigo-100 text-indigo-800',
                                         'delivered' => 'bg-green-100 text-green-800',
                                         'cancelled' => 'bg-red-100 text-red-800',
@@ -47,8 +48,7 @@
                         </div>
                         <div class="text-right">
                              <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ config('app.name', 'ShoppyMax') }}</h2>
-                             <p class="text-sm text-gray-500 dark:text-gray-400">123 Business Road,<br>Colombo 03,<br>Sri Lanka.</p>
-                             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Date: {{ $order->order_date->format('d M, Y') }}</p>
+                             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Date: {{ optional($order->order_date)->format('d M, Y') }}</p>
                         </div>
                     </div>
                 </div>
@@ -128,6 +128,12 @@
                 <!-- Footer Totals -->
                 <div class="px-8 pb-8 flex justify-end">
                     <div class="w-full sm:w-1/2 lg:w-1/3">
+                        @php
+                            $paidAmount = (float) ($order->paid_amount ?? 0);
+                            $remainingAmount = max((float) $order->total_amount - $paidAmount, 0);
+                            $discountAmount = (float) ($order->discount_amount ?? 0);
+                            $subTotalBeforeDiscount = max(((float) $order->total_amount - (float) $order->courier_charge) + $discountAmount, 0);
+                        @endphp
                         <div class="space-y-2">
                              @if($order->order_type === 'reseller')
                                 <div class="flex justify-between items-center text-sm text-purple-600 dark:text-purple-400 py-1 border-b dark:border-gray-700">
@@ -135,14 +141,26 @@
                                     <span>LKR {{ number_format($order->total_commission, 2) }}</span>
                                 </div>
                              @endif
-                             
+                            
                              <div class="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400 py-1">
                                 <span>Subtotal</span>
-                                <span>LKR {{ number_format($order->total_amount - $order->courier_charge, 2) }}</span>
+                                <span>LKR {{ number_format($subTotalBeforeDiscount, 2) }}</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400 py-1">
+                                <span>Discount</span>
+                                <span>- LKR {{ number_format($discountAmount, 2) }}</span>
                             </div>
                             <div class="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400 py-1 border-b dark:border-gray-700">
                                 <span>Courier Charge</span>
                                 <span>LKR {{ number_format($order->courier_charge, 2) }}</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400 py-1">
+                                <span>Paid Amount</span>
+                                <span>LKR {{ number_format($paidAmount, 2) }}</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400 py-1 border-b dark:border-gray-700">
+                                <span>{{ $order->payment_method === 'COD' ? 'Remaining (COD Collect)' : 'Remaining Amount' }}</span>
+                                <span>LKR {{ number_format($remainingAmount, 2) }}</span>
                             </div>
                              
                              <div class="flex justify-between items-center text-lg font-bold text-gray-900 dark:text-white pt-2">
@@ -153,6 +171,32 @@
                     </div>
                 </div>
 
+                @if(is_array($order->payments_data) && count($order->payments_data) > 0)
+                <div class="px-8 pb-6">
+                    <p class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Payment Entries</p>
+                    <div class="border rounded-lg overflow-hidden dark:border-gray-700">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Note</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                @foreach($order->payments_data as $payment)
+                                    <tr>
+                                        <td class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{{ $payment['date'] ?? '-' }}</td>
+                                        <td class="px-4 py-2 text-sm text-right font-medium text-gray-900 dark:text-white">LKR {{ number_format((float) ($payment['amount'] ?? 0), 2) }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{{ $payment['note'] ?? '-' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                @endif
+
                 @if($order->sales_note)
                 <div class="px-8 pb-4">
                      <p class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Sales Note / Remarks:</p>
@@ -162,16 +206,11 @@
                 </div>
                 @endif
 
-                <!-- Footer Signature -->
-                <div class="p-8 pt-12 mt-8 border-t border-gray-100 dark:border-gray-700 flex justify-between items-end print:flex">
-                     <div class="text-sm text-gray-500">
+                <div class="p-8 pt-12 mt-8 border-t border-gray-100 dark:border-gray-700">
+                    <div class="text-sm text-gray-500">
                         <p>Thank you for your business!</p>
-                        <p class="mt-1 text-xs">This is a system generated invoice.</p>
-                     </div>
-                     <div class="text-center w-48">
-                         <div class="border-b border-gray-400 dark:border-gray-600 mb-2 h-8"></div>
-                         <p class="text-xs font-semibold uppercase text-gray-500">Authorized Signature</p>
-                     </div>
+                        <p class="mt-1 text-xs">This is a system generated invoice. No signature is required.</p>
+                    </div>
                 </div>
             </div>
         </div>

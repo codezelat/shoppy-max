@@ -361,6 +361,16 @@
                                         </div>
                                     </div>
                                     <div>
+                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Discount</label>
+                                        <input type="number"
+                                               x-model="form.discount_amount"
+                                               min="0"
+                                               step="0.01"
+                                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                               placeholder="0.00">
+                                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Discount cannot exceed subtotal.</p>
+                                    </div>
+                                    <div>
                                         <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Courier</label>
                                         <select x-model="form.courier_id" @change="onCourierChange()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
                                             <option value="">Select Courier</option>
@@ -383,9 +393,63 @@
                                         <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Payment Method</label>
                                         <select x-model="form.payment_method" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
                                             <option value="COD">Cash on Delivery (COD)</option>
-                                            <option value="Bank Transfer">Bank Transfer</option>
                                             <option value="Online Payment">Online Payment</option>
                                         </select>
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <label class="block text-sm font-medium text-gray-900 dark:text-white">
+                                                Payment Entries
+                                                <span class="text-xs text-gray-500 dark:text-gray-400" x-show="form.payment_method === 'COD'">(Optional for COD)</span>
+                                            </label>
+                                            <button
+                                                type="button"
+                                                @click="addPaymentEntry()"
+                                                class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-300 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800"
+                                            >
+                                                + Add Payment
+                                            </button>
+                                        </div>
+
+                                        <div class="space-y-2">
+                                            <template x-for="(payment, index) in form.payments" :key="`edit-payment-${index}`">
+                                                <div class="grid grid-cols-12 gap-2 rounded-lg border border-gray-200 p-2.5 bg-gray-50 dark:bg-gray-700/40 dark:border-gray-600">
+                                                    <div class="col-span-4">
+                                                        <input type="number"
+                                                               x-model="payment.amount"
+                                                               min="0.01"
+                                                               step="0.01"
+                                                               class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                               placeholder="Amount">
+                                                    </div>
+                                                    <div class="col-span-4">
+                                                        <input type="date"
+                                                               x-model="payment.date"
+                                                               class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                                    </div>
+                                                    <div class="col-span-3">
+                                                        <input type="text"
+                                                               x-model="payment.note"
+                                                               class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                               placeholder="Note / Ref">
+                                                    </div>
+                                                    <div class="col-span-1 flex items-center justify-end">
+                                                        <button
+                                                            type="button"
+                                                            @click="removePaymentEntry(index)"
+                                                            class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-gray-700"
+                                                            title="Remove payment"
+                                                        >
+                                                            x
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </template>
+
+                                            <p x-show="form.payments.length === 0" class="text-xs text-gray-500 dark:text-gray-400">
+                                                No payment entries yet.
+                                            </p>
+                                        </div>
                                     </div>
                                     <div>
                                         <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Call Status</label>
@@ -422,8 +486,20 @@
                                             <span class="font-semibold" x-text="subTotal.toFixed(2)"></span>
                                         </div>
                                         <div class="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                                            <span>Discount</span>
+                                            <span class="font-semibold">- <span x-text="discountAmount.toFixed(2)"></span></span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-gray-600 dark:text-gray-300">
                                             <span>Delivery</span>
                                             <span class="font-semibold" x-text="(parseFloat(form.courier_charge) || 0).toFixed(2)"></span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                                            <span>Paid Amount</span>
+                                            <span class="font-semibold" x-text="paidAmount.toFixed(2)"></span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                                            <span x-text="form.payment_method === 'COD' ? 'Remaining (COD Collect)' : 'Remaining Amount'"></span>
+                                            <span class="font-semibold" x-text="remainingAmount.toFixed(2)"></span>
                                         </div>
                                         <div class="border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between text-base text-gray-900 dark:text-white">
                                             <span class="font-semibold">Net Total</span>
@@ -480,7 +556,16 @@
                     // Fulfillment
                     courier_id: initialOrder.courier_id,
                     courier_charge: initialOrder.courier_charge,
-                    payment_method: initialOrder.payment_method,
+                    discount_amount: initialOrder.discount_amount || 0,
+                    payment_method: initialOrder.payment_method || 'COD',
+                    paid_amount: initialOrder.paid_amount || 0,
+                    payments: Array.isArray(initialOrder.payments_data)
+                        ? initialOrder.payments_data.map((payment) => ({
+                            amount: payment?.amount ?? '',
+                            date: payment?.date || '',
+                            note: payment?.note || '',
+                        }))
+                        : [],
                     call_status: initialOrder.call_status,
                     sales_note: initialOrder.sales_note,
 
@@ -549,6 +634,14 @@
                         }
                     });
                     this.$watch('form.courier_id', () => this.onCourierChange());
+                    this.$watch('form.payment_method', (value) => {
+                        if (value === 'Online Payment' && this.form.payments.length === 0) {
+                            this.addPaymentEntry();
+                        }
+                    });
+                    if (this.form.payment_method === 'Online Payment' && this.form.payments.length === 0) {
+                        this.addPaymentEntry();
+                    }
 
                     const selected = this.cities.find((city) => String(city.id) === String(this.form.customer.city_id));
                     if (selected) {
@@ -561,6 +654,51 @@
                     }
                     this.onCourierChange();
                     this.filterCities();
+                },
+
+                currentDate() {
+                    return new Date().toISOString().split('T')[0];
+                },
+
+                addPaymentEntry() {
+                    this.form.payments.push({
+                        amount: '',
+                        date: this.currentDate(),
+                        note: '',
+                    });
+                },
+
+                removePaymentEntry(index) {
+                    this.form.payments.splice(index, 1);
+                },
+
+                normalizePayments() {
+                    const normalized = [];
+
+                    for (let i = 0; i < this.form.payments.length; i++) {
+                        const payment = this.form.payments[i] || {};
+                        const amount = parseFloat(payment.amount);
+                        const date = (payment.date || '').toString().trim();
+                        const note = (payment.note || '').toString().trim();
+
+                        if (!Number.isFinite(amount) || amount <= 0) {
+                            this.notify('warning', `Enter a valid payment amount for entry ${i + 1}.`);
+                            return null;
+                        }
+
+                        if (!date) {
+                            this.notify('warning', `Select payment date for entry ${i + 1}.`);
+                            return null;
+                        }
+
+                        normalized.push({
+                            amount: amount.toFixed(2),
+                            date,
+                            note,
+                        });
+                    }
+
+                    return normalized;
                 },
 
                 normalizeRate(rate) {
@@ -777,9 +915,35 @@
                 },
 
                 get totalAmount() {
+                    return this.totalAmountNumber.toFixed(2);
+                },
+
+                get totalAmountNumber() {
                     const sub = this.subTotal;
+                    const discount = this.discountAmount;
                     const courier = parseFloat(this.form.courier_charge) || 0;
-                    return (sub + courier).toFixed(2);
+                    return Math.max(sub - discount, 0) + courier;
+                },
+
+                get discountAmount() {
+                    const discount = parseFloat(this.form.discount_amount);
+                    if (!Number.isFinite(discount) || discount <= 0) {
+                        return 0;
+                    }
+
+                    return Math.min(discount, this.subTotal);
+                },
+
+                get paidAmount() {
+                    return (this.form.payments || []).reduce((sum, payment) => {
+                        const amount = parseFloat(payment?.amount);
+                        return sum + (Number.isFinite(amount) && amount > 0 ? amount : 0);
+                    }, 0);
+                },
+
+                get remainingAmount() {
+                    const remaining = this.totalAmountNumber - this.paidAmount;
+                    return remaining > 0 ? remaining : 0;
                 },
                 
                 get totalCommission() {
@@ -828,6 +992,31 @@
                     }
                     if (!this.form.customer.city_id) {
                         this.notify('warning', 'Please select a city from the list.');
+                        return;
+                    }
+
+                    const rawDiscount = parseFloat(this.form.discount_amount);
+                    if (Number.isFinite(rawDiscount) && rawDiscount > this.subTotal) {
+                        this.notify('warning', 'Discount cannot exceed subtotal.');
+                        return;
+                    }
+                    this.form.discount_amount = this.discountAmount.toFixed(2);
+
+                    const normalizedPayments = this.normalizePayments();
+                    if (normalizedPayments === null) {
+                        return;
+                    }
+
+                    this.form.payments = normalizedPayments;
+                    this.form.paid_amount = this.paidAmount.toFixed(2);
+
+                    if (this.form.payment_method === 'Online Payment' && this.form.payments.length === 0) {
+                        this.notify('warning', 'Add at least one payment entry for online payment orders.');
+                        return;
+                    }
+
+                    if (this.paidAmount > this.totalAmountNumber) {
+                        this.notify('warning', 'Total paid amount cannot exceed net total.');
                         return;
                     }
                     

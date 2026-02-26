@@ -28,7 +28,14 @@
         </div>
     </x-slot>
 
-    <div class="p-6 overflow-hidden bg-white rounded-md shadow-md dark:bg-gray-800" x-data="orderManager()">
+    <div
+        class="p-6 overflow-hidden bg-white rounded-md shadow-md dark:bg-gray-800"
+        x-data="orderManager({
+            visibleOrderIds: @js($orders->pluck('id')->values()->all()),
+            bulkPdfUrl: @js(route('orders.bulk-pdf')),
+            csrf: @js(csrf_token()),
+        })"
+    >
         
         <!-- Filter bar -->
         <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -91,7 +98,6 @@
                         <option value="">All Payment Methods</option>
                         <option value="COD" {{ request('payment_method') == 'COD' ? 'selected' : '' }}>COD</option>
                         <option value="Online Payment" {{ request('payment_method') == 'Online Payment' ? 'selected' : '' }}>Online Payment</option>
-                        <option value="Bank Transfer" {{ request('payment_method') == 'Bank Transfer' ? 'selected' : '' }}>Bank Transfer</option>
                     </select>
                 </div>
 
@@ -112,6 +118,15 @@
              <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
                 <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
                     <tr>
+                        <th scope="col" class="px-4 py-3 text-center">
+                            <input
+                                type="checkbox"
+                                @change="toggleAllVisible($event.target.checked)"
+                                :checked="isAllVisibleSelected()"
+                                class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"
+                                title="Select all visible orders"
+                            >
+                        </th>
                         <th scope="col" class="px-6 py-3">Order #</th>
                         <th scope="col" class="px-6 py-3">Date</th>
                         <th scope="col" class="px-6 py-3">Customer</th>
@@ -125,6 +140,15 @@
                 <tbody>
                     @forelse ($orders as $order)
                         <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                            <td class="px-4 py-4 text-center">
+                                <input
+                                    id="order-checkbox-{{ $order->id }}"
+                                    type="checkbox"
+                                    value="{{ $order->id }}"
+                                    x-model="selectedOrders"
+                                    class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"
+                                >
+                            </td>
                             <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
                                 {{ $order->order_number }}
                             </td>
@@ -212,7 +236,7 @@
                         </tr>
                     @empty
                         <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                            <td colspan="8" class="px-6 py-8 text-center">
+                            <td colspan="9" class="px-6 py-8 text-center">
                                 <div class="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
                                     <svg class="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
                                     <p class="text-lg font-medium">No orders found</p>
@@ -234,12 +258,95 @@
         <div class="mt-4">
             {{ $orders->withQueryString()->links() }}
         </div>
+
+        <div
+            x-cloak
+            x-show="selectedOrders.length > 0"
+            class="fixed bottom-5 left-4 right-4 z-40 sm:left-auto sm:right-6 sm:max-w-xl"
+        >
+            <div class="rounded-xl border border-blue-200 bg-white/95 dark:bg-gray-800/95 dark:border-blue-900 shadow-xl px-4 py-3 backdrop-blur">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="text-sm text-gray-700 dark:text-gray-200">
+                        <span class="font-semibold" x-text="selectedOrders.length"></span>
+                        orders selected
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button
+                            type="button"
+                            @click="clearSelection()"
+                            class="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:text-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                        >
+                            Clear
+                        </button>
+                        <button
+                            type="button"
+                            @click="downloadSelectedPdfs()"
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-700 rounded-lg hover:bg-indigo-800 focus:ring-4 focus:ring-indigo-300 dark:bg-indigo-600 dark:hover:bg-indigo-700 dark:focus:ring-indigo-800"
+                        >
+                            Download PDFs
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script>
-        function orderManager() {
+        function orderManager(config = {}) {
             return {
-                // Future bulk actions logic
+                selectedOrders: [],
+                visibleOrderIds: (config.visibleOrderIds || []).map(id => String(id)),
+                bulkPdfUrl: config.bulkPdfUrl || '',
+                csrf: config.csrf || '',
+                isAllVisibleSelected() {
+                    if (this.visibleOrderIds.length === 0) {
+                        return false;
+                    }
+
+                    const selected = new Set(this.selectedOrders.map(id => String(id)));
+                    return this.visibleOrderIds.every(id => selected.has(String(id)));
+                },
+                toggleAllVisible(checked) {
+                    const selected = new Set(this.selectedOrders.map(id => String(id)));
+
+                    if (checked) {
+                        this.visibleOrderIds.forEach(id => selected.add(String(id)));
+                    } else {
+                        this.visibleOrderIds.forEach(id => selected.delete(String(id)));
+                    }
+
+                    this.selectedOrders = Array.from(selected);
+                },
+                clearSelection() {
+                    this.selectedOrders = [];
+                },
+                downloadSelectedPdfs() {
+                    if (this.selectedOrders.length === 0 || !this.bulkPdfUrl) {
+                        return;
+                    }
+
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = this.bulkPdfUrl;
+
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = '_token';
+                    csrfInput.value = this.csrf;
+                    form.appendChild(csrfInput);
+
+                    this.selectedOrders.forEach((orderId) => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'order_ids[]';
+                        input.value = String(orderId);
+                        form.appendChild(input);
+                    });
+
+                    document.body.appendChild(form);
+                    form.submit();
+                    form.remove();
+                },
             }
         }
     </script>

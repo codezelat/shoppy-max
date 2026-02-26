@@ -281,7 +281,13 @@ class OrderController extends Controller
             // Fulfillment & Address
             'courier_id' => 'nullable|exists:couriers,id',
             'courier_charge' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|string',
+            'discount_amount' => 'nullable|numeric|min:0',
+            'payment_method' => 'nullable|string|in:COD,Online Payment,Bank Transfer',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'payments' => 'nullable|array',
+            'payments.*.amount' => 'required_with:payments|numeric|min:0.01',
+            'payments.*.date' => 'required_with:payments|date',
+            'payments.*.note' => 'nullable|string|max:255',
             'call_status' => 'nullable|string',
             'sales_note' => 'nullable|string',
             'order_status' => 'nullable|string',
@@ -299,6 +305,9 @@ class OrderController extends Controller
         } else {
             $validated['courier_charge'] = (float) $this->normalizeRateForComparison($validated['courier_charge']);
         }
+        $validated['discount_amount'] = isset($validated['discount_amount'])
+            ? round((float) $validated['discount_amount'], 2)
+            : 0.0;
 
         DB::beginTransaction();
         try {
@@ -340,6 +349,7 @@ class OrderController extends Controller
             // New Fields
             $order->courier_id = $validated['courier_id'] ?? null;
             $order->courier_charge = $validated['courier_charge'] ?? 0;
+            $order->discount_amount = $validated['discount_amount'] ?? 0;
             $order->payment_method = $validated['payment_method'] ?? 'COD';
             $order->call_status = $validated['call_status'] ?? 'pending';
             $order->sales_note = $validated['sales_note'] ?? null;
@@ -405,9 +415,25 @@ class OrderController extends Controller
             }
 
             // 4. Update Order Totals
-            $order->total_amount = $totalAmount + $order->courier_charge;
+            if (($validated['discount_amount'] ?? 0) > $totalAmount) {
+                throw ValidationException::withMessages([
+                    'discount_amount' => 'Discount cannot exceed item subtotal.',
+                ]);
+            }
+
+            $order->discount_amount = min($validated['discount_amount'] ?? 0, $totalAmount);
+            $order->total_amount = max($totalAmount - $order->discount_amount, 0) + $order->courier_charge;
             $order->total_cost = $totalCost;
             $order->total_commission = $totalCommission;
+            $paymentDetails = $this->resolvePaymentDetails(
+                (string) ($order->payment_method ?? 'COD'),
+                $validated['payments'] ?? [],
+                $validated['paid_amount'] ?? null,
+                (float) $order->total_amount
+            );
+            $order->paid_amount = $paymentDetails['paid_amount'];
+            $order->payments_data = $paymentDetails['payments_data'];
+            $order->payment_status = $paymentDetails['payment_status'];
             $order->save();
 
             // 5. Log Action
@@ -475,8 +501,18 @@ class OrderController extends Controller
      */
     public function show(Order $order)
     {
-        $order->load(['items.variant.unit', 'customer', 'reseller', 'user']);
+        $order->load(['items.variant.unit', 'customer', 'reseller', 'user', 'courier']);
         return view('orders.show', compact('order'));
+    }
+
+    /**
+     * Print-friendly order invoice view (standalone page, no app chrome).
+     */
+    public function printView(Order $order)
+    {
+        $order->load(['items.variant.unit', 'customer', 'reseller', 'user', 'courier']);
+
+        return view('orders.print', compact('order'));
     }
 
     /**
@@ -484,9 +520,58 @@ class OrderController extends Controller
      */
     public function downloadPdf(Order $order)
     {
-        $order->load(['items.variant.unit', 'customer', 'reseller', 'user']);
-        $pdf = Pdf::loadView('orders.pdf', compact('order'));
+        $order->load(['items.variant.unit', 'customer', 'reseller', 'user', 'courier']);
+        $pdf = Pdf::loadView('orders.pdf', compact('order'))->setPaper('a4');
         return $pdf->download('invoice-' . $order->order_number . '.pdf');
+    }
+
+    /**
+     * Download selected order invoices as a ZIP file.
+     */
+    public function downloadBulkPdf(Request $request)
+    {
+        $validated = $request->validate([
+            'order_ids' => 'required|array|min:1',
+            'order_ids.*' => 'integer|exists:orders,id',
+        ]);
+
+        $requestedIds = collect($validated['order_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $orders = Order::with(['items.variant.unit', 'customer', 'reseller', 'user', 'courier'])
+            ->whereIn('id', $requestedIds)
+            ->get()
+            ->sortBy(fn (Order $order) => $requestedIds->search($order->id))
+            ->values();
+
+        if ($orders->isEmpty()) {
+            return back()->with('error', 'No orders selected to download.');
+        }
+
+        $fileName = 'order_invoices_' . now()->format('Y-m-d_His') . '.zip';
+        $tempDirectory = storage_path('app/temp');
+        $zipPath = $tempDirectory . DIRECTORY_SEPARATOR . $fileName;
+
+        if (!is_dir($tempDirectory) && !mkdir($tempDirectory, 0755, true) && !is_dir($tempDirectory)) {
+            return back()->with('error', 'Could not prepare temporary download directory.');
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return back()->with('error', 'Could not create ZIP file.');
+        }
+
+        foreach ($orders as $order) {
+            $pdf = Pdf::loadView('orders.pdf', ['order' => $order])->setPaper('a4');
+            $safeOrderNumber = preg_replace('/[^A-Za-z0-9_-]/', '_', (string) $order->order_number);
+            $zip->addFromString('invoice-' . $safeOrderNumber . '.pdf', $pdf->output());
+        }
+
+        $zip->close();
+
+        return response()->download($zipPath)->deleteFileAfterSend(true);
     }
 
     /**
@@ -544,7 +629,13 @@ class OrderController extends Controller
             // Fulfillment & Address
             'courier_id' => 'nullable|exists:couriers,id',
             'courier_charge' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|string',
+            'discount_amount' => 'nullable|numeric|min:0',
+            'payment_method' => 'nullable|string|in:COD,Online Payment,Bank Transfer',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'payments' => 'nullable|array',
+            'payments.*.amount' => 'required_with:payments|numeric|min:0.01',
+            'payments.*.date' => 'required_with:payments|date',
+            'payments.*.note' => 'nullable|string|max:255',
             'call_status' => 'nullable|string',
             'sales_note' => 'nullable|string',
             'order_status' => 'nullable|string',
@@ -562,6 +653,9 @@ class OrderController extends Controller
         } else {
             $validated['courier_charge'] = (float) $this->normalizeRateForComparison($validated['courier_charge']);
         }
+        $validated['discount_amount'] = isset($validated['discount_amount'])
+            ? round((float) $validated['discount_amount'], 2)
+            : 0.0;
 
         DB::beginTransaction();
         try {
@@ -605,6 +699,7 @@ class OrderController extends Controller
             $order->status = $validated['order_status'] ?? $order->status;
             $order->courier_id = $validated['courier_id'] ?? null;
             $order->courier_charge = $validated['courier_charge'] ?? 0;
+            $order->discount_amount = $validated['discount_amount'] ?? 0;
             $order->payment_method = $validated['payment_method'] ?? 'COD';
             $order->call_status = $validated['call_status'] ?? 'pending';
             $order->sales_note = $validated['sales_note'] ?? null;
@@ -668,9 +763,25 @@ class OrderController extends Controller
             }
 
             // 5. Update Order Totals
-            $order->total_amount = $totalAmount + $order->courier_charge;
+            if (($validated['discount_amount'] ?? 0) > $totalAmount) {
+                throw ValidationException::withMessages([
+                    'discount_amount' => 'Discount cannot exceed item subtotal.',
+                ]);
+            }
+
+            $order->discount_amount = min($validated['discount_amount'] ?? 0, $totalAmount);
+            $order->total_amount = max($totalAmount - $order->discount_amount, 0) + $order->courier_charge;
             $order->total_cost = $totalCost;
             $order->total_commission = $totalCommission;
+            $paymentDetails = $this->resolvePaymentDetails(
+                (string) ($order->payment_method ?? 'COD'),
+                $validated['payments'] ?? [],
+                $validated['paid_amount'] ?? null,
+                (float) $order->total_amount
+            );
+            $order->paid_amount = $paymentDetails['paid_amount'];
+            $order->payments_data = $paymentDetails['payments_data'];
+            $order->payment_status = $paymentDetails['payment_status'];
             $order->save();
 
             DB::commit();
@@ -955,5 +1066,74 @@ class OrderController extends Controller
         }
 
         return number_format((float) $rate, 2, '.', '');
+    }
+
+    private function resolvePaymentDetails(string $paymentMethod, array $paymentsInput, $paidAmountInput, float $totalAmount): array
+    {
+        $normalizedTotal = max(round($totalAmount, 2), 0);
+
+        $paymentsData = collect($paymentsInput)
+            ->filter(fn ($payment) => is_array($payment))
+            ->map(function (array $payment) {
+                $amount = isset($payment['amount']) ? round((float) $payment['amount'], 2) : 0;
+                $date = isset($payment['date']) && $payment['date']
+                    ? date('Y-m-d', strtotime((string) $payment['date']))
+                    : now()->toDateString();
+
+                return [
+                    'amount' => $amount,
+                    'date' => $date,
+                    'note' => trim((string) ($payment['note'] ?? '')),
+                ];
+            })
+            ->filter(fn (array $payment) => $payment['amount'] > 0)
+            ->values()
+            ->all();
+
+        $paidAmount = round((float) collect($paymentsData)->sum('amount'), 2);
+
+        if ($paidAmount <= 0 && $paidAmountInput !== null && $paidAmountInput !== '') {
+            if (!is_numeric($paidAmountInput)) {
+                throw ValidationException::withMessages([
+                    'paid_amount' => 'Paid amount must be a valid number.',
+                ]);
+            }
+
+            $legacyPaidAmount = round((float) $paidAmountInput, 2);
+            if ($legacyPaidAmount < 0) {
+                throw ValidationException::withMessages([
+                    'paid_amount' => 'Paid amount cannot be negative.',
+                ]);
+            }
+
+            if ($legacyPaidAmount > 0) {
+                $paymentsData = [[
+                    'amount' => $legacyPaidAmount,
+                    'date' => now()->toDateString(),
+                    'note' => 'Recorded from paid amount field.',
+                ]];
+                $paidAmount = $legacyPaidAmount;
+            }
+        }
+
+        if ($paymentMethod === 'Online Payment' && empty($paymentsData)) {
+            throw ValidationException::withMessages([
+                'payments' => 'Add at least one payment entry for Online Payment orders.',
+            ]);
+        }
+
+        if ($paidAmount > $normalizedTotal) {
+            throw ValidationException::withMessages([
+                'payments' => 'Total paid amount cannot exceed the order total.',
+            ]);
+        }
+
+        $remaining = max($normalizedTotal - $paidAmount, 0);
+
+        return [
+            'paid_amount' => $paidAmount,
+            'payments_data' => $paymentsData,
+            'payment_status' => $remaining <= 0 ? 'paid' : 'pending',
+        ];
     }
 }

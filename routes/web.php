@@ -85,8 +85,10 @@ Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function (
     Route::get('/waybill', [\App\Http\Controllers\WaybillController::class, 'index'])->name('waybill.index');
     Route::get('/waybill/{courier}', [\App\Http\Controllers\WaybillController::class, 'show'])->name('waybill.show');
     Route::post('/waybill/print', [\App\Http\Controllers\WaybillController::class, 'print'])->name('waybill.print');
+    Route::post('/bulk-pdf', [\App\Http\Controllers\OrderController::class, 'downloadBulkPdf'])->name('bulk-pdf');
     
     // CRUD & PDF
+    Route::get('/{order}/print', [\App\Http\Controllers\OrderController::class, 'printView'])->name('print');
     Route::get('/{order}', [\App\Http\Controllers\OrderController::class, 'show'])->name('show');
     Route::get('/{order}/edit', [\App\Http\Controllers\OrderController::class, 'edit'])->name('edit');
     Route::put('/{order}', [\App\Http\Controllers\OrderController::class, 'update'])->name('update');

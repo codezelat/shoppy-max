@@ -23,6 +23,9 @@ class Order extends Model
         'payment_method',
         'payment_status',
         'total_amount',
+        'paid_amount',
+        'payments_data',
+        'discount_amount',
         'total_cost',       // New
         'total_commission', // New
         'sales_note',
@@ -44,6 +47,9 @@ class Order extends Model
     protected $casts = [
         'order_date' => 'date',
         'total_amount' => 'decimal:2',
+        'paid_amount' => 'decimal:2',
+        'payments_data' => 'array',
+        'discount_amount' => 'decimal:2',
         'total_cost' => 'decimal:2',
         'total_commission' => 'decimal:2',
         'courier_cost' => 'decimal:2',
