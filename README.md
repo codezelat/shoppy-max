@@ -450,4 +450,6 @@ routes/
 
 ## License
 
-MIT License.
+This project is proprietary software owned by Codezela Technologies.
+
+See the full license terms in [LICENSE](LICENSE).

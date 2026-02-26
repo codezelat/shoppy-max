@@ -1,9 +1,9 @@
 -- ============================================
 -- ShoppyMax Database Schema
 -- Database: lbccompa_shoppymax
--- Generated: 2026-02-13
+-- Generated: 2026-02-26
 -- Description: Complete fresh database structure for ShoppyMax
--- Includes all migrations up to 2026_02_04_231214
+-- Includes all migrations up to 2026_02_26_170500_add_delivery_timeline_columns_to_orders_table
 -- ============================================
 
 -- Create database if not exists
@@ -244,6 +244,8 @@ CREATE TABLE `resellers` (
   `province` varchar(255) DEFAULT NULL,
   `country` varchar(255) DEFAULT 'Sri Lanka',
   `due_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `reseller_type` varchar(255) NOT NULL DEFAULT 'reseller',
+  `return_fee` decimal(10,2) NOT NULL DEFAULT 0.00,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -280,6 +282,37 @@ CREATE TABLE `couriers` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Courier Reseller Pivot Table
+CREATE TABLE `courier_reseller` (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `courier_id` bigint(20) UNSIGNED NOT NULL,
+  `reseller_id` bigint(20) UNSIGNED NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `courier_reseller_courier_id_reseller_id_unique` (`courier_id`,`reseller_id`),
+  KEY `courier_reseller_courier_id_foreign` (`courier_id`),
+  KEY `courier_reseller_reseller_id_foreign` (`reseller_id`),
+  CONSTRAINT `courier_reseller_courier_id_foreign` FOREIGN KEY (`courier_id`) REFERENCES `couriers` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `courier_reseller_reseller_id_foreign` FOREIGN KEY (`reseller_id`) REFERENCES `resellers` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bank Accounts Table
+CREATE TABLE `bank_accounts` (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `bank_name` varchar(255) DEFAULT NULL,
+  `account_number` varchar(255) DEFAULT NULL,
+  `holder_name` varchar(255) DEFAULT NULL,
+  `type` varchar(255) NOT NULL DEFAULT 'Bank',
+  `note` text DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `bank_accounts_account_number_unique` (`account_number`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -469,6 +502,7 @@ CREATE TABLE `courier_payments` (
   `amount` decimal(10,2) NOT NULL,
   `payment_date` date NOT NULL,
   `payment_method` varchar(255) DEFAULT NULL,
+  `bank_account_id` bigint(20) UNSIGNED DEFAULT NULL,
   `payment_note` text DEFAULT NULL,
   `reference_number` varchar(255) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
@@ -476,8 +510,10 @@ CREATE TABLE `courier_payments` (
   PRIMARY KEY (`id`),
   KEY `courier_payments_courier_id_foreign` (`courier_id`),
   KEY `courier_payments_user_id_foreign` (`user_id`),
+  KEY `courier_payments_bank_account_id_foreign` (`bank_account_id`),
   CONSTRAINT `courier_payments_courier_id_foreign` FOREIGN KEY (`courier_id`) REFERENCES `couriers` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `courier_payments_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+  CONSTRAINT `courier_payments_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `courier_payments_bank_account_id_foreign` FOREIGN KEY (`bank_account_id`) REFERENCES `bank_accounts` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -501,13 +537,22 @@ CREATE TABLE `orders` (
   `customer_province` varchar(255) DEFAULT NULL,
   `city_id` bigint(20) UNSIGNED DEFAULT NULL,
   `status` varchar(255) NOT NULL DEFAULT 'pending',
+  `delivery_status` varchar(255) NOT NULL DEFAULT 'pending',
+  `waybill_printed_at` timestamp NULL DEFAULT NULL,
+  `picked_at` timestamp NULL DEFAULT NULL,
+  `packed_at` timestamp NULL DEFAULT NULL,
+  `reseller_return_fee_applied` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `return_fee_reseller_id` bigint(20) UNSIGNED DEFAULT NULL,
   `payment_method` varchar(255) DEFAULT NULL,
   `payment_status` varchar(255) NOT NULL DEFAULT 'pending',
   `total_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `paid_amount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `payments_data` json DEFAULT NULL,
   `total_cost` decimal(15,2) NOT NULL DEFAULT 0.00,
   `total_commission` decimal(15,2) NOT NULL DEFAULT 0.00,
   `courier_cost` decimal(10,2) NOT NULL DEFAULT 0.00,
   `courier_charge` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `discount_amount` decimal(15,2) NOT NULL DEFAULT 0.00,
   `delivery_fee` decimal(10,2) NOT NULL DEFAULT 0.00,
   `call_status` varchar(255) DEFAULT NULL,
   `sales_note` text DEFAULT NULL,
@@ -616,6 +661,7 @@ CREATE TABLE `purchase_items` (
   `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
   `purchase_id` bigint(20) UNSIGNED NOT NULL,
   `product_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `stock_variant_id` bigint(20) UNSIGNED DEFAULT NULL,
   `product_name` varchar(255) NOT NULL,
   `quantity` int(11) NOT NULL DEFAULT 1,
   `purchase_price` decimal(12,2) NOT NULL DEFAULT 0.00,
@@ -624,7 +670,9 @@ CREATE TABLE `purchase_items` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `purchase_items_purchase_id_foreign` (`purchase_id`),
-  CONSTRAINT `purchase_items_purchase_id_foreign` FOREIGN KEY (`purchase_id`) REFERENCES `purchases` (`id`) ON DELETE CASCADE
+  KEY `purchase_items_stock_variant_id_foreign` (`stock_variant_id`),
+  CONSTRAINT `purchase_items_purchase_id_foreign` FOREIGN KEY (`purchase_id`) REFERENCES `purchases` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `purchase_items_stock_variant_id_foreign` FOREIGN KEY (`stock_variant_id`) REFERENCES `product_variants` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -638,7 +686,7 @@ CREATE TABLE `migrations` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Insert all migration records
+-- Insert all 61 migration records
 INSERT INTO `migrations` (`migration`, `batch`) VALUES
 ('0001_01_01_000000_create_users_table', 1),
 ('0001_01_01_000001_create_cache_table', 1),
@@ -691,7 +739,24 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES
 ('2026_02_04_220941_update_purchase_items_product_id_constraint', 1),
 ('2026_02_04_222205_add_payments_json_to_purchases_table', 1),
 ('2026_02_04_225751_add_payment_fields_to_courier_payments_table', 1),
-('2026_02_04_231214_add_warranty_fields_to_products_table', 1);
+('2026_02_04_231214_add_warranty_fields_to_products_table', 1),
+('2026_02_25_230000_add_reseller_type_to_resellers_table', 1),
+('2026_02_25_231000_add_return_fee_to_resellers_table', 1),
+('2026_02_25_232000_create_courier_reseller_table', 1),
+('2026_02_26_000100_create_bank_accounts_table', 1),
+('2026_02_26_000200_add_bank_account_id_to_courier_payments_table', 1),
+('2026_02_26_070500_add_paid_amount_to_orders_table', 1),
+('2026_02_26_073000_add_payments_data_to_orders_table', 1),
+('2026_02_26_074500_add_discount_amount_to_orders_table', 1),
+('2026_02_26_080000_standardize_order_call_status_values', 1),
+('2026_02_26_083000_force_pending_status_for_discount_or_online_orders', 1),
+('2026_02_26_083500_add_stock_variant_id_to_purchase_items_table', 1),
+('2026_02_26_090000_standardize_order_status_values', 1),
+('2026_02_26_121000_sync_call_status_with_order_cancel_status', 1),
+('2026_02_26_133000_add_delivery_status_to_orders_table', 1),
+('2026_02_26_161500_add_reseller_return_fee_tracking_to_orders_table', 1),
+('2026_02_26_162500_normalize_order_commissions', 1),
+('2026_02_26_170500_add_delivery_timeline_columns_to_orders_table', 1);
 
 -- ============================================
 -- SEED DATA - ROLES, PERMISSIONS & SUPER ADMIN
