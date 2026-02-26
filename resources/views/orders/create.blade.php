@@ -90,7 +90,7 @@
                                            @input.debounce.300ms="searchResellers()"
                                            @focus="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
                                            @click="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
-                                           placeholder="Search reseller/direct reseller by name, business or mobile..."
+                                           placeholder="Search company, contact name, or mobile..."
                                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
 
                                     <div x-show="resellers.length > 0 && !selectedReseller" class="absolute z-20 w-full bg-white dark:bg-gray-700 rounded-lg shadow-lg mt-1 max-h-56 overflow-y-auto border border-gray-100 dark:border-gray-600">
@@ -98,13 +98,14 @@
                                             <template x-for="reseller in resellers" :key="reseller.id">
                                                 <li @click="selectReseller(reseller)" class="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600 last:border-0">
                                                     <div class="flex items-center justify-between gap-2">
-                                                        <div class="font-semibold" x-text="reseller.name"></div>
+                                                        <div class="font-semibold" x-text="reseller.business_name || reseller.name"></div>
                                                         <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="reseller.type_label || (reseller.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
                                                     </div>
                                                     <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                        <span x-text="reseller.mobile"></span>
+                                                        <span x-show="reseller.business_name">Contact: </span>
+                                                        <span x-show="reseller.business_name" x-text="reseller.name"></span>
                                                         <span x-show="reseller.business_name"> | </span>
-                                                        <span x-show="reseller.business_name" x-text="reseller.business_name"></span>
+                                                        <span x-text="reseller.mobile"></span>
                                                     </div>
                                                 </li>
                                             </template>
@@ -116,13 +117,14 @@
                                 <div x-show="selectedReseller" class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center">
                                     <div>
                                         <div class="text-sm font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2">
-                                            <span x-text="selectedReseller?.name"></span>
+                                            <span x-text="selectedReseller?.business_name || selectedReseller?.name"></span>
                                             <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="selectedReseller?.type_label || (selectedReseller?.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
                                         </div>
                                         <div class="text-xs text-blue-600 dark:text-blue-400">
-                                            <span x-text="selectedReseller?.mobile"></span>
+                                            <span x-show="selectedReseller?.business_name">Contact: </span>
+                                            <span x-show="selectedReseller?.business_name" x-text="selectedReseller?.name"></span>
                                             <span x-show="selectedReseller?.business_name"> | </span>
-                                            <span x-show="selectedReseller?.business_name" x-text="selectedReseller?.business_name"></span>
+                                            <span x-text="selectedReseller?.mobile"></span>
                                         </div>
                                     </div>
                                     <button type="button" @click="clearReseller()" class="text-red-500 hover:text-red-700 dark:hover:text-red-400">
@@ -324,11 +326,21 @@
                                                 </td>
                                                 <td class="px-4 py-3 text-center">
                                                     <div class="flex items-center justify-center space-x-1">
-                                                        <button type="button" @click="item.quantity > 1 ? item.quantity-- : null" class="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300">-</button>
-                                                        <input type="number" x-model="item.quantity" class="w-14 text-center bg-gray-50 dark:bg-gray-700 border-0 text-sm font-semibold text-gray-900 dark:text-white focus:ring-0 rounded-md p-1" min="1">
-                                                        <button type="button" @click="item.quantity < item.max_stock ? item.quantity++ : null" class="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300">+</button>
+                                                        <button type="button"
+                                                                @click="decreaseItemQuantity(item)"
+                                                                :disabled="(parseInt(item.quantity, 10) || 1) <= 1"
+                                                                class="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-gray-600 dark:text-gray-300">-</button>
+                                                        <input type="text"
+                                                               :value="parseInt(item.quantity, 10) || 1"
+                                                               readonly
+                                                               class="w-14 text-center bg-gray-100 dark:bg-gray-700 border-0 text-sm font-semibold text-gray-900 dark:text-white focus:ring-0 rounded-md p-1 cursor-not-allowed select-none">
+                                                        <button type="button"
+                                                                @click="increaseItemQuantity(item)"
+                                                                :disabled="(parseInt(item.quantity, 10) || 0) >= itemMaxQuantity(item)"
+                                                                class="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-gray-600 dark:text-gray-300">+</button>
                                                     </div>
                                                     <div x-show="item.quantity > item.max_stock" class="text-xs text-red-500 mt-1">Max: <span x-text="item.max_stock"></span></div>
+                                                    <div x-show="itemMaxQuantity(item) < 1" class="text-xs text-red-500 mt-1">Out of stock. Remove this item.</div>
                                                 </td>
                                                 <td class="px-4 py-3 text-right">
                                                     <div class="flex flex-col items-end gap-1">
@@ -484,7 +496,7 @@
                 citySearch: '',
                 filteredCities: [],
                 showCityDropdown: false,
-                courierRatesMap: @json($couriers->mapWithKeys(fn($courier) => [(string) $courier->id => collect($courier->rates ?? [])->map(fn($rate) => number_format((float) $rate, 2, '.', ''))->values()->all()])),
+                courierRatesMap: @json($courierRatesMap),
                 
                 form: {
                     order_type: 'direct', 
@@ -678,6 +690,49 @@
                      this.productSearch = '';
                      this.productResults = [];
                 },
+
+                itemMaxQuantity(item) {
+                    return Math.max(parseInt(item?.max_stock, 10) || 0, 0);
+                },
+
+                normalizeItemQuantity(item, notifyIfAdjusted = false) {
+                    if (!item) return;
+
+                    const max = this.itemMaxQuantity(item);
+                    let qty = parseInt(item.quantity, 10);
+                    if (!Number.isFinite(qty)) qty = 1;
+                    if (qty < 1) qty = 1;
+                    if (max > 0 && qty > max) {
+                        qty = max;
+                        if (notifyIfAdjusted) {
+                            this.notify('warning', `Max stock reached for ${item.name}.`);
+                        }
+                    }
+
+                    item.quantity = qty;
+                },
+
+                increaseItemQuantity(item) {
+                    if (!item) return;
+                    this.normalizeItemQuantity(item);
+                    const max = this.itemMaxQuantity(item);
+                    if (max <= 0 || item.quantity >= max) {
+                        this.notify('warning', `Max stock reached for ${item.name}.`);
+                        return;
+                    }
+
+                    item.quantity += 1;
+                },
+
+                decreaseItemQuantity(item) {
+                    if (!item) return;
+                    this.normalizeItemQuantity(item);
+                    if (item.quantity <= 1) {
+                        return;
+                    }
+
+                    item.quantity -= 1;
+                },
                 
                 removeItem(index) {
                     this.form.items.splice(index, 1);
@@ -733,6 +788,22 @@
                     } else {
                         this.form.courier_charge = 0;
                     }
+
+                    this.form.items.forEach((item) => this.normalizeItemQuantity(item, true));
+                    const invalidQtyItem = this.form.items.find((item) => {
+                        const qty = parseInt(item.quantity, 10) || 0;
+                        const max = this.itemMaxQuantity(item);
+                        return max < 1 || qty < 1 || qty > max;
+                    });
+                    if (invalidQtyItem) {
+                        if (this.itemMaxQuantity(invalidQtyItem) < 1) {
+                            this.notify('warning', `${invalidQtyItem.name} is out of stock. Remove it before saving.`);
+                        } else {
+                            this.notify('warning', `Invalid quantity for ${invalidQtyItem.name}.`);
+                        }
+                        return;
+                    }
+
                     const invalidPrice = this.form.items.find(item => item.selling_price < item.limit_price);
                     if (invalidPrice) {
                         this.notify('error', `Selling price for ${invalidPrice.name} cannot be lower than limit price (${invalidPrice.limit_price}).`);

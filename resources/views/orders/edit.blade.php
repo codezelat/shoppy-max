@@ -1,13 +1,15 @@
 <x-app-layout>
-    <div x-data="orderManager({{ json_encode($orderFull) }})" class="py-12" x-cloak>
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            
-            <!-- Breadcrumb -->
-            <nav class="flex mb-8" aria-label="Breadcrumb">
+    <x-slot name="header">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
+                {{ __('Edit Order') }} {{ $order->order_number }}
+            </h2>
+
+            <nav class="flex" aria-label="Breadcrumb">
                 <ol class="inline-flex items-center space-x-1 md:space-x-3">
                     <li class="inline-flex items-center">
                         <a href="{{ route('dashboard') }}" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
-                            <svg class="w-3 h-3 mr-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                            <svg class="w-3 h-3 me-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                                 <path d="m19.707 9.293-2-2-7-7a1 1 0 0 0-1.414 0l-7 7-2 2a1 1 0 0 0 1.414 1.414L2 10.414V18a2 2 0 0 0 2 2h3a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h3a2 2 0 0 0 2-2v-7.586l.293.293a1 1 0 0 0 1.414-1.414Z"/>
                             </svg>
                             Dashboard
@@ -15,432 +17,438 @@
                     </li>
                     <li>
                         <div class="flex items-center">
-                            <svg class="w-3 h-3 text-gray-400 mx-1" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                            <svg class="w-3 h-3 text-gray-400 mx-1 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
                             </svg>
-                            <a href="{{ route('orders.index') }}" class="ml-1 text-sm font-medium text-gray-700 hover:text-blue-600 md:ml-2 dark:text-gray-400 dark:hover:text-white">Orders</a>
+                            <a href="{{ route('orders.index') }}" class="ms-1 text-sm font-medium text-gray-700 hover:text-blue-600 md:ms-2 dark:text-gray-400 dark:hover:text-white">Orders</a>
                         </div>
                     </li>
                     <li aria-current="page">
                         <div class="flex items-center">
-                            <svg class="w-3 h-3 text-gray-400 mx-1" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                            <svg class="w-3 h-3 text-gray-400 mx-1 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
                             </svg>
-                            <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400">Edit Order {{ $order->order_number }}</span>
+                            <span class="ms-1 text-sm font-medium text-gray-500 md:ms-2 dark:text-gray-400">Edit Order</span>
                         </div>
                     </li>
                 </ol>
             </nav>
+        </div>
+    </x-slot>
 
+    <div x-data="orderManager({{ json_encode($orderFull) }})" class="py-6" x-cloak>
+        <div class="max-w-screen-2xl mx-auto sm:px-4 lg:px-6">
             <form @submit.prevent="submitOrder">
-                <!-- Top Controls: Type & Date -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <!-- Order Type -->
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                        <div class="mb-4 flex items-center justify-between">
-                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Order Type</h3>
-                            <span class="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-medium"
-                                  :class="form.order_type === 'reseller' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'"
-                                  x-text="form.order_type === 'reseller' ? 'Reseller Order' : 'Direct Order'"></span>
-                        </div>
-                        <div class="flex items-center space-x-4">
-                            <label class="flex items-center cursor-pointer">
-                                <input type="radio" name="order_type" value="direct" x-model="form.order_type" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
-                                <span class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">Direct Order</span>
-                            </label>
-                            <label class="flex items-center cursor-pointer">
-                                <input type="radio" name="order_type" value="reseller" x-model="form.order_type" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
-                                <span class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">Reseller Order</span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <!-- Order Date -->
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Order Date</h3>
-                        <input type="text" x-model="form.order_date" readonly class="bg-gray-100 border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">System-managed; not editable.</p>
-                    </div>
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-                    <!-- Order ID Preview -->
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 flex flex-col justify-center items-center">
-                        <div class="text-center mb-4">
-                            <span class="block text-sm text-gray-500 dark:text-gray-400">Order ID</span>
-                            <span class="block text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ $order->order_number }}</span>
-                        </div>
-                        <div class="w-full">
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Order Status</label>
-                            <select x-model="form.order_status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                <option value="pending">Pending</option>
-                                <option value="hold">Hold</option>
-                                <option value="confirm">Confirm</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Reseller Selection (Conditional) -->
-                <div x-show="form.order_type === 'reseller'" x-transition class="mb-6">
-                    <div class="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-lg shadow-md border border-purple-200 dark:border-purple-800">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                            Select Reseller Account
-                        </h3>
-                        
-                        <div class="relative" @click.outside="resellers = []">
-                            <input type="text" 
-                                   x-model="resellerSearch" 
-                                   @input.debounce.300ms="searchResellers()" 
-                                   @focus="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
-                                   @click="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
-                                   placeholder="Search reseller/direct reseller by name, business or mobile..." 
-                                   class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                            
-                            <!-- Reseller Dropdown -->
-                            <div x-show="resellers.length > 0 && !selectedReseller" class="absolute z-10 w-full bg-white rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
-                                <ul>
-                                    <template x-for="reseller in resellers" :key="reseller.id">
-                                        <li @click="selectReseller(reseller)" class="px-4 py-2 hover:bg-purple-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600 last:border-0">
-                                            <div class="flex items-center justify-between gap-2">
-                                                <div class="font-bold" x-text="reseller.name"></div>
-                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" x-text="reseller.type_label || (reseller.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
-                                            </div>
-                                            <div class="text-xs text-gray-500 mt-0.5">
-                                                <span x-text="reseller.mobile"></span>
-                                                <span x-show="reseller.business_name"> | </span>
-                                                <span x-show="reseller.business_name" x-text="reseller.business_name"></span>
-                                            </div>
-                                        </li>
-                                    </template>
-                                </ul>
+                    <!-- LEFT COLUMN -->
+                    <div class="lg:col-span-5 space-y-6">
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                            <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Order Details</h3>
+                                <span class="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-medium"
+                                      :class="form.order_type === 'reseller' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'"
+                                      x-text="form.order_type === 'reseller' ? 'Reseller Order' : 'Direct Order'"></span>
                             </div>
-                            <p x-show="(resellerSearch || '').trim().length >= 2 && resellers.length === 0 && !selectedReseller" class="mt-1 text-xs text-gray-500 dark:text-gray-400">No matching reseller accounts found.</p>
-                        </div>
 
-                        <!-- Selected Reseller Display -->
-                        <div x-show="selectedReseller" class="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-800 flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <span x-text="selectedReseller?.name"></span>
-                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" x-text="selectedReseller?.type_label || (selectedReseller?.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 mb-4">
+                                <div>
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order Date</label>
+                                    <input type="text" x-model="form.order_date" readonly class="bg-gray-100 border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">System-managed; not editable.</p>
                                 </div>
-                                <div class="text-sm text-gray-500">
-                                    <span x-text="selectedReseller?.mobile"></span>
-                                    <span x-show="selectedReseller?.business_name"> | </span>
-                                    <span x-show="selectedReseller?.business_name" x-text="selectedReseller?.business_name"></span>
+                                <div>
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order ID</label>
+                                    <input type="text" value="{{ $order->order_number }}" readonly class="bg-gray-100 border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
                                 </div>
                             </div>
-                            <button type="button" @click="clearReseller()" class="text-red-500 hover:text-red-700 text-sm font-medium">Change</button>
-                        </div>
-                        <p x-show="form.order_type === 'reseller' && !form.reseller_id" class="mt-2 text-sm text-red-600 dark:text-red-400">Please select a reseller.</p>
-                    </div>
-                </div>
 
-                <!-- Customer Details -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 mb-6">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                        Customer Details
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Mobile Number <span class="text-red-500">*</span></label>
-                            <input
-                                type="text"
-                                x-model="form.customer.mobile"
-                                @input="form.customer.mobile = $event.target.value.replace(/\D/g, '').slice(0, 10)"
-                                placeholder="07xxxxxxxx"
-                                inputmode="numeric"
-                                pattern="[0-9]{10}"
-                                maxlength="10"
-                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                                required
-                            >
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Must be exactly 10 digits (numbers only).</p>
+                            <div class="mb-4">
+                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order Type</label>
+                                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                    <label class="flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
+                                        <input type="radio" x-model="form.order_type" value="direct" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
+                                        <span class="ml-2 text-gray-700 dark:text-gray-200">Direct Order</span>
+                                    </label>
+                                    <label class="flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
+                                        <input type="radio" x-model="form.order_type" value="reseller" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
+                                        <span class="ml-2 text-gray-700 dark:text-gray-200">Reseller Order</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order Status</label>
+                                <select x-model="form.order_status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                                    <option value="pending">Pending</option>
+                                    <option value="hold">Hold</option>
+                                    <option value="confirm">Confirm</option>
+                                </select>
+                            </div>
+
+                            <div x-show="form.order_type === 'reseller'" x-transition>
+                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Select Reseller Account <span class="text-red-500">*</span></label>
+                                <div class="relative" @click.outside="resellers = []">
+                                    <input type="text"
+                                           x-model="resellerSearch"
+                                           @input.debounce.300ms="searchResellers()"
+                                           @focus="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
+                                           @click="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
+                                           placeholder="Search company, contact name, or mobile..."
+                                           class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+
+                                    <div x-show="resellers.length > 0 && !selectedReseller" class="absolute z-20 w-full bg-white dark:bg-gray-700 rounded-lg shadow-lg mt-1 max-h-56 overflow-y-auto border border-gray-100 dark:border-gray-600">
+                                        <ul>
+                                            <template x-for="reseller in resellers" :key="reseller.id">
+                                                <li @click="selectReseller(reseller)" class="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600 last:border-0">
+                                                    <div class="flex items-center justify-between gap-2">
+                                                        <div class="font-semibold" x-text="reseller.business_name || reseller.name"></div>
+                                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="reseller.type_label || (reseller.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
+                                                    </div>
+                                                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                        <span x-show="reseller.business_name">Contact: </span>
+                                                        <span x-show="reseller.business_name" x-text="reseller.name"></span>
+                                                        <span x-show="reseller.business_name"> | </span>
+                                                        <span x-text="reseller.mobile"></span>
+                                                    </div>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                    <p x-show="(resellerSearch || '').trim().length >= 2 && resellers.length === 0 && !selectedReseller" class="mt-1 text-xs text-gray-500 dark:text-gray-400">No matching reseller accounts found.</p>
+                                </div>
+
+                                <div x-show="selectedReseller" class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center">
+                                    <div>
+                                        <div class="text-sm font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                                            <span x-text="selectedReseller?.business_name || selectedReseller?.name"></span>
+                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="selectedReseller?.type_label || (selectedReseller?.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
+                                        </div>
+                                        <div class="text-xs text-blue-600 dark:text-blue-400">
+                                            <span x-show="selectedReseller?.business_name">Contact: </span>
+                                            <span x-show="selectedReseller?.business_name" x-text="selectedReseller?.name"></span>
+                                            <span x-show="selectedReseller?.business_name"> | </span>
+                                            <span x-text="selectedReseller?.mobile"></span>
+                                        </div>
+                                    </div>
+                                    <button type="button" @click="clearReseller()" class="text-red-500 hover:text-red-700 dark:hover:text-red-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </div>
+                                <p x-show="form.order_type === 'reseller' && !form.reseller_id" class="mt-1 text-xs text-red-500">Select a reseller account to continue.</p>
+                            </div>
                         </div>
-                        <div>
-                             <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Full Name <span class="text-red-500">*</span></label>
-                            <input type="text" x-model="form.customer.name" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required>
+
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Customer Details</h3>
+
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div class="md:col-span-2">
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Name <span class="text-red-500">*</span></label>
+                                    <input type="text" x-model="form.customer.name" placeholder="Customer Name" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required>
+                                </div>
+
+                                <div>
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Primary Mobile <span class="text-red-500">*</span></label>
+                                    <input type="text" x-model="form.customer.mobile" @input="form.customer.mobile = $event.target.value.replace(/\D/g, '').slice(0, 10)" placeholder="07xxxxxxxx" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required>
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Must be exactly 10 digits (numbers only).</p>
+                                </div>
+
+                                <div>
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Secondary Mobile</label>
+                                    <input type="text" x-model="form.customer.landline" @input="form.customer.landline = $event.target.value.replace(/\D/g, '').slice(0, 10)" placeholder="Optional" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional, but if entered it must be 10 digits.</p>
+                                </div>
+
+                                <div class="md:col-span-2">
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Address <span class="text-red-500">*</span></label>
+                                    <textarea x-model="form.customer.address" rows="3" placeholder="Street layout, number..." class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required></textarea>
+                                </div>
+
+                                <div class="md:col-span-2">
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">City <span class="text-red-500">*</span></label>
+                                    <div class="relative" @click.outside="showCityDropdown = false">
+                                        <input type="text"
+                                               x-model="citySearch"
+                                               @focus="showCityDropdown = true; filterCities()"
+                                               @click="showCityDropdown = true; filterCities()"
+                                               @input="onCitySearchInput()"
+                                               placeholder="Search city from master list..."
+                                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                               required>
+                                        <div x-show="showCityDropdown" class="absolute z-30 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700 max-h-56 overflow-y-auto">
+                                            <template x-if="filteredCities.length === 0">
+                                                <div class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No cities found.</div>
+                                            </template>
+                                            <template x-for="city in filteredCities" :key="city.id">
+                                                <button type="button" @click="selectCity(city)" class="w-full text-left px-3 py-2 hover:bg-blue-50 dark:hover:bg-gray-600">
+                                                    <div class="text-sm font-medium text-gray-900 dark:text-white" x-text="city.city_name"></div>
+                                                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                                                        <span x-text="city.district"></span>
+                                                        <span> | </span>
+                                                        <span x-text="city.province || '-'"></span>
+                                                        <span> | </span>
+                                                        <span x-text="city.postal_code || '-'"></span>
+                                                    </div>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" x-model="form.customer.city_id">
+                                    <p x-show="form.customer.city_id" class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                                        Selected:
+                                        <span x-text="form.customer.city"></span>
+                                        <span> | </span>
+                                        <span x-text="form.customer.district || '-'"></span>
+                                        <span> | </span>
+                                        <span x-text="form.customer.province || '-'"></span>
+                                    </p>
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">City must be selected from `Cities` master list.</p>
+                                </div>
+
+                                <div>
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">District</label>
+                                    <input type="text" x-model="form.customer.district" readonly class="bg-gray-100 border border-gray-300 text-gray-600 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
+                                </div>
+
+                                <div>
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Province</label>
+                                    <input type="text" x-model="form.customer.province" readonly class="bg-gray-100 border border-gray-300 text-gray-600 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Landline (Optional)</label>
-                            <input
-                                type="text"
-                                x-model="form.customer.landline"
-                                @input="form.customer.landline = $event.target.value.replace(/\D/g, '').slice(0, 10)"
-                                placeholder="Optional"
-                                inputmode="numeric"
-                                pattern="[0-9]{10}"
-                                maxlength="10"
-                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                            >
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional, but if entered it must be 10 digits.</p>
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Address <span class="text-red-500">*</span></label>
-                            <textarea x-model="form.customer.address" rows="2" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required></textarea>
+
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Note</label>
+                            <textarea x-model="form.sales_note" rows="3" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" placeholder="Sale note..."></textarea>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
-                        <!-- City (Master) -->
-                        <div class="md:col-span-3">
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">City <span class="text-red-500">*</span></label>
-                            <div class="relative" @click.outside="showCityDropdown = false">
-                                <input type="text"
-                                       x-model="citySearch"
-                                       @focus="showCityDropdown = true; filterCities()"
-                                       @click="showCityDropdown = true; filterCities()"
-                                       @input="onCitySearchInput()"
-                                       placeholder="Search city from master list..."
-                                       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                                       required>
-                                <div x-show="showCityDropdown" class="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700 max-h-56 overflow-y-auto">
-                                    <template x-if="filteredCities.length === 0">
-                                        <div class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No cities found.</div>
-                                    </template>
-                                    <template x-for="city in filteredCities" :key="city.id">
-                                        <button type="button" @click="selectCity(city)" class="w-full text-left px-3 py-2 hover:bg-blue-50 dark:hover:bg-gray-600">
-                                            <div class="text-sm font-medium text-gray-900 dark:text-white" x-text="city.city_name"></div>
-                                            <div class="text-xs text-gray-500 dark:text-gray-400">
-                                                <span x-text="city.district"></span>
-                                                <span> | </span>
-                                                <span x-text="city.province || '-'"></span>
-                                                <span> | </span>
-                                                <span x-text="city.postal_code || '-'"></span>
-                                            </div>
+                    <!-- RIGHT COLUMN -->
+                    <div class="lg:col-span-7 space-y-6">
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 min-h-[500px]">
+                            <div class="mb-6 relative">
+                                <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <label class="block text-sm font-medium text-gray-900 dark:text-white">Choose Product</label>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                                        Items: <span class="font-semibold text-gray-700 dark:text-gray-200" x-text="form.items.length"></span>
+                                        | Qty: <span class="font-semibold text-gray-700 dark:text-gray-200" x-text="itemsCount"></span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                                    <input type="text"
+                                           x-model="productSearch"
+                                           @input.debounce.300ms="searchProducts()"
+                                           placeholder="Search by name or SKU..."
+                                           class="sm:col-span-9 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                                    <button type="button" @click="productSearch='';productResults=[]" class="sm:col-span-3 text-sm font-medium px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg border border-gray-300 dark:border-gray-600">
+                                        Clear Search
+                                    </button>
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Start typing at least 2 characters to search products.</p>
+
+                                <div x-show="productResults.length > 0" @click.outside="productResults = []" class="absolute z-30 w-full bg-white dark:bg-gray-700 rounded-lg shadow-xl mt-1 max-h-80 overflow-y-auto border border-gray-100 dark:border-gray-600">
+                                    <ul>
+                                        <template x-for="product in productResults" :key="product.id">
+                                            <li @click="addItem(product)" class="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer flex items-center border-b border-gray-100 dark:border-gray-600 last:border-0 transition duration-150">
+                                                <div class="flex-shrink-0 h-10 w-10 mr-4">
+                                                    <img :src="product.image ? (product.image.startsWith('http') ? product.image : '/storage/' + product.image) : 'https://ui-avatars.com/api/?name=' + product.name" class="h-10 w-10 rounded-lg object-cover bg-gray-100 dark:bg-gray-600">
+                                                </div>
+                                                <div class="flex-1">
+                                                    <div class="font-semibold text-gray-900 dark:text-white text-sm" x-text="product.name"></div>
+                                                    <div class="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                        <span class="bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded mr-2" x-text="product.sku"></span>
+                                                        <span x-show="product.unit_label" class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded mr-2" x-text="product.unit_label"></span>
+                                                        <span :class="product.stock > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'" x-text="product.stock > 0 ? product.stock + ' in Stock' : 'Out of Stock'"></span>
+                                                    </div>
+                                                </div>
+                                                <div class="text-right">
+                                                    <div class="text-sm font-bold text-gray-900 dark:text-white">Rs. <span x-text="product.selling_price"></span></div>
+                                                    <div class="text-xs text-red-500 dark:text-red-400">Min: <span x-text="product.limit_price"></span></div>
+                                                </div>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3">Image</th>
+                                            <th scope="col" class="px-4 py-3">Product Name</th>
+                                            <th scope="col" class="px-4 py-3 text-center">Order Quantity</th>
+                                            <th scope="col" class="px-4 py-3 text-right">Selling Price</th>
+                                            <th scope="col" class="px-4 py-3 text-right">Line Total</th>
+                                            <th scope="col" class="px-4 py-3 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white dark:bg-gray-800">
+                                        <template x-for="(item, index) in form.items" :key="item.id">
+                                            <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
+                                                <td class="px-4 py-3">
+                                                    <img :src="item.image ? (item.image.startsWith('http') ? item.image : '/storage/' + item.image) : 'https://ui-avatars.com/api/?name=' + item.name" class="h-10 w-10 rounded-md object-cover bg-gray-100 dark:bg-gray-600">
+                                                </td>
+                                                <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">
+                                                    <div x-text="item.name"></div>
+                                                    <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                                                        <span x-text="item.sku"></span>
+                                                        <span x-show="item.unit_label" class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded" x-text="item.unit_label"></span>
+                                                    </div>
+                                                    <div x-show="item.selling_price < item.limit_price" class="text-xs text-red-500 min-w-max font-bold mt-1">
+                                                        Below Limit (<span x-text="item.limit_price"></span>)
+                                                    </div>
+                                                </td>
+                                                <td class="px-4 py-3 text-center">
+                                                    <div class="flex items-center justify-center space-x-1">
+                                                        <button type="button"
+                                                                @click="decreaseItemQuantity(item)"
+                                                                :disabled="(parseInt(item.quantity, 10) || 1) <= 1"
+                                                                class="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-gray-600 dark:text-gray-300">-</button>
+                                                        <input type="text"
+                                                               :value="parseInt(item.quantity, 10) || 1"
+                                                               readonly
+                                                               class="w-14 text-center bg-gray-100 dark:bg-gray-700 border-0 text-sm font-semibold text-gray-900 dark:text-white focus:ring-0 rounded-md p-1 cursor-not-allowed select-none">
+                                                        <button type="button"
+                                                                @click="increaseItemQuantity(item)"
+                                                                :disabled="(parseInt(item.quantity, 10) || 0) >= itemMaxQuantity(item)"
+                                                                class="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-gray-600 dark:text-gray-300">+</button>
+                                                    </div>
+                                                    <div x-show="item.quantity > (item.max_stock + (item.original_qty_if_edit || 0))" class="text-xs text-red-500 mt-1">Max: <span x-text="item.max_stock + (item.original_qty_if_edit || 0)"></span></div>
+                                                    <div x-show="itemMaxQuantity(item) < 1" class="text-xs text-red-500 mt-1">Out of stock. Remove this item.</div>
+                                                </td>
+                                                <td class="px-4 py-3 text-right">
+                                                    <div class="flex flex-col items-end gap-1">
+                                                        <div class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-400 rounded w-24 text-center font-mono" title="Minimum Price">
+                                                            <span x-text="parseFloat(item.limit_price).toFixed(2)"></span>
+                                                        </div>
+                                                        <input type="number" x-model="item.selling_price" class="w-24 text-right bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1.5 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white font-bold" step="0.01">
+                                                        <div class="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-600 dark:text-blue-400 rounded w-24 text-center font-mono" title="Commission">
+                                                            <span x-text="(parseFloat(item.selling_price || 0) - parseFloat(item.limit_price || 0)).toFixed(2)"></span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">
+                                                    <span x-text="(item.quantity * item.selling_price).toFixed(2)"></span>
+                                                </td>
+                                                <td class="px-4 py-3 text-center">
+                                                    <button type="button" @click="removeItem(index)" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                        <tr x-show="form.items.length === 0">
+                                            <td colspan="6" class="px-4 py-12 text-center text-gray-400 dark:text-gray-500">
+                                                No items added yet. Search for a product to add.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                            <div class="xl:col-span-7 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                                <h3 class="text-lg font-bold text-blue-700 dark:text-blue-500 mb-4">Payment Setup</h3>
+
+                                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div>
+                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Sub Total</label>
+                                        <div class="w-full bg-gray-100 border border-gray-300 text-gray-800 text-sm rounded-lg p-2.5 font-bold dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                            <span x-text="subTotal.toFixed(2)"></span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Courier</label>
+                                        <select x-model="form.courier_id" @change="onCourierChange()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                                            <option value="">Select Courier</option>
+                                            @foreach($couriers as $courier)
+                                                <option value="{{ $courier->id }}">{{ $courier->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Delivery Charge</label>
+                                        <select x-model="form.courier_charge" :disabled="!form.courier_id || selectedCourierRates.length === 0" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 disabled:bg-gray-100 disabled:text-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400">
+                                            <option value="" x-text="!form.courier_id ? 'Select courier first' : (selectedCourierRates.length === 0 ? 'No configured charges' : 'Select delivery charge')"></option>
+                                            <template x-for="rate in selectedCourierRates" :key="`edit-rate-payment-${form.courier_id}-${rate}`">
+                                                <option :value="rate" x-text="`LKR ${rate}`"></option>
+                                            </template>
+                                        </select>
+                                        <p x-show="form.courier_id && selectedCourierRates.length === 0" class="mt-1 text-xs text-amber-600 dark:text-amber-400">No delivery charge values configured for selected courier.</p>
+                                    </div>
+                                    <div>
+                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Payment Method</label>
+                                        <select x-model="form.payment_method" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                                            <option value="COD">Cash on Delivery (COD)</option>
+                                            <option value="Bank Transfer">Bank Transfer</option>
+                                            <option value="Online Payment">Online Payment</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Call Status</label>
+                                        <select x-model="form.call_status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                                            <option value="pending">Pending</option>
+                                            <option value="confirm">Confirm</option>
+                                            <option value="cancel">Cancel</option>
+                                        </select>
+                                    </div>
+                                    <div x-show="form.order_type === 'reseller'">
+                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Commission</label>
+                                        <div class="w-full bg-gray-100 border border-gray-300 text-gray-800 text-sm rounded-lg p-2.5 font-bold dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                            <span x-text="totalCommission"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="xl:col-span-5">
+                                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 h-fit xl:sticky xl:top-24">
+                                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Summary</h3>
+
+                                    <div class="space-y-3 text-sm">
+                                        <div class="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                                            <span>Line Items</span>
+                                            <span class="font-semibold" x-text="form.items.length"></span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                                            <span>Total Quantity</span>
+                                            <span class="font-semibold" x-text="itemsCount"></span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                                            <span>Sub Total</span>
+                                            <span class="font-semibold" x-text="subTotal.toFixed(2)"></span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                                            <span>Delivery</span>
+                                            <span class="font-semibold" x-text="(parseFloat(form.courier_charge) || 0).toFixed(2)"></span>
+                                        </div>
+                                        <div class="border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between text-base text-gray-900 dark:text-white">
+                                            <span class="font-semibold">Net Total</span>
+                                            <span class="font-bold" x-text="totalAmount"></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="pt-4 mt-4 space-y-2">
+                                        <button type="submit"
+                                                class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-3 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition duration-200"
+                                                :disabled="form.items.length === 0 || isSubmitting">
+                                            <span x-show="!isSubmitting">Update Order</span>
+                                            <span x-show="isSubmitting">Updating...</span>
                                         </button>
-                                    </template>
+                                        <button type="button" @click="clearItems()" class="w-full text-gray-700 bg-gray-100 hover:bg-gray-200 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 focus:outline-none">
+                                            Clear Items
+                                        </button>
+                                        <a href="{{ route('orders.index') }}" class="block w-full text-center text-gray-700 bg-white hover:bg-gray-100 border border-gray-300 focus:ring-4 focus:ring-gray-200 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700">
+                                            Cancel
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
-                            <input type="hidden" x-model="form.customer.city_id">
-                            <p x-show="form.customer.city_id" class="mt-1 text-xs text-blue-700 dark:text-blue-300">
-                                Selected:
-                                <span x-text="form.customer.city"></span>
-                                <span> | </span>
-                                <span x-text="form.customer.district || '-'"></span>
-                                <span> | </span>
-                                <span x-text="form.customer.province || '-'"></span>
-                            </p>
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">City must be selected from `Cities` master list.</p>
-                        </div>
-
-                        <div>
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">District</label>
-                            <input type="text" x-model="form.customer.district" readonly class="bg-gray-100 border border-gray-300 text-gray-600 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
-                        </div>
-
-                        <div>
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Province</label>
-                            <input type="text" x-model="form.customer.province" readonly class="bg-gray-100 border border-gray-300 text-gray-600 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
                         </div>
                     </div>
-                </div>
-
-                <!-- Product Selection -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 mb-6">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-                        Order Items
-                    </h3>
-
-                    <!-- Product Search -->
-                    <div class="mb-6 relative">
-                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Search & Add Products</label>
-                        <input type="text" 
-                               x-model="productSearch" 
-                               @input.debounce.300ms="searchProducts()" 
-                               placeholder="Type to search product name or SKU..." 
-                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                        
-                        <!-- Search Results -->
-                        <div x-show="productResults.length > 0" @click.outside="productResults = []" class="absolute z-10 w-full bg-white rounded-lg shadow-lg mt-1 max-h-96 overflow-y-auto dark:bg-gray-700 border border-gray-200 dark:border-gray-600 ring-1 ring-black ring-opacity-5">
-                             <ul>
-                                <template x-for="product in productResults" :key="product.id">
-                                    <li @click="addItem(product)" class="px-4 py-3 hover:bg-green-50 dark:hover:bg-gray-600 cursor-pointer flex items-center border-b dark:border-gray-600 last:border-0">
-                                        <div class="flex-shrink-0 h-10 w-10 mr-3">
-                                            <img :src="product.image ? (product.image.startsWith('http') ? product.image : '/storage/' + product.image) : 'https://ui-avatars.com/api/?name=' + product.name" class="h-10 w-10 rounded-full object-cover bg-gray-100">
-                                        </div>
-                                        <div class="flex-1">
-                                            <div class="font-bold text-gray-900 dark:text-white text-sm" x-text="product.name"></div>
-                                            <div class="flex items-center text-xs text-gray-500 mt-1">
-                                                <span class="bg-gray-100 text-gray-800 px-2 py-0.5 rounded dark:bg-gray-600 dark:text-gray-300 mr-2" x-text="product.sku"></span>
-                                                <span x-show="product.unit_label" class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded mr-2" x-text="product.unit_label"></span>
-                                                <span :class="product.stock > 0 ? 'text-green-600' : 'text-red-500'" x-text="product.stock > 0 ? product.stock + ' in Stock' : 'Out of Stock'"></span>
-                                            </div>
-                                        </div>
-                                        <div class="text-right">
-                                            <div class="text-sm font-bold text-gray-900 dark:text-white">LKR <span x-text="product.selling_price"></span></div>
-                                            <div class="text-xs text-red-500">Min: <span x-text="product.limit_price"></span></div>
-                                        </div>
-                                    </li>
-                                </template>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <!-- Cart Table -->
-                    <div class="overflow-x-auto border rounded-lg dark:border-gray-700" x-show="form.items.length > 0">
-                        <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                                <tr>
-                                    <th scope="col" class="px-6 py-3">Product</th>
-                                    <th scope="col" class="px-6 py-3 text-center">Quantity</th>
-                                    <th scope="col" class="px-6 py-3 text-right">Selling Price</th>
-                                    <th scope="col" class="px-6 py-3 text-right">Total</th>
-                                    <th scope="col" class="px-6 py-3 text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template x-for="(item, index) in form.items" :key="item.id">
-                                    <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                        <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                                            <div x-text="item.name"></div>
-                                            <div class="text-xs text-gray-500 flex items-center gap-2">
-                                                <span x-text="item.sku"></span>
-                                                <span x-show="item.unit_label" class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded" x-text="item.unit_label"></span>
-                                            </div>
-                                            <!-- Error Message for Price -->
-                                            <div x-show="item.selling_price < item.limit_price" class="text-xs text-red-500 font-bold mt-1">
-                                                Below Limit Price (Min: <span x-text="item.limit_price"></span>)
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 text-center">
-                                            <div class="flex items-center justify-center space-x-2">
-                                                <button type="button" @click="item.quantity > 1 ? item.quantity-- : null" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600">
-                                                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
-                                                </button>
-                                                <input type="number" x-model="item.quantity" class="w-16 text-center bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" min="1">
-                                                <button type="button" @click="item.quantity < (item.max_stock + item.original_qty_if_edit) ? item.quantity++ : null" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600">
-                                                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                                                </button>
-                                            </div>
-                                             <!-- Logic to show max available including what they already bought -->
-                                             <div x-show="item.quantity >= (item.max_stock + (item.original_qty_if_edit || 0))" class="text-xs text-red-500 text-center mt-1">Max Stock Reached</div>
-                                        </td>
-                                        <td class="px-6 py-4 text-right">
-                                            <input type="number" x-model="item.selling_price" class="w-24 text-right bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block ml-auto p-1 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" step="0.01">
-                                            
-                                            <!-- Commission Preview -->
-                                            <div x-show="form.order_type === 'reseller'" class="text-xs text-purple-600 font-medium mt-1">
-                                                Comm: <span x-text="(item.selling_price - item.limit_price).toFixed(2)"></span>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">
-                                            <span x-text="(item.quantity * item.selling_price).toFixed(2)"></span>
-                                        </td>
-                                        <td class="px-6 py-4 text-center">
-                                            <button type="button" @click="removeItem(index)" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                            <tfoot class="bg-gray-100 dark:bg-gray-700 font-semibold text-gray-900 dark:text-white">
-                                <tr>
-                                    <td colspan="3" class="px-6 py-3 text-right">Subtotal:</td>
-                                    <td class="px-6 py-3 text-right font-medium">
-                                        LKR <span x-text="subTotal.toFixed(2)"></span>
-                                    </td>
-                                    <td></td>
-                                </tr>
-                                <tr>
-                                    <td colspan="3" class="px-6 py-3 text-right">Courier Charge:</td>
-                                    <td class="px-6 py-3 text-right font-medium">
-                                        LKR <span x-text="parseFloat(form.courier_charge || 0).toFixed(2)"></span>
-                                    </td>
-                                    <td></td>
-                                </tr>
-                                <tr class="text-lg font-bold">
-                                    <td colspan="3" class="px-6 py-3 text-right">Total Amount:</td>
-                                    <td class="px-6 py-3 text-right">
-                                        LKR <span x-text="totalAmount"></span>
-                                    </td>
-                                    <td></td>
-                                </tr>
-                                <tr x-show="form.order_type === 'reseller'">
-                                    <td colspan="3" class="px-6 py-3 text-right text-purple-600">Total Commission:</td>
-                                    <td class="px-6 py-3 text-right text-purple-600">
-                                        LKR <span x-text="totalCommission"></span>
-                                    </td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                     <div x-show="form.items.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 rounded-lg">
-                        Search and add products to start order.
-                    </div>
-                </div>
-
-                <!-- Fulfillment & Payment Details -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 mb-6">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Fulfillment & Payment
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <!-- Courier -->
-                        <div>
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Courier Service</label>
-                            <select x-model="form.courier_id" @change="onCourierChange()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                <option value="">Select Courier</option>
-                                @foreach($couriers as $courier)
-                                    <option value="{{ $courier->id }}">{{ $courier->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        
-                        <!-- Delivery Charge -->
-                        <div>
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Delivery Charge</label>
-                            <select x-model="form.courier_charge" :disabled="!form.courier_id || selectedCourierRates.length === 0" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 disabled:bg-gray-100 disabled:text-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400">
-                                <option value="" x-text="!form.courier_id ? 'Select courier first' : (selectedCourierRates.length === 0 ? 'No configured charges' : 'Select delivery charge')"></option>
-                                <template x-for="rate in selectedCourierRates" :key="`edit-rate-${form.courier_id}-${rate}`">
-                                    <option :value="rate" x-text="`LKR ${rate}`"></option>
-                                </template>
-                            </select>
-                            <p x-show="form.courier_id && selectedCourierRates.length === 0" class="mt-1 text-xs text-amber-600 dark:text-amber-400">No delivery charge values configured for selected courier.</p>
-                        </div>
-
-                        <!-- Payment Method -->
-                        <div>
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Payment Method</label>
-                            <select x-model="form.payment_method" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                <option value="COD">Cash on Delivery (COD)</option>
-                                <option value="Online Payment">Online Payment</option>
-                                <option value="Bank Transfer">Bank Transfer</option>
-                            </select>
-                        </div>
-
-                        <!-- Call Status -->
-                         <div>
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Call Status</label>
-                            <select x-model="form.call_status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                <option value="pending">Pending</option>
-                                <option value="confirm">Confirm</option>
-                                <option value="cancel">Cancel</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- Sales Note -->
-                    <div class="mt-4">
-                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Sales / Staff Note (Optional)</label>
-                        <textarea x-model="form.sales_note" rows="2" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" placeholder="Internal notes about this order..."></textarea>
-                    </div>
-                </div>
-
-                <!-- Footer -->
-                <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700">
-                    <a href="{{ route('orders.index') }}" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white text-sm font-medium">Cancel</a>
-                    <button type="submit" 
-                            class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                            :disabled="form.items.length === 0 || isSubmitting">
-                        <span x-show="!isSubmitting">Update Order</span>
-                        <span x-show="isSubmitting">Updating...</span>
-                    </button>
                 </div>
             </form>
         </div>
@@ -461,7 +469,7 @@
                 citySearch: '',
                 filteredCities: [],
                 showCityDropdown: false,
-                courierRatesMap: @json($couriers->mapWithKeys(fn($courier) => [(string) $courier->id => collect($courier->rates ?? [])->map(fn($rate) => number_format((float) $rate, 2, '.', ''))->values()->all()])),
+                courierRatesMap: @json($courierRatesMap),
                 
                 form: {
                     order_type: initialOrder.order_type,
@@ -701,12 +709,69 @@
                      this.productSearch = '';
                      this.productResults = [];
                 },
+
+                itemMaxQuantity(item) {
+                    const maxStock = parseInt(item?.max_stock, 10) || 0;
+                    const originalQty = parseInt(item?.original_qty_if_edit, 10) || 0;
+                    return Math.max(maxStock + originalQty, 0);
+                },
+
+                normalizeItemQuantity(item, notifyIfAdjusted = false) {
+                    if (!item) return;
+
+                    const max = this.itemMaxQuantity(item);
+                    let qty = parseInt(item.quantity, 10);
+                    if (!Number.isFinite(qty)) qty = 1;
+                    if (qty < 1) qty = 1;
+                    if (max > 0 && qty > max) {
+                        qty = max;
+                        if (notifyIfAdjusted) {
+                            this.notify('warning', `Max stock reached for ${item.name}.`);
+                        }
+                    }
+
+                    item.quantity = qty;
+                },
+
+                increaseItemQuantity(item) {
+                    if (!item) return;
+                    this.normalizeItemQuantity(item);
+                    const max = this.itemMaxQuantity(item);
+                    if (max <= 0 || item.quantity >= max) {
+                        this.notify('warning', `Max stock reached for ${item.name}.`);
+                        return;
+                    }
+
+                    item.quantity += 1;
+                },
+
+                decreaseItemQuantity(item) {
+                    if (!item) return;
+                    this.normalizeItemQuantity(item);
+                    if (item.quantity <= 1) {
+                        return;
+                    }
+
+                    item.quantity -= 1;
+                },
                 
                 removeItem(index) {
                     this.form.items.splice(index, 1);
                 },
+
+                clearItems() {
+                    if (this.form.items.length === 0) {
+                        return;
+                    }
+                    this.form.items = [];
+                    this.notify('success', 'Items cleared.');
+                },
                 
                 // --- Computed Totals ---
+                get itemsCount() {
+                    return this.form.items.reduce((sum, item) => sum + (parseInt(item.quantity, 10) || 0), 0);
+                },
+
                 get subTotal() {
                     return this.form.items.reduce((sum, item) => sum + (item.quantity * item.selling_price), 0);
                 },
@@ -746,6 +811,20 @@
                         this.form.courier_charge = selectedCharge;
                     } else {
                         this.form.courier_charge = 0;
+                    }
+                    this.form.items.forEach((item) => this.normalizeItemQuantity(item, true));
+                    const invalidQtyItem = this.form.items.find((item) => {
+                        const qty = parseInt(item.quantity, 10) || 0;
+                        const max = this.itemMaxQuantity(item);
+                        return max < 1 || qty < 1 || qty > max;
+                    });
+                    if (invalidQtyItem) {
+                        if (this.itemMaxQuantity(invalidQtyItem) < 1) {
+                            this.notify('warning', `${invalidQtyItem.name} is out of stock. Remove it before updating.`);
+                        } else {
+                            this.notify('warning', `Invalid quantity for ${invalidQtyItem.name}.`);
+                        }
+                        return;
                     }
                     if (!this.form.customer.city_id) {
                         this.notify('warning', 'Please select a city from the list.');

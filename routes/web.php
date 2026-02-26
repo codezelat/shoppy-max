@@ -104,9 +104,6 @@ Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function (
     Route::post('/packing/{id}/mark-packed', [\App\Http\Controllers\PackingController::class, 'markPacked'])->name('packing.mark-packed');
 });
 
-// Reseller Specific Order Route (Shortcut)
-Route::middleware(['auth'])->get('/reseller-orders/create', [\App\Http\Controllers\ResellerOrderController::class, 'create'])->name('reseller-orders.create');
-
 // Reseller Targets
 Route::middleware(['auth'])->resource('reseller-targets', \App\Http\Controllers\ResellerTargetController::class);
 Route::middleware(['auth'])->get('reseller-payments/import', [\App\Http\Controllers\ResellerPaymentImportController::class, 'show'])->name('reseller-payments.import.show');

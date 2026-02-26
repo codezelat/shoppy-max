@@ -94,10 +94,11 @@ class OrderController extends Controller
         $nextOrderNumber = 'ORD-' . $dateStr . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
         
         $couriers = Courier::all();
+        $courierRatesMap = $this->buildCourierRatesMap($couriers);
         $cities = City::orderBy('city_name')->get(['id', 'city_name', 'district', 'province', 'postal_code']);
         $currentOrderDate = $today->toDateString();
 
-        return view('orders.create', compact('nextOrderNumber', 'couriers', 'cities', 'currentOrderDate'));
+        return view('orders.create', compact('nextOrderNumber', 'couriers', 'courierRatesMap', 'cities', 'currentOrderDate'));
     }
 
     /**
@@ -109,6 +110,9 @@ class OrderController extends Controller
         if (mb_strlen($term) < 2) {
             return response()->json([]);
         }
+        $normalizedTerm = $this->normalizeSearchText($term);
+        $termTokens = array_values(array_filter(explode(' ', $normalizedTerm)));
+
         $compactTerm = mb_strtolower((string) preg_replace('/\s+/', '', $term));
         $parsedUnitSearch = null;
         if (preg_match('/^(\d+(?:\.\d+)?)([a-z]+)$/i', $compactTerm, $matches)) {
@@ -147,12 +151,10 @@ class OrderController extends Controller
                     });
                 }
             })
-            ->orderByDesc('quantity')
-            ->orderBy('sku')
-            ->limit(30)
+            ->limit(120)
             ->get();
 
-        $results = $variants->map(function (ProductVariant $variant) {
+        $results = $variants->map(function (ProductVariant $variant) use ($normalizedTerm, $termTokens) {
             $product = $variant->product;
             if (!$product) {
                 return null;
@@ -160,6 +162,14 @@ class OrderController extends Controller
 
             $unitLabel = $this->buildVariantUnitLabel($variant);
             $displayName = $this->buildVariantDisplayName($variant);
+            $stock = (int) ($variant->quantity ?? 0);
+            $score = $this->buildProductSearchScore($normalizedTerm, $termTokens, [
+                'product_name' => (string) ($product->name ?? ''),
+                'display_name' => (string) $displayName,
+                'sku' => (string) ($variant->sku ?? ''),
+                'unit_label' => (string) $unitLabel,
+                'description' => (string) ($product->description ?? ''),
+            ], $stock);
 
             return [
                 'id' => $variant->id,
@@ -171,10 +181,29 @@ class OrderController extends Controller
                 'sku' => $variant->sku,
                 'selling_price' => (float) ($variant->selling_price ?? 0),
                 'limit_price' => (float) ($variant->limit_price ?? 0),
-                'stock' => (int) ($variant->quantity ?? 0),
+                'stock' => $stock,
                 'unit' => $variant->unit->short_name ?? '',
+                '_score' => $score,
             ];
-        })->filter()->values();
+        })
+            ->filter(fn ($item) => $item && ($item['_score'] ?? 0) > 0)
+            ->sort(function (array $a, array $b) {
+                if ($a['_score'] !== $b['_score']) {
+                    return $b['_score'] <=> $a['_score'];
+                }
+                if ($a['stock'] !== $b['stock']) {
+                    return $b['stock'] <=> $a['stock'];
+                }
+
+                return strcasecmp((string) ($a['display_name'] ?? ''), (string) ($b['display_name'] ?? ''));
+            })
+            ->take(30)
+            ->values()
+            ->map(function (array $item) {
+                unset($item['_score']);
+                return $item;
+            })
+            ->values();
 
         return response()->json($results);
     }
@@ -199,6 +228,7 @@ class OrderController extends Controller
                     ->orWhere('business_name', 'like', "%{$query}%")
                     ->orWhere('mobile', 'like', "%{$query}%");
             })
+            ->orderBy('business_name')
             ->orderBy('name')
             ->limit(25)
             ->get(['id', 'name', 'business_name', 'mobile', 'reseller_type'])
@@ -207,6 +237,7 @@ class OrderController extends Controller
                     'id' => $reseller->id,
                     'name' => $reseller->name,
                     'business_name' => $reseller->business_name,
+                    'display_name' => $reseller->business_name ?: $reseller->name,
                     'mobile' => $reseller->mobile,
                     'reseller_type' => $reseller->reseller_type,
                     'type_label' => $reseller->reseller_type === Reseller::TYPE_DIRECT_RESELLER ? 'Direct Reseller' : 'Reseller',
@@ -465,6 +496,7 @@ class OrderController extends Controller
     {
         $order->load(['items.variant.unit', 'customer', 'reseller']);
         $couriers = Courier::all();
+        $courierRatesMap = $this->buildCourierRatesMap($couriers);
         $cities = City::orderBy('city_name')->get(['id', 'city_name', 'district', 'province', 'postal_code']);
         $matchedCity = City::where('city_name', $order->customer_city ?: ($order->customer->city ?? ''))->first();
         $order->selected_city_id = $matchedCity?->id;
@@ -473,6 +505,7 @@ class OrderController extends Controller
             'order' => $order,
             'orderFull' => $order,
             'couriers' => $couriers,
+            'courierRatesMap' => $courierRatesMap,
             'cities' => $cities,
         ]);
     }
@@ -754,6 +787,103 @@ class OrderController extends Controller
             'call_status' => $order->call_status,
             'status' => $order->status
         ]);
+    }
+
+    private function buildCourierRatesMap($couriers): array
+    {
+        return collect($couriers)
+            ->mapWithKeys(function (Courier $courier) {
+                $rates = collect($courier->rates ?? [])
+                    ->map(fn ($rate) => number_format((float) $rate, 2, '.', ''))
+                    ->values()
+                    ->all();
+
+                return [(string) $courier->id => $rates];
+            })
+            ->all();
+    }
+
+    private function normalizeSearchText(string $value): string
+    {
+        $normalized = mb_strtolower(trim($value));
+        return preg_replace('/\s+/', ' ', $normalized) ?? '';
+    }
+
+    private function buildProductSearchScore(string $normalizedTerm, array $termTokens, array $fields, int $stock): int
+    {
+        if ($normalizedTerm === '') {
+            return 0;
+        }
+
+        $productName = $this->normalizeSearchText((string) ($fields['product_name'] ?? ''));
+        $displayName = $this->normalizeSearchText((string) ($fields['display_name'] ?? ''));
+        $sku = $this->normalizeSearchText((string) ($fields['sku'] ?? ''));
+        $unitLabel = $this->normalizeSearchText((string) ($fields['unit_label'] ?? ''));
+        $description = $this->normalizeSearchText((string) ($fields['description'] ?? ''));
+
+        $score = 0;
+
+        if ($productName === $normalizedTerm) {
+            $score = max($score, 1000);
+        } elseif (str_starts_with($productName, $normalizedTerm)) {
+            $score = max($score, 920);
+        } elseif (str_contains($productName, $normalizedTerm)) {
+            $score = max($score, 860);
+        }
+
+        if ($displayName === $normalizedTerm) {
+            $score = max($score, 910);
+        } elseif (str_starts_with($displayName, $normalizedTerm)) {
+            $score = max($score, 870);
+        } elseif (str_contains($displayName, $normalizedTerm)) {
+            $score = max($score, 820);
+        }
+
+        if ($sku === $normalizedTerm) {
+            $score = max($score, 760);
+        } elseif (str_starts_with($sku, $normalizedTerm)) {
+            $score = max($score, 700);
+        } elseif (str_contains($sku, $normalizedTerm)) {
+            $score = max($score, 620);
+        }
+
+        if ($unitLabel === $normalizedTerm) {
+            $score = max($score, 600);
+        } elseif (str_contains($unitLabel, $normalizedTerm)) {
+            $score = max($score, 520);
+        }
+
+        if (str_contains($description, $normalizedTerm)) {
+            $score = max($score, 360);
+        }
+
+        if (!empty($termTokens)) {
+            $productHits = 0;
+            $displayHits = 0;
+
+            foreach ($termTokens as $token) {
+                if ($token === '') {
+                    continue;
+                }
+                if (str_contains($productName, $token)) {
+                    $productHits++;
+                }
+                if (str_contains($displayName, $token)) {
+                    $displayHits++;
+                }
+            }
+
+            if ($productHits > 0) {
+                $score += $productHits === count($termTokens) ? 90 : ($productHits * 20);
+            }
+            if ($displayHits > 0) {
+                $score += $displayHits === count($termTokens) ? 60 : ($displayHits * 12);
+            }
+        }
+
+        $score += (int) floor(min(max($stock, 0), 200) / 25);
+
+        return $score;
     }
 
     private function buildVariantUnitLabel(ProductVariant $variant): string
