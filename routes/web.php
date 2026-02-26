@@ -122,6 +122,19 @@ Route::middleware(['auth'])->get('reseller-payments-bulk', [\App\Http\Controller
 Route::middleware(['auth'])->get('reseller-dues', [\App\Http\Controllers\ResellerDuesController::class, 'index'])->name('reseller-dues.index');
 Route::middleware(['auth'])->get('reseller-dues/{id}', [\App\Http\Controllers\ResellerDuesController::class, 'show'])->name('reseller-dues.show');
 
+Route::middleware(['auth'])->get('direct-reseller-payments/import', [\App\Http\Controllers\DirectResellerPaymentImportController::class, 'show'])->name('direct-reseller-payments.import.show');
+Route::middleware(['auth'])->post('direct-reseller-payments/import/preview', [\App\Http\Controllers\DirectResellerPaymentImportController::class, 'preview'])->name('direct-reseller-payments.import.preview');
+Route::middleware(['auth'])->post('direct-reseller-payments/import/store', [\App\Http\Controllers\DirectResellerPaymentImportController::class, 'store'])->name('direct-reseller-payments.import.store');
+Route::middleware(['auth'])->get('direct-reseller-payments/template', [\App\Http\Controllers\DirectResellerPaymentImportController::class, 'downloadTemplate'])->name('direct-reseller-payments.import.template');
+Route::middleware(['auth'])->resource('direct-reseller-payments', \App\Http\Controllers\DirectResellerPaymentController::class)
+    ->parameters(['direct-reseller-payments' => 'reseller_payment'])
+    ->except(['destroy']);
+Route::middleware(['auth'])->post('direct-reseller-payments/{reseller_payment}/cancel', [\App\Http\Controllers\DirectResellerPaymentController::class, 'cancel'])->name('direct-reseller-payments.cancel');
+Route::middleware(['auth'])->get('direct-reseller-payments/{reseller_payment}/download', [\App\Http\Controllers\DirectResellerPaymentController::class, 'downloadInvoice'])->name('direct-reseller-payments.download');
+Route::middleware(['auth'])->get('direct-reseller-payments-bulk', [\App\Http\Controllers\DirectResellerPaymentController::class, 'downloadBulkInvoices'])->name('direct-reseller-payments.download-bulk');
+Route::middleware(['auth'])->get('direct-reseller-dues', [\App\Http\Controllers\DirectResellerDuesController::class, 'index'])->name('direct-reseller-dues.index');
+Route::middleware(['auth'])->get('direct-reseller-dues/{id}', [\App\Http\Controllers\DirectResellerDuesController::class, 'show'])->name('direct-reseller-dues.show');
+
 // Courier Management Routes
 Route::middleware(['auth'])->group(function () {
     // Receive Courier
