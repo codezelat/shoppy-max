@@ -129,7 +129,7 @@
                                 {{ $order->order_number }}
                             </td>
                             <td class="px-6 py-4">
-                                {{ $order->created_at->format('d M Y') }}
+                                {{ optional($order->order_date)->format('d M Y') ?? '-' }}
                             </td>
                             <td class="px-6 py-4">
                                 <div class="font-medium text-gray-900 dark:text-white">{{ $order->customer->name ?? $order->customer_name }}</div>
@@ -148,6 +148,7 @@
                             <td class="px-6 py-4">
                                 @if($order->reseller)
                                     <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $order->reseller->name }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $order->reseller->reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller' }}</div>
                                 @else
                                     <span class="text-gray-400">-</span>
                                 @endif

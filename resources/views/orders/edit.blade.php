@@ -37,7 +37,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                     <!-- Order Type -->
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Order Type</h3>
+                        <div class="mb-4 flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Order Type</h3>
+                            <span class="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-medium"
+                                  :class="form.order_type === 'reseller' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'"
+                                  x-text="form.order_type === 'reseller' ? 'Reseller Order' : 'Direct Order'"></span>
+                        </div>
                         <div class="flex items-center space-x-4">
                             <label class="flex items-center cursor-pointer">
                                 <input type="radio" name="order_type" value="direct" x-model="form.order_type" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
@@ -50,10 +55,11 @@
                         </div>
                     </div>
                     
-                    <!-- Date Picker -->
+                    <!-- Order Date -->
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Order Date</h3>
-                        <input type="date" x-model="form.order_date" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                        <input type="text" x-model="form.order_date" readonly class="bg-gray-100 border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">System-managed; not editable.</p>
                     </div>
 
                     <!-- Order ID Preview -->
@@ -78,34 +84,51 @@
                     <div class="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-lg shadow-md border border-purple-200 dark:border-purple-800">
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                             <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                            Select Reseller
+                            Select Reseller Account
                         </h3>
                         
-                        <div class="relative">
+                        <div class="relative" @click.outside="resellers = []">
                             <input type="text" 
                                    x-model="resellerSearch" 
                                    @input.debounce.300ms="searchResellers()" 
-                                   placeholder="Search Reseller by Name or Mobile..." 
+                                   @focus="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
+                                   @click="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
+                                   placeholder="Search reseller/direct reseller by name, business or mobile..." 
                                    class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
                             
                             <!-- Reseller Dropdown -->
-                            <div x-show="resellers.length > 0 && !selectedReseller" @click.outside="resellers = []" class="absolute z-10 w-full bg-white rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                            <div x-show="resellers.length > 0 && !selectedReseller" class="absolute z-10 w-full bg-white rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
                                 <ul>
                                     <template x-for="reseller in resellers" :key="reseller.id">
-                                        <li @click="selectReseller(reseller)" class="px-4 py-2 hover:bg-purple-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
-                                            <div class="font-bold" x-text="reseller.name"></div>
-                                            <div class="text-xs text-gray-500" x-text="reseller.mobile"></div>
+                                        <li @click="selectReseller(reseller)" class="px-4 py-2 hover:bg-purple-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600 last:border-0">
+                                            <div class="flex items-center justify-between gap-2">
+                                                <div class="font-bold" x-text="reseller.name"></div>
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" x-text="reseller.type_label || (reseller.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
+                                            </div>
+                                            <div class="text-xs text-gray-500 mt-0.5">
+                                                <span x-text="reseller.mobile"></span>
+                                                <span x-show="reseller.business_name"> | </span>
+                                                <span x-show="reseller.business_name" x-text="reseller.business_name"></span>
+                                            </div>
                                         </li>
                                     </template>
                                 </ul>
                             </div>
+                            <p x-show="(resellerSearch || '').trim().length >= 2 && resellers.length === 0 && !selectedReseller" class="mt-1 text-xs text-gray-500 dark:text-gray-400">No matching reseller accounts found.</p>
                         </div>
 
                         <!-- Selected Reseller Display -->
                         <div x-show="selectedReseller" class="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-800 flex justify-between items-center">
                             <div>
-                                <div class="font-bold text-gray-900 dark:text-white" x-text="selectedReseller?.name"></div>
-                                <div class="text-sm text-gray-500" x-text="selectedReseller?.mobile"></div>
+                                <div class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <span x-text="selectedReseller?.name"></span>
+                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" x-text="selectedReseller?.type_label || (selectedReseller?.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
+                                </div>
+                                <div class="text-sm text-gray-500">
+                                    <span x-text="selectedReseller?.mobile"></span>
+                                    <span x-show="selectedReseller?.business_name"> | </span>
+                                    <span x-show="selectedReseller?.business_name" x-text="selectedReseller?.business_name"></span>
+                                </div>
                             </div>
                             <button type="button" @click="clearReseller()" class="text-red-500 hover:text-red-700 text-sm font-medium">Change</button>
                         </div>
@@ -122,7 +145,18 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Mobile Number <span class="text-red-500">*</span></label>
-                            <input type="text" x-model="form.customer.mobile" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required>
+                            <input
+                                type="text"
+                                x-model="form.customer.mobile"
+                                @input="form.customer.mobile = $event.target.value.replace(/\D/g, '').slice(0, 10)"
+                                placeholder="07xxxxxxxx"
+                                inputmode="numeric"
+                                pattern="[0-9]{10}"
+                                maxlength="10"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                required
+                            >
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Must be exactly 10 digits (numbers only).</p>
                         </div>
                         <div>
                              <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Full Name <span class="text-red-500">*</span></label>
@@ -130,7 +164,17 @@
                         </div>
                         <div>
                             <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Landline (Optional)</label>
-                            <input type="text" x-model="form.customer.landline" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                            <input
+                                type="text"
+                                x-model="form.customer.landline"
+                                @input="form.customer.landline = $event.target.value.replace(/\D/g, '').slice(0, 10)"
+                                placeholder="Optional"
+                                inputmode="numeric"
+                                pattern="[0-9]{10}"
+                                maxlength="10"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                            >
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional, but if entered it must be 10 digits.</p>
                         </div>
                         <div class="md:col-span-2">
                             <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Address <span class="text-red-500">*</span></label>
@@ -139,32 +183,56 @@
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
-                        <!-- Province -->
-                        <div>
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Province</label>
-                            <select x-model="form.customer.province" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                <option value="">Select Province</option>
-                                <template x-for="(dists, prov) in provinces" :key="prov">
-                                    <option :value="prov" x-text="prov"></option>
-                                </template>
-                            </select>
+                        <!-- City (Master) -->
+                        <div class="md:col-span-3">
+                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">City <span class="text-red-500">*</span></label>
+                            <div class="relative" @click.outside="showCityDropdown = false">
+                                <input type="text"
+                                       x-model="citySearch"
+                                       @focus="showCityDropdown = true; filterCities()"
+                                       @click="showCityDropdown = true; filterCities()"
+                                       @input="onCitySearchInput()"
+                                       placeholder="Search city from master list..."
+                                       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                       required>
+                                <div x-show="showCityDropdown" class="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700 max-h-56 overflow-y-auto">
+                                    <template x-if="filteredCities.length === 0">
+                                        <div class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No cities found.</div>
+                                    </template>
+                                    <template x-for="city in filteredCities" :key="city.id">
+                                        <button type="button" @click="selectCity(city)" class="w-full text-left px-3 py-2 hover:bg-blue-50 dark:hover:bg-gray-600">
+                                            <div class="text-sm font-medium text-gray-900 dark:text-white" x-text="city.city_name"></div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                                <span x-text="city.district"></span>
+                                                <span> | </span>
+                                                <span x-text="city.province || '-'"></span>
+                                                <span> | </span>
+                                                <span x-text="city.postal_code || '-'"></span>
+                                            </div>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                            <input type="hidden" x-model="form.customer.city_id">
+                            <p x-show="form.customer.city_id" class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                                Selected:
+                                <span x-text="form.customer.city"></span>
+                                <span> | </span>
+                                <span x-text="form.customer.district || '-'"></span>
+                                <span> | </span>
+                                <span x-text="form.customer.province || '-'"></span>
+                            </p>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">City must be selected from `Cities` master list.</p>
                         </div>
 
-                        <!-- District -->
                         <div>
                             <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">District</label>
-                            <select x-model="form.customer.district" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                <option value="">Select District</option>
-                                <template x-for="dist in availableDistricts" :key="dist">
-                                    <option :value="dist" x-text="dist"></option>
-                                </template>
-                            </select>
+                            <input type="text" x-model="form.customer.district" readonly class="bg-gray-100 border border-gray-300 text-gray-600 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
                         </div>
 
-                        <!-- City -->
                         <div>
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">City</label>
-                            <input type="text" x-model="form.customer.city" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Province</label>
+                            <input type="text" x-model="form.customer.province" readonly class="bg-gray-100 border border-gray-300 text-gray-600 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
                         </div>
                     </div>
                 </div>
@@ -191,12 +259,13 @@
                                 <template x-for="product in productResults" :key="product.id">
                                     <li @click="addItem(product)" class="px-4 py-3 hover:bg-green-50 dark:hover:bg-gray-600 cursor-pointer flex items-center border-b dark:border-gray-600 last:border-0">
                                         <div class="flex-shrink-0 h-10 w-10 mr-3">
-                                            <img :src="product.image ? '/storage/' + product.image : 'https://ui-avatars.com/api/?name=' + product.name" class="h-10 w-10 rounded-full object-cover bg-gray-100">
+                                            <img :src="product.image ? (product.image.startsWith('http') ? product.image : '/storage/' + product.image) : 'https://ui-avatars.com/api/?name=' + product.name" class="h-10 w-10 rounded-full object-cover bg-gray-100">
                                         </div>
                                         <div class="flex-1">
                                             <div class="font-bold text-gray-900 dark:text-white text-sm" x-text="product.name"></div>
                                             <div class="flex items-center text-xs text-gray-500 mt-1">
                                                 <span class="bg-gray-100 text-gray-800 px-2 py-0.5 rounded dark:bg-gray-600 dark:text-gray-300 mr-2" x-text="product.sku"></span>
+                                                <span x-show="product.unit_label" class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded mr-2" x-text="product.unit_label"></span>
                                                 <span :class="product.stock > 0 ? 'text-green-600' : 'text-red-500'" x-text="product.stock > 0 ? product.stock + ' in Stock' : 'Out of Stock'"></span>
                                             </div>
                                         </div>
@@ -227,7 +296,10 @@
                                     <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                                         <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">
                                             <div x-text="item.name"></div>
-                                            <div class="text-xs text-gray-500" x-text="item.sku"></div>
+                                            <div class="text-xs text-gray-500 flex items-center gap-2">
+                                                <span x-text="item.sku"></span>
+                                                <span x-show="item.unit_label" class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded" x-text="item.unit_label"></span>
+                                            </div>
                                             <!-- Error Message for Price -->
                                             <div x-show="item.selling_price < item.limit_price" class="text-xs text-red-500 font-bold mt-1">
                                                 Below Limit Price (Min: <span x-text="item.limit_price"></span>)
@@ -312,7 +384,7 @@
                         <!-- Courier -->
                         <div>
                             <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Courier Service</label>
-                            <select x-model="form.courier_id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                            <select x-model="form.courier_id" @change="onCourierChange()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
                                 <option value="">Select Courier</option>
                                 @foreach($couriers as $courier)
                                     <option value="{{ $courier->id }}">{{ $courier->name }}</option>
@@ -320,10 +392,16 @@
                             </select>
                         </div>
                         
-                        <!-- Courier Charge -->
+                        <!-- Delivery Charge -->
                         <div>
-                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Courier Charge (LKR)</label>
-                            <input type="number" x-model="form.courier_charge" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" step="0.01">
+                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Delivery Charge</label>
+                            <select x-model="form.courier_charge" :disabled="!form.courier_id || selectedCourierRates.length === 0" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 disabled:bg-gray-100 disabled:text-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400">
+                                <option value="" x-text="!form.courier_id ? 'Select courier first' : (selectedCourierRates.length === 0 ? 'No configured charges' : 'Select delivery charge')"></option>
+                                <template x-for="rate in selectedCourierRates" :key="`edit-rate-${form.courier_id}-${rate}`">
+                                    <option :value="rate" x-text="`LKR ${rate}`"></option>
+                                </template>
+                            </select>
+                            <p x-show="form.courier_id && selectedCourierRates.length === 0" class="mt-1 text-xs text-amber-600 dark:text-amber-400">No delivery charge values configured for selected courier.</p>
                         </div>
 
                         <!-- Payment Method -->
@@ -379,9 +457,11 @@
                 productSearch: '',
                 productResults: [],
 
-                 // Address Data
-                provinces: @json($slData),
-                availableDistricts: [],
+                cities: @json($cities),
+                citySearch: '',
+                filteredCities: [],
+                showCityDropdown: false,
+                courierRatesMap: @json($couriers->mapWithKeys(fn($courier) => [(string) $courier->id => collect($courier->rates ?? [])->map(fn($rate) => number_format((float) $rate, 2, '.', ''))->values()->all()])),
                 
                 form: {
                     order_type: initialOrder.order_type,
@@ -401,55 +481,160 @@
                         mobile: initialOrder.customer.mobile,
                         landline: initialOrder.customer.landline,
                         address: initialOrder.customer.address,
-                        city: initialOrder.customer.city || initialOrder.customer_city,
+                        city_id: initialOrder.selected_city_id || null,
+                        city: initialOrder.customer_city || initialOrder.customer.city || '',
                         district: initialOrder.customer_district,
                         province: initialOrder.customer_province
                     },
-                    items: initialOrder.items.map(item => ({
-                        id: item.product_variant_id,
-                        name: item.product_name,
-                        sku: item.sku,
-                        quantity: item.quantity,
-                        original_qty_if_edit: item.quantity, // Setup for stock logic
-                        selling_price: parseFloat(item.unit_price),
-                        limit_price: parseFloat(item.base_price),
-                        max_stock: item.variant ? item.variant.quantity : 0, // Current stock available
-                        image: null // Can't easily get image without eager loading on variant relation deep structure, optional
-                    }))
+                    items: initialOrder.items.map(item => {
+                        const unitParts = [];
+                        if (item.variant && item.variant.unit_value) {
+                            unitParts.push(item.variant.unit_value);
+                        }
+                        if (item.variant && item.variant.unit && item.variant.unit.short_name) {
+                            unitParts.push(item.variant.unit.short_name);
+                        }
+                        const unitLabel = unitParts.join(' ').trim();
+                        const baseName = (item.product_name || `SKU ${item.sku || item.product_variant_id}`).trim();
+                        const hasUnitInName = unitLabel && baseName.toLowerCase().includes(`(${unitLabel.toLowerCase()})`);
+                        const name = unitLabel && !hasUnitInName
+                            ? `${baseName} (${unitLabel})`
+                            : baseName;
+
+                        return {
+                            id: item.product_variant_id,
+                            name,
+                            sku: item.sku,
+                            unit_label: unitLabel,
+                            quantity: item.quantity,
+                            original_qty_if_edit: item.quantity, // Setup for stock logic
+                            selling_price: parseFloat(item.unit_price),
+                            limit_price: parseFloat(item.base_price),
+                            max_stock: item.variant ? item.variant.quantity : 0, // Current stock available
+                            image: null // Can't easily get image without eager loading on variant relation deep structure, optional
+                        };
+                    })
+                },
+
+                notify(type, message) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: type,
+                            text: message,
+                            timer: 2200,
+                            showConfirmButton: false,
+                            toast: true,
+                            position: 'top-end'
+                        });
+                        return;
+                    }
+                    alert(message);
                 },
                 
                 init() {
-                    // Pre-fill logic
-                    this.updateDistricts();
-                    
-                    this.$watch('form.customer.province', (value) => {
-                        this.updateDistricts();
+                    this.$watch('form.order_type', (val) => {
+                        if (val !== 'reseller') {
+                            this.selectedReseller = null;
+                            this.form.reseller_id = null;
+                            this.resellerSearch = '';
+                            this.resellers = [];
+                        }
                     });
+                    this.$watch('form.courier_id', () => this.onCourierChange());
+
+                    const selected = this.cities.find((city) => String(city.id) === String(this.form.customer.city_id));
+                    if (selected) {
+                        this.citySearch = selected.city_name;
+                        this.form.customer.city = selected.city_name;
+                        this.form.customer.district = selected.district || '';
+                        this.form.customer.province = selected.province || '';
+                    } else {
+                        this.citySearch = this.form.customer.city || '';
+                    }
+                    this.onCourierChange();
+                    this.filterCities();
                 },
 
-                updateDistricts() {
-                    const province = this.form.customer.province;
-                    if (province && this.provinces[province]) {
-                        this.availableDistricts = this.provinces[province];
-                    } else {
-                        this.availableDistricts = [];
+                normalizeRate(rate) {
+                    if (rate === null || rate === '') {
+                        return '';
                     }
-                    // Only reset district if the current district is NOT in the new list (or if explicitly changing)
-                    // But for init loading, we want to keep it.
-                    // For now, simple logic: if just loaded, keep. If changed by user, reset.
-                    // Actually, $watch fires on init? No.
-                    // But if user changes province, we reset district. 
-                    // However, updateDistricts is called on Init.
+                    const parsed = Number(rate);
+                    if (!Number.isFinite(parsed) || parsed < 0) {
+                        return '';
+                    }
+                    return parsed.toFixed(2);
+                },
+
+                get selectedCourierRates() {
+                    const id = String(this.form.courier_id || '');
+                    const rates = this.courierRatesMap[id] || [];
+                    return Array.isArray(rates) ? rates : [];
+                },
+
+                onCourierChange() {
+                    if (!this.form.courier_id) {
+                        this.form.courier_charge = '';
+                        return;
+                    }
+
+                    const rates = this.selectedCourierRates;
+                    const normalizedCurrent = this.normalizeRate(this.form.courier_charge);
+                    if (rates.length === 0) {
+                        this.form.courier_charge = '';
+                        return;
+                    }
+
+                    this.form.courier_charge = rates.includes(normalizedCurrent) ? normalizedCurrent : '';
+                },
+
+                filterCities() {
+                    const q = (this.citySearch || '').trim().toLowerCase();
+                    const source = Array.isArray(this.cities) ? this.cities : [];
+
+                    this.filteredCities = source
+                        .filter((city) => {
+                            if (!q) return true;
+                            const haystack = `${city.city_name || ''} ${city.district || ''} ${city.province || ''} ${city.postal_code || ''}`.toLowerCase();
+                            return haystack.includes(q);
+                        })
+                        .slice(0, 30);
+                },
+
+                onCitySearchInput() {
+                    if ((this.citySearch || '').trim() !== (this.form.customer.city || '')) {
+                        this.form.customer.city_id = null;
+                        this.form.customer.city = '';
+                        this.form.customer.district = '';
+                        this.form.customer.province = '';
+                    }
+                    this.showCityDropdown = true;
+                    this.filterCities();
+                },
+
+                selectCity(city) {
+                    this.form.customer.city_id = city.id;
+                    this.form.customer.city = city.city_name;
+                    this.form.customer.district = city.district || '';
+                    this.form.customer.province = city.province || '';
+                    this.citySearch = city.city_name;
+                    this.showCityDropdown = false;
                 },
                 
                 // --- Search Logic ---
                 async searchResellers() {
-                    if (this.resellerSearch.length < 2) {
+                    if (this.form.order_type !== 'reseller') {
+                        this.resellers = [];
+                        return;
+                    }
+
+                    const query = (this.resellerSearch || '').trim();
+                    if (query.length < 2) {
                         this.resellers = [];
                         return;
                     }
                     try {
-                        const response = await fetch(`/orders/search-resellers?q=${this.resellerSearch}`);
+                        const response = await fetch(`/orders/search-resellers?q=${encodeURIComponent(query)}`);
                         this.resellers = await response.json();
                     } catch (error) {
                         console.error('Error searching resellers:', error);
@@ -469,12 +654,13 @@
                 },
                 
                 async searchProducts() {
-                    if (this.productSearch.length < 2) {
+                    const query = (this.productSearch || '').trim();
+                    if (query.length < 2) {
                         this.productResults = [];
                         return;
                     }
                     try {
-                        const response = await fetch(`/orders/search-products?q=${this.productSearch}`);
+                        const response = await fetch(`/orders/search-products?q=${encodeURIComponent(query)}`);
                         this.productResults = await response.json();
                     } catch (error) {
                         console.error('Error searching products:', error);
@@ -484,7 +670,7 @@
                 // --- Cart Logic ---
                 addItem(product) {
                      if (product.stock <= 0) {
-                         alert("This product is out of stock.");
+                         this.notify('warning', 'This product is out of stock.');
                          return;
                      }
                      
@@ -497,13 +683,14 @@
                          if (existing.quantity < allowedStock) {
                              existing.quantity++;
                          } else {
-                             alert("Max stock reached for this item.");
+                             this.notify('warning', 'Max stock reached for this item.');
                          }
                      } else {
                          this.form.items.push({
                              id: product.id,
-                             name: product.name,
+                             name: product.display_name || product.name,
                              sku: product.sku,
+                             unit_label: product.unit_label || '',
                              quantity: 1,
                              selling_price: parseFloat(product.selling_price), // Default to current SP
                              limit_price: parseFloat(product.limit_price),
@@ -542,14 +729,37 @@
                 async submitOrder() {
                     // Validation
                     if (this.form.order_type === 'reseller' && !this.form.reseller_id) {
-                        alert("Please select a reseller.");
+                        this.notify('warning', 'Please select a reseller.');
+                        return;
+                    }
+                    if (this.form.courier_id) {
+                        const rates = this.selectedCourierRates;
+                        if (rates.length === 0) {
+                            this.notify('warning', 'Selected courier has no configured delivery charges.');
+                            return;
+                        }
+                        const selectedCharge = this.normalizeRate(this.form.courier_charge);
+                        if (!selectedCharge || !rates.includes(selectedCharge)) {
+                            this.notify('warning', 'Select a delivery charge from the selected courier charge list.');
+                            return;
+                        }
+                        this.form.courier_charge = selectedCharge;
+                    } else {
+                        this.form.courier_charge = 0;
+                    }
+                    if (!this.form.customer.city_id) {
+                        this.notify('warning', 'Please select a city from the list.');
                         return;
                     }
                     
                     // Price Validation
                     const invalidPrice = this.form.items.find(item => item.selling_price < item.limit_price);
                     if (invalidPrice) {
-                        alert(`Selling price for ${invalidPrice.name} cannot be lower than the limit price (${invalidPrice.limit_price}).`);
+                        this.notify('error', `Selling price for ${invalidPrice.name} cannot be lower than limit price (${invalidPrice.limit_price}).`);
+                        return;
+                    }
+                    if (this.form.items.length === 0) {
+                        this.notify('warning', 'Add at least one item before updating.');
                         return;
                     }
                     
@@ -567,17 +777,18 @@
                         
                         const result = await response.json();
                         
-                        if (result.success) {
+                        if (response.ok && result.success) {
                             // Redirect
                             window.location.href = result.redirect;
                         } else {
-                            alert("Error: " + result.message);
+                            const firstValidationError = result.errors ? Object.values(result.errors).flat()[0] : null;
+                            this.notify('error', firstValidationError || result.message || 'Failed to update order.');
                             this.isSubmitting = false;
                         }
                         
                     } catch (error) {
                         console.error('Submission error:', error);
-                        alert("An unexpected error occurred.");
+                        this.notify('error', 'An unexpected error occurred.');
                         this.isSubmitting = false;
                     }
                 }

@@ -4,18 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Reseller;
 use App\Models\Customer;
 use App\Models\OrderLog;
 use App\Models\Courier;
+use App\Models\City;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -79,9 +79,11 @@ class OrderController extends Controller
      */
     public function create()
     {
+        $today = now();
+
         // Predict next order number for UI
-        $dateStr = date('Ymd');
-        $latestOrder = Order::whereDate('created_at', today())->latest()->first();
+        $dateStr = $today->format('Ymd');
+        $latestOrder = Order::whereDate('created_at', $today->toDateString())->latest()->first();
         $sequence = 1;
         if ($latestOrder) {
             $parts = explode('-', $latestOrder->order_number);
@@ -92,9 +94,10 @@ class OrderController extends Controller
         $nextOrderNumber = 'ORD-' . $dateStr . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
         
         $couriers = Courier::all();
-        $slData = config('locations.sri_lanka');
+        $cities = City::orderBy('city_name')->get(['id', 'city_name', 'district', 'province', 'postal_code']);
+        $currentOrderDate = $today->toDateString();
 
-        return view('orders.create', compact('nextOrderNumber', 'couriers', 'slData'));
+        return view('orders.create', compact('nextOrderNumber', 'couriers', 'cities', 'currentOrderDate'));
     }
 
     /**
@@ -102,40 +105,77 @@ class OrderController extends Controller
      */
     public function searchProducts(Request $request)
     {
-        $query = $request->get('q');
-        
-        $products = Product::with(['variants.unit'])
-            ->where('name', 'like', "%{$query}%")
-            ->orWhere('description', 'like', "%{$query}%")
-            ->orWhereHas('variants', function ($q) use ($query) {
-                $q->where('sku', 'like', "%{$query}%");
-            })
-            ->limit(20)
-            ->get();
-            
-        // Flatten variants for easier frontend consumption
-        $results = [];
-        foreach ($products as $product) {
-            foreach ($product->variants as $variant) {
-                // Determine display name (e.g., "Product Name - XL / Red")
-                $variantName = $product->name;
-                if ($variant->unit && $variant->unit_value) {
-                    $variantName .= " (" . $variant->unit_value . " " . $variant->unit->short_name . ")";
-                }
-
-                $results[] = [
-                    'id' => $variant->id,
-                    'name' => $variantName,
-                    'image' => $variant->image ?? $product->image,
-                    'sku' => $variant->sku,
-                    'selling_price' => $variant->selling_price,
-                    'limit_price' => $variant->limit_price,
-                    'stock' => $variant->quantity,
-                    'unit' => $variant->unit->short_name ?? '',
-                ];
-            }
+        $term = trim((string) $request->get('q', ''));
+        if (mb_strlen($term) < 2) {
+            return response()->json([]);
         }
-        
+        $compactTerm = mb_strtolower((string) preg_replace('/\s+/', '', $term));
+        $parsedUnitSearch = null;
+        if (preg_match('/^(\d+(?:\.\d+)?)([a-z]+)$/i', $compactTerm, $matches)) {
+            $parsedUnitSearch = [
+                'value' => $matches[1],
+                'unit' => $matches[2],
+            ];
+        }
+
+        $variants = ProductVariant::query()
+            ->with([
+                'product:id,name,description,image',
+                'unit:id,name,short_name',
+            ])
+            ->whereHas('product')
+            ->where(function ($query) use ($term, $parsedUnitSearch) {
+                $query->where('sku', 'like', "%{$term}%")
+                    ->orWhere('unit_value', 'like', "%{$term}%")
+                    ->orWhereHas('unit', function ($unitQuery) use ($term) {
+                        $unitQuery->where('short_name', 'like', "%{$term}%")
+                            ->orWhere('name', 'like', "%{$term}%");
+                    })
+                    ->orWhereHas('product', function ($productQuery) use ($term) {
+                        $productQuery->where('name', 'like', "%{$term}%")
+                            ->orWhere('description', 'like', "%{$term}%");
+                    });
+
+                if ($parsedUnitSearch) {
+                    $query->orWhere(function ($unitValueQuery) use ($parsedUnitSearch) {
+                        $unitValueQuery
+                            ->where('unit_value', 'like', $parsedUnitSearch['value'] . '%')
+                            ->whereHas('unit', function ($unitQuery) use ($parsedUnitSearch) {
+                                $unitQuery->where('short_name', 'like', $parsedUnitSearch['unit'] . '%')
+                                    ->orWhere('name', 'like', $parsedUnitSearch['unit'] . '%');
+                            });
+                    });
+                }
+            })
+            ->orderByDesc('quantity')
+            ->orderBy('sku')
+            ->limit(30)
+            ->get();
+
+        $results = $variants->map(function (ProductVariant $variant) {
+            $product = $variant->product;
+            if (!$product) {
+                return null;
+            }
+
+            $unitLabel = $this->buildVariantUnitLabel($variant);
+            $displayName = $this->buildVariantDisplayName($variant);
+
+            return [
+                'id' => $variant->id,
+                'name' => $product->name,
+                'display_name' => $displayName,
+                'product_name' => $product->name,
+                'unit_label' => $unitLabel,
+                'image' => $variant->image ?: $product->image,
+                'sku' => $variant->sku,
+                'selling_price' => (float) ($variant->selling_price ?? 0),
+                'limit_price' => (float) ($variant->limit_price ?? 0),
+                'stock' => (int) ($variant->quantity ?? 0),
+                'unit' => $variant->unit->short_name ?? '',
+            ];
+        })->filter()->values();
+
         return response()->json($results);
     }
 
@@ -144,17 +184,35 @@ class OrderController extends Controller
      */
     public function searchResellers(Request $request)
     {
-        $query = $request->get('q');
-        
-        $resellers = Reseller::regular()
+        $query = trim((string) $request->get('q', ''));
+        if (mb_strlen($query) < 2) {
+            return response()->json([]);
+        }
+
+        $resellers = Reseller::query()
+            ->whereIn('reseller_type', [
+                Reseller::TYPE_RESELLER,
+                Reseller::TYPE_DIRECT_RESELLER,
+            ])
             ->where(function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%")
                     ->orWhere('business_name', 'like', "%{$query}%")
                     ->orWhere('mobile', 'like', "%{$query}%");
             })
-            ->limit(20)
-            ->get(['id', 'name', 'business_name', 'mobile']);
-            
+            ->orderBy('name')
+            ->limit(25)
+            ->get(['id', 'name', 'business_name', 'mobile', 'reseller_type'])
+            ->map(function (Reseller $reseller) {
+                return [
+                    'id' => $reseller->id,
+                    'name' => $reseller->name,
+                    'business_name' => $reseller->business_name,
+                    'mobile' => $reseller->mobile,
+                    'reseller_type' => $reseller->reseller_type,
+                    'type_label' => $reseller->reseller_type === Reseller::TYPE_DIRECT_RESELLER ? 'Direct Reseller' : 'Reseller',
+                ];
+            });
+
         return response()->json($resellers);
     }
 
@@ -165,19 +223,23 @@ class OrderController extends Controller
     {
         $validated = $request->validate([
             'order_type' => 'required|in:reseller,direct',
-            'order_date' => 'required|date',
             'reseller_id' => [
                 'required_if:order_type,reseller',
                 'nullable',
-                Rule::exists('resellers', 'id')->where('reseller_type', Reseller::TYPE_RESELLER),
+                Rule::exists('resellers', 'id')->where(function ($query) {
+                    $query->whereIn('reseller_type', [
+                        Reseller::TYPE_RESELLER,
+                        Reseller::TYPE_DIRECT_RESELLER,
+                    ]);
+                }),
             ],
             
             // Customer Details
             'customer.name' => 'required|string|max:255',
-            'customer.mobile' => 'required|string|max:20',
-            'customer.landline' => 'nullable|string|max:20',
+            'customer.mobile' => ['required', 'regex:/^\d{10}$/'],
+            'customer.landline' => ['nullable', 'regex:/^\d{10}$/'],
             'customer.address' => 'required|string',
-            'customer.city' => 'nullable|string', // Optional if we just store address string
+            'customer.city_id' => 'required|exists:cities,id',
             
             // Products
             'items' => 'required|array|min:1',
@@ -192,13 +254,25 @@ class OrderController extends Controller
             'call_status' => 'nullable|string',
             'sales_note' => 'nullable|string',
             'order_status' => 'nullable|string',
-            'customer.city' => 'nullable|string',
             'customer.district' => 'nullable|string',
             'customer.province' => 'nullable|string',
         ]);
 
+        $this->validateCourierChargeSelection(
+            isset($validated['courier_id']) ? (int) $validated['courier_id'] : null,
+            $validated['courier_charge'] ?? null
+        );
+
+        if (empty($validated['courier_id'])) {
+            $validated['courier_charge'] = 0;
+        } else {
+            $validated['courier_charge'] = (float) $this->normalizeRateForComparison($validated['courier_charge']);
+        }
+
         DB::beginTransaction();
         try {
+            $selectedCity = City::findOrFail($validated['customer']['city_id']);
+
             // 1. Create or Update Customer
             // Strategy: Search by mobile number, if exists update, else create
             // Note: User logic "customer we specify" implies we can create new on the fly.
@@ -208,7 +282,7 @@ class OrderController extends Controller
                     'name' => $validated['customer']['name'],
                     'landline' => $validated['customer']['landline'] ?? null,
                     'address' => $validated['customer']['address'],
-                    'city' => $validated['customer']['city'] ?? null, // Assuming mixed use or text field
+                    'city' => $selectedCity->city_name,
                     // Add other fields if strictly required by schema (e.g. country default)
                     'country' => 'Sri Lanka', // Default
                 ]
@@ -219,7 +293,7 @@ class OrderController extends Controller
             
             $order = new Order();
             $order->order_number = $orderNumber;
-            $order->order_date = $validated['order_date'];
+            $order->order_date = now()->toDateString();
             $order->order_type = $validated['order_type'];
             $order->user_id = Auth::id(); // Admin creating the order
             $order->reseller_id = $validated['order_type'] === 'reseller' ? $validated['reseller_id'] : null;
@@ -240,9 +314,9 @@ class OrderController extends Controller
             $order->sales_note = $validated['sales_note'] ?? null;
             
             // Capture Address Snapshot
-            $order->customer_city = $validated['customer']['city'] ?? null;
-            $order->customer_district = $validated['customer']['district'] ?? null;
-            $order->customer_province = $validated['customer']['province'] ?? null;
+            $order->customer_city = $selectedCity->city_name;
+            $order->customer_district = $selectedCity->district;
+            $order->customer_province = $selectedCity->province;
             
             $order->save();
 
@@ -252,16 +326,17 @@ class OrderController extends Controller
 
             // 3. Process Items
             foreach ($validated['items'] as $itemData) {
-                $variant = ProductVariant::with('product')->find($itemData['id']);
+                $variant = ProductVariant::with(['product', 'unit'])->find($itemData['id']);
+                $variantDisplayName = $this->buildVariantDisplayName($variant);
                 
                 // Stock Validation (Optional: Validation rule could handle this, but explicit check is safer)
                 if ($variant->quantity < $itemData['quantity']) {
-                    throw new \Exception("Insufficient stock for {$variant->product->name} (SKU: {$variant->sku})");
+                    throw new \Exception("Insufficient stock for {$variantDisplayName} (SKU: {$variant->sku})");
                 }
                 
                 // Limit Price Validation
                 if ($itemData['selling_price'] < $variant->limit_price) {
-                     throw new \Exception("Selling price for {$variant->product->name} (SKU: {$variant->sku}) cannot be lower than limit price ({$variant->limit_price})");
+                     throw new \Exception("Selling price for {$variantDisplayName} (SKU: {$variant->sku}) cannot be lower than limit price ({$variant->limit_price})");
                 }
 
                 $qty = $itemData['quantity'];
@@ -276,7 +351,7 @@ class OrderController extends Controller
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_variant_id' => $variant->id,
-                    'product_name' => $variant->product->name, // Snapshot
+                    'product_name' => $variantDisplayName, // Snapshot
                     'sku' => $variant->sku,
                     'quantity' => $qty,
                     'unit_price' => $unitPrice,
@@ -329,8 +404,9 @@ class OrderController extends Controller
      */
     private function generateOrderNumber()
     {
-        $dateStr = date('Ymd');
-        $latestOrder = Order::whereDate('created_at', today())->latest()->first();
+        $today = now();
+        $dateStr = $today->format('Ymd');
+        $latestOrder = Order::whereDate('created_at', $today->toDateString())->latest()->first();
         
         $sequence = 1;
         if ($latestOrder) {
@@ -368,7 +444,7 @@ class OrderController extends Controller
      */
     public function show(Order $order)
     {
-        $order->load(['items.variant', 'customer', 'reseller', 'user']);
+        $order->load(['items.variant.unit', 'customer', 'reseller', 'user']);
         return view('orders.show', compact('order'));
     }
 
@@ -377,7 +453,7 @@ class OrderController extends Controller
      */
     public function downloadPdf(Order $order)
     {
-        $order->load(['items.variant', 'customer', 'reseller', 'user']);
+        $order->load(['items.variant.unit', 'customer', 'reseller', 'user']);
         $pdf = Pdf::loadView('orders.pdf', compact('order'));
         return $pdf->download('invoice-' . $order->order_number . '.pdf');
     }
@@ -387,15 +463,17 @@ class OrderController extends Controller
      */
     public function edit(Order $order)
     {
-        $order->load(['items.variant', 'customer', 'reseller']);
+        $order->load(['items.variant.unit', 'customer', 'reseller']);
         $couriers = Courier::all();
-        $slData = config('locations.sri_lanka');
+        $cities = City::orderBy('city_name')->get(['id', 'city_name', 'district', 'province', 'postal_code']);
+        $matchedCity = City::where('city_name', $order->customer_city ?: ($order->customer->city ?? ''))->first();
+        $order->selected_city_id = $matchedCity?->id;
         
         return view('orders.edit', [
             'order' => $order,
             'orderFull' => $order,
             'couriers' => $couriers,
-            'slData' => $slData
+            'cities' => $cities,
         ]);
     }
 
@@ -406,19 +484,23 @@ class OrderController extends Controller
     {
         $validated = $request->validate([
             'order_type' => 'required|in:reseller,direct',
-            'order_date' => 'required|date',
             'reseller_id' => [
                 'required_if:order_type,reseller',
                 'nullable',
-                Rule::exists('resellers', 'id')->where('reseller_type', Reseller::TYPE_RESELLER),
+                Rule::exists('resellers', 'id')->where(function ($query) {
+                    $query->whereIn('reseller_type', [
+                        Reseller::TYPE_RESELLER,
+                        Reseller::TYPE_DIRECT_RESELLER,
+                    ]);
+                }),
             ],
             
             // Customer Details
             'customer.name' => 'required|string|max:255',
-            'customer.mobile' => 'required|string|max:20',
-            'customer.landline' => 'nullable|string|max:20',
+            'customer.mobile' => ['required', 'regex:/^\d{10}$/'],
+            'customer.landline' => ['nullable', 'regex:/^\d{10}$/'],
             'customer.address' => 'required|string',
-            'customer.city' => 'nullable|string',
+            'customer.city_id' => 'required|exists:cities,id',
             
             // Products
             'items' => 'required|array|min:1',
@@ -433,13 +515,25 @@ class OrderController extends Controller
             'call_status' => 'nullable|string',
             'sales_note' => 'nullable|string',
             'order_status' => 'nullable|string',
-            'customer.city' => 'nullable|string',
             'customer.district' => 'nullable|string',
             'customer.province' => 'nullable|string',
         ]);
 
+        $this->validateCourierChargeSelection(
+            isset($validated['courier_id']) ? (int) $validated['courier_id'] : null,
+            $validated['courier_charge'] ?? null
+        );
+
+        if (empty($validated['courier_id'])) {
+            $validated['courier_charge'] = 0;
+        } else {
+            $validated['courier_charge'] = (float) $this->normalizeRateForComparison($validated['courier_charge']);
+        }
+
         DB::beginTransaction();
         try {
+            $selectedCity = City::findOrFail($validated['customer']['city_id']);
+
             // 1. Revert Stock for OLD items
             foreach ($order->items as $item) {
                 if ($item->product_variant_id) {
@@ -460,12 +554,12 @@ class OrderController extends Controller
                     'name' => $validated['customer']['name'],
                     'landline' => $validated['customer']['landline'] ?? null,
                     'address' => $validated['customer']['address'],
-                    'city' => $validated['customer']['city'] ?? null,
+                    'city' => $selectedCity->city_name,
                     'country' => 'Sri Lanka',
                 ]
             );
 
-            $order->order_date = $validated['order_date'];
+            // Order date is system-managed and not editable after creation.
             $order->order_type = $validated['order_type'];
             $order->reseller_id = $validated['order_type'] === 'reseller' ? $validated['reseller_id'] : null;
             $order->customer_id = $customer->id;
@@ -482,9 +576,9 @@ class OrderController extends Controller
             $order->call_status = $validated['call_status'] ?? 'pending';
             $order->sales_note = $validated['sales_note'] ?? null;
              // Capture Address Snapshot
-            $order->customer_city = $validated['customer']['city'] ?? null;
-            $order->customer_district = $validated['customer']['district'] ?? null;
-            $order->customer_province = $validated['customer']['province'] ?? null;
+            $order->customer_city = $selectedCity->city_name;
+            $order->customer_district = $selectedCity->district;
+            $order->customer_province = $selectedCity->province;
 
             $order->save();
 
@@ -494,16 +588,17 @@ class OrderController extends Controller
 
             // 4. Process NEW Items
             foreach ($validated['items'] as $itemData) {
-                $variant = ProductVariant::with('product')->find($itemData['id']);
+                $variant = ProductVariant::with(['product', 'unit'])->find($itemData['id']);
+                $variantDisplayName = $this->buildVariantDisplayName($variant);
                 
                 // Stock Check
                 if ($variant->quantity < $itemData['quantity']) {
-                    throw new \Exception("Insufficient stock for {$variant->product->name} (SKU: {$variant->sku})");
+                    throw new \Exception("Insufficient stock for {$variantDisplayName} (SKU: {$variant->sku})");
                 }
                 
                 // Limit Price Check
                 if ($itemData['selling_price'] < $variant->limit_price) {
-                     throw new \Exception("Selling price for {$variant->product->name} (SKU: {$variant->sku}) cannot be lower than limit price ({$variant->limit_price})");
+                     throw new \Exception("Selling price for {$variantDisplayName} (SKU: {$variant->sku}) cannot be lower than limit price ({$variant->limit_price})");
                 }
 
                 $qty = $itemData['quantity'];
@@ -518,7 +613,7 @@ class OrderController extends Controller
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_variant_id' => $variant->id,
-                    'product_name' => $variant->product->name,
+                    'product_name' => $variantDisplayName,
                     'sku' => $variant->sku,
                     'quantity' => $qty,
                     'unit_price' => $unitPrice,
@@ -659,5 +754,76 @@ class OrderController extends Controller
             'call_status' => $order->call_status,
             'status' => $order->status
         ]);
+    }
+
+    private function buildVariantUnitLabel(ProductVariant $variant): string
+    {
+        $parts = [];
+        if ($variant->unit_value !== null && $variant->unit_value !== '') {
+            $parts[] = trim((string) $variant->unit_value);
+        }
+        if ($variant->unit && $variant->unit->short_name) {
+            $parts[] = trim((string) $variant->unit->short_name);
+        }
+
+        return trim(implode(' ', $parts));
+    }
+
+    private function buildVariantDisplayName(ProductVariant $variant): string
+    {
+        $baseName = $variant->product->name ?? 'Product';
+        $unitLabel = $this->buildVariantUnitLabel($variant);
+
+        if ($unitLabel === '') {
+            return $baseName;
+        }
+
+        return "{$baseName} ({$unitLabel})";
+    }
+
+    private function validateCourierChargeSelection(?int $courierId, $courierCharge): void
+    {
+        if (!$courierId) {
+            return;
+        }
+
+        $courier = Courier::find($courierId);
+        if (!$courier) {
+            throw ValidationException::withMessages([
+                'courier_id' => 'Selected courier is invalid.',
+            ]);
+        }
+
+        $rates = collect($courier->rates ?? [])
+            ->map(fn ($rate) => $this->normalizeRateForComparison($rate))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($rates->isEmpty()) {
+            throw ValidationException::withMessages([
+                'courier_charge' => 'Selected courier has no configured delivery charge values.',
+            ]);
+        }
+
+        $normalizedCharge = $this->normalizeRateForComparison($courierCharge);
+        if ($normalizedCharge === null || !$rates->contains($normalizedCharge)) {
+            throw ValidationException::withMessages([
+                'courier_charge' => 'Select a valid delivery charge from the selected courier list.',
+            ]);
+        }
+    }
+
+    private function normalizeRateForComparison($rate): ?string
+    {
+        if ($rate === null || $rate === '') {
+            return null;
+        }
+
+        if (!is_numeric($rate)) {
+            return null;
+        }
+
+        return number_format((float) $rate, 2, '.', '');
     }
 }

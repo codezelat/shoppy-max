@@ -157,10 +157,10 @@
                     </button>
                 <ul id="dropdown-orders" class="{{ request()->routeIs('orders.*') ? '' : 'hidden' }} py-2 space-y-2">
                     <li>
-                         <a href="{{ route('orders.create') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('orders.create') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Add Order</a>
+                         <a href="{{ route('orders.index') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('orders.index') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Order List</a>
                     </li>
                     <li>
-                         <a href="{{ route('orders.index') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('orders.index') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Order List</a>
+                         <a href="{{ route('orders.create') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('orders.create') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Add Order</a>
                     </li>
                     <li>
                          <a href="{{ route('orders.call-list') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('orders.call-list') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Call List</a>
@@ -231,9 +231,16 @@
             </ul>
         </div>
         
-        <!-- Footer Profile -->
-        <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
-             <div class="flex items-center gap-4">
+        <!-- Footer -->
+        <div class="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+            <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40">
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">System Date & Time</p>
+                <p id="sidebar-system-date" class="mt-1 text-xs font-medium text-gray-700 dark:text-gray-200">--</p>
+                <p id="sidebar-system-time" class="text-sm font-bold text-gray-900 dark:text-white">--:--:--</p>
+                <p id="sidebar-system-zone" class="text-[11px] text-gray-500 dark:text-gray-400">--</p>
+            </div>
+
+            <div class="flex items-center gap-4">
                 <div class="font-medium dark:text-white">
                     <div class="cursor-default">{{ Auth::user()->name }}</div>
                     <form method="POST" action="{{ route('logout') }}">
@@ -285,4 +292,35 @@
             }
         }
     });
+
+    function updateSidebarSystemClock() {
+        const now = new Date();
+        const dateElement = document.getElementById('sidebar-system-date');
+        const timeElement = document.getElementById('sidebar-system-time');
+        const zoneElement = document.getElementById('sidebar-system-zone');
+
+        if (!dateElement || !timeElement || !zoneElement) {
+            return;
+        }
+
+        dateElement.textContent = now.toLocaleDateString(undefined, {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit'
+        });
+
+        timeElement.textContent = now.toLocaleTimeString(undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local Time';
+        zoneElement.textContent = timeZone;
+    }
+
+    updateSidebarSystemClock();
+    setInterval(updateSidebarSystemClock, 1000);
 </script>

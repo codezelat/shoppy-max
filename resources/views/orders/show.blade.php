@@ -73,10 +73,11 @@
                             <p class="font-bold text-gray-900 dark:text-white">{{ $order->reseller->name }}</p>
                             <p class="text-sm text-gray-600 dark:text-gray-400">{{ $order->reseller->business_name }}</p>
                             <p class="text-sm text-gray-600 dark:text-gray-400">Mobile: {{ $order->reseller->mobile }}</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Account: {{ $order->reseller->reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller' }}</p>
                         @else
                             <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Order Info:</h3>
                              <p class="text-sm text-gray-600 dark:text-gray-400">Type: <span class="uppercase font-semibold">{{ $order->order_type }}</span></p>
-                             <p class="text-sm text-gray-600 dark:text-gray-400">Pay Method: <span class="font-medium">{{ $order->payment_method }}</span></p>
+                             <p class="text-sm text-gray-600 dark:text-gray-400">Pay Method: <span class="font-medium">{{ $order->payment_method === 'COD' ? 'Cash on Delivery (COD)' : $order->payment_method }}</span></p>
                              @if($order->courier)
                                 <p class="text-sm text-gray-600 dark:text-gray-400">Courier: {{ $order->courier->name }}</p>
                              @endif

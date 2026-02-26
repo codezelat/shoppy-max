@@ -38,69 +38,98 @@
     </x-slot>
 
     <div x-data="orderManager()" class="py-6" x-cloak>
-        <div class="max-w-[1700px] mx-auto sm:px-4 lg:px-6">
+        <div class="max-w-screen-2xl mx-auto sm:px-4 lg:px-6">
             
             <form @submit.prevent="submitOrder">
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     
                     <!-- LEFT COLUMN (Customer & Order Details) -->
-                    <div class="lg:col-span-4 space-y-6">
+                    <div class="lg:col-span-5 space-y-6">
                         
                         <!-- Order Details Card -->
                         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Order Details</h3>
-                            
-                            <!-- Order Date -->
-                            <div class="mb-4">
-                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order Date</label>
-                                <input type="date" x-model="form.order_date" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                            <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Order Details</h3>
+                                <span class="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-medium"
+                                      :class="form.order_type === 'reseller' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'"
+                                      x-text="form.order_type === 'reseller' ? 'Reseller Order' : 'Direct Order'"></span>
                             </div>
 
-                            <!-- Order ID -->
-                            <div class="mb-4">
-                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order ID</label>
-                                <input type="text" value="{{ $nextOrderNumber }}" readonly class="bg-gray-100 border border-gray-300 text-gray-500 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-gray-400">
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 mb-4">
+                                <div>
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order Date</label>
+                                    <input type="text" x-model="form.order_date" readonly class="bg-gray-100 border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Auto from {{ config('app.timezone') }}</p>
+                                </div>
+                                <div>
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order ID</label>
+                                    <input type="text" value="{{ $nextOrderNumber }}" readonly class="bg-gray-100 border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
+                                </div>
                             </div>
 
-                            <!-- Sales Users (Reseller Selection) -->
                             <div class="mb-4">
-                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Sales Users / Reseller</label>
-                                <div class="relative">
-                                    <input type="text" 
-                                           x-model="resellerSearch" 
-                                           @input.debounce.300ms="searchResellers()" 
-                                           placeholder="Search Reseller..." 
+                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order Type</label>
+                                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                    <label class="flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
+                                        <input type="radio" x-model="form.order_type" value="direct" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
+                                        <span class="ml-2 text-gray-700 dark:text-gray-200">Direct Order</span>
+                                    </label>
+                                    <label class="flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
+                                        <input type="radio" x-model="form.order_type" value="reseller" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
+                                        <span class="ml-2 text-gray-700 dark:text-gray-200">Reseller Order</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Reseller Selection -->
+                            <div x-show="form.order_type === 'reseller'" x-transition>
+                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Select Reseller Account <span class="text-red-500">*</span></label>
+                                <div class="relative" @click.outside="resellers = []">
+                                    <input type="text"
+                                           x-model="resellerSearch"
+                                           @input.debounce.300ms="searchResellers()"
+                                           @focus="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
+                                           @click="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
+                                           placeholder="Search reseller/direct reseller by name, business or mobile..."
                                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                    
-                                    <!-- Dropdown -->
-                                    <div x-show="resellers.length > 0 && !selectedReseller" @click.outside="resellers = []" class="absolute z-20 w-full bg-white dark:bg-gray-700 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto border border-gray-100 dark:border-gray-600">
+
+                                    <div x-show="resellers.length > 0 && !selectedReseller" class="absolute z-20 w-full bg-white dark:bg-gray-700 rounded-lg shadow-lg mt-1 max-h-56 overflow-y-auto border border-gray-100 dark:border-gray-600">
                                         <ul>
                                             <template x-for="reseller in resellers" :key="reseller.id">
-                                                <li @click="selectReseller(reseller)" class="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
-                                                    <div class="font-semibold" x-text="reseller.name"></div>
-                                                    <div class="text-xs text-gray-500 dark:text-gray-400" x-text="reseller.mobile"></div>
+                                                <li @click="selectReseller(reseller)" class="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600 last:border-0">
+                                                    <div class="flex items-center justify-between gap-2">
+                                                        <div class="font-semibold" x-text="reseller.name"></div>
+                                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="reseller.type_label || (reseller.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
+                                                    </div>
+                                                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                        <span x-text="reseller.mobile"></span>
+                                                        <span x-show="reseller.business_name"> | </span>
+                                                        <span x-show="reseller.business_name" x-text="reseller.business_name"></span>
+                                                    </div>
                                                 </li>
                                             </template>
                                         </ul>
                                     </div>
+                                    <p x-show="(resellerSearch || '').trim().length >= 2 && resellers.length === 0 && !selectedReseller" class="mt-1 text-xs text-gray-500 dark:text-gray-400">No matching reseller accounts found.</p>
                                 </div>
-                                
-                                <!-- Selected Reseller Badge -->
-                                <div x-show="selectedReseller" class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center animate-fade-in-down">
+
+                                <div x-show="selectedReseller" class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center">
                                     <div>
-                                        <div class="text-sm font-bold text-blue-800 dark:text-blue-300" x-text="selectedReseller?.name"></div>
-                                        <div class="text-xs text-blue-600 dark:text-blue-400" x-text="selectedReseller?.mobile"></div>
+                                        <div class="text-sm font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                                            <span x-text="selectedReseller?.name"></span>
+                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="selectedReseller?.type_label || (selectedReseller?.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
+                                        </div>
+                                        <div class="text-xs text-blue-600 dark:text-blue-400">
+                                            <span x-text="selectedReseller?.mobile"></span>
+                                            <span x-show="selectedReseller?.business_name"> | </span>
+                                            <span x-show="selectedReseller?.business_name" x-text="selectedReseller?.business_name"></span>
+                                        </div>
                                     </div>
                                     <button type="button" @click="clearReseller()" class="text-red-500 hover:text-red-700 dark:hover:text-red-400">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                     </button>
                                 </div>
-                                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                    <label class="inline-flex items-center">
-                                        <input type="checkbox" x-model="isResellerOrder" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
-                                        <span class="ml-2">Mark as Reseller Order</span>
-                                    </label>
-                                </div>
+                                <p x-show="form.order_type === 'reseller' && !form.reseller_id" class="mt-1 text-xs text-red-500">Select a reseller account to continue.</p>
                             </div>
                         </div>
 
@@ -108,64 +137,97 @@
                         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
                             <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Customer Details</h3>
                             
-                            <div class="space-y-4">
-                                <!-- Name -->
-                                <div>
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div class="md:col-span-2">
                                     <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Name <span class="text-red-500">*</span></label>
                                     <input type="text" x-model="form.customer.name" placeholder="Customer Name" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required>
                                 </div>
 
-                                <!-- Primary Mobile -->
                                 <div>
                                     <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Primary Mobile <span class="text-red-500">*</span></label>
-                                    <input type="text" x-model="form.customer.mobile" placeholder="07xxxxxxxx" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required>
+                                    <input
+                                        type="text"
+                                        x-model="form.customer.mobile"
+                                        @input="form.customer.mobile = $event.target.value.replace(/\D/g, '').slice(0, 10)"
+                                        placeholder="07xxxxxxxx"
+                                        inputmode="numeric"
+                                        pattern="[0-9]{10}"
+                                        maxlength="10"
+                                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                        required
+                                    >
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Must be exactly 10 digits (numbers only).</p>
                                 </div>
 
-                                <!-- Secondary Mobile -->
                                 <div>
                                     <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Secondary Mobile</label>
-                                    <input type="text" x-model="form.customer.landline" placeholder="Optional" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                                    <input
+                                        type="text"
+                                        x-model="form.customer.landline"
+                                        @input="form.customer.landline = $event.target.value.replace(/\D/g, '').slice(0, 10)"
+                                        placeholder="Optional"
+                                        inputmode="numeric"
+                                        pattern="[0-9]{10}"
+                                        maxlength="10"
+                                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                    >
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional, but if entered it must be 10 digits.</p>
                                 </div>
 
-                                <!-- Address -->
-                                <div>
+                                <div class="md:col-span-2">
                                     <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Address <span class="text-red-500">*</span></label>
                                     <textarea x-model="form.customer.address" rows="3" placeholder="Street layout, number..." class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" required></textarea>
                                 </div>
 
-                                <!-- City -->
-                                <div>
+                                <div class="md:col-span-2">
                                     <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">City <span class="text-red-500">*</span></label>
-                                    <input type="text" x-model="form.customer.city" placeholder="City" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                                    <div class="relative" @click.outside="showCityDropdown = false">
+                                        <input type="text"
+                                               x-model="citySearch"
+                                               @focus="showCityDropdown = true; filterCities()"
+                                               @click="showCityDropdown = true; filterCities()"
+                                               @input="onCitySearchInput()"
+                                               placeholder="Search city from master list..."
+                                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                               required>
+                                        <div x-show="showCityDropdown" class="absolute z-30 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700 max-h-56 overflow-y-auto">
+                                            <template x-if="filteredCities.length === 0">
+                                                <div class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No cities found.</div>
+                                            </template>
+                                            <template x-for="city in filteredCities" :key="city.id">
+                                                <button type="button" @click="selectCity(city)" class="w-full text-left px-3 py-2 hover:bg-blue-50 dark:hover:bg-gray-600">
+                                                    <div class="text-sm font-medium text-gray-900 dark:text-white" x-text="city.city_name"></div>
+                                                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                                                        <span x-text="city.district"></span>
+                                                        <span> | </span>
+                                                        <span x-text="city.province || '-'"></span>
+                                                        <span> | </span>
+                                                        <span x-text="city.postal_code || '-'"></span>
+                                                    </div>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" x-model="form.customer.city_id">
+                                    <p x-show="form.customer.city_id" class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                                        Selected:
+                                        <span x-text="form.customer.city"></span>
+                                        <span> | </span>
+                                        <span x-text="form.customer.district || '-'"></span>
+                                        <span> | </span>
+                                        <span x-text="form.customer.province || '-'"></span>
+                                    </p>
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">City must be selected from `Cities` master list.</p>
                                 </div>
 
-                                <!-- District -->
                                 <div>
-                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">District <span class="text-red-500">*</span></label>
-                                    <select x-model="form.customer.district" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                        <option value="">Select District</option>
-                                        <template x-for="dist in availableDistricts" :key="dist">
-                                            <option :value="dist" x-text="dist"></option>
-                                        </template>
-                                    </select>
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">District</label>
+                                    <input type="text" x-model="form.customer.district" readonly class="bg-gray-100 border border-gray-300 text-gray-600 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
                                 </div>
 
-                                <!-- Country -->
                                 <div>
-                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Country <span class="text-red-500">*</span></label>
-                                    <select class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                        <option value="Sri Lanka">Sri Lanka</option>
-                                    </select>
-                                </div>
-                                
-                                <!-- Hidden Province Field -->
-                                <div class="hidden">
-                                     <select x-model="form.customer.province">
-                                        <option value="">Select Province</option>
-                                         <template x-for="(dists, prov) in provinces" :key="prov">
-                                            <option :value="prov" x-text="prov"></option>
-                                        </template>
-                                     </select>
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Province</label>
+                                    <input type="text" x-model="form.customer.province" readonly class="bg-gray-100 border border-gray-300 text-gray-600 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
                                 </div>
                             </div>
                         </div>
@@ -179,24 +241,31 @@
                     </div>
 
                     <!-- RIGHT COLUMN (Products & Payment) -->
-                    <div class="lg:col-span-8 space-y-6">
+                    <div class="lg:col-span-7 space-y-6">
                         
                         <!-- Products Card -->
                         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 min-h-[500px]">
                             
                             <!-- Product Search Bar -->
                             <div class="mb-6 relative">
-                                <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Choose Product</label>
-                                <div class="flex">
-                                     <input type="text" 
-                                       x-model="productSearch" 
-                                       @input.debounce.300ms="searchProducts()" 
-                                       placeholder="Search by Name or SKU..." 
-                                       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-4 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                     <button type="button" class="ml-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-lg border border-gray-300 dark:border-gray-600">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <label class="block text-sm font-medium text-gray-900 dark:text-white">Choose Product</label>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                                        Items: <span class="font-semibold text-gray-700 dark:text-gray-200" x-text="form.items.length"></span>
+                                        | Qty: <span class="font-semibold text-gray-700 dark:text-gray-200" x-text="itemsCount"></span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                                     <input type="text"
+                                       x-model="productSearch"
+                                       @input.debounce.300ms="searchProducts()"
+                                       placeholder="Search by name or SKU..."
+                                       class="sm:col-span-9 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                                     <button type="button" @click="productSearch='';productResults=[]" class="sm:col-span-3 text-sm font-medium px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg border border-gray-300 dark:border-gray-600">
+                                        Clear Search
                                      </button>
                                 </div>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Start typing at least 2 characters to search products.</p>
                                
                                 <!-- Search Results Dropdown -->
                                 <div x-show="productResults.length > 0" @click.outside="productResults = []" class="absolute z-30 w-full bg-white dark:bg-gray-700 rounded-lg shadow-xl mt-1 max-h-80 overflow-y-auto border border-gray-100 dark:border-gray-600">
@@ -210,6 +279,7 @@
                                                     <div class="font-semibold text-gray-900 dark:text-white text-sm" x-text="product.name"></div>
                                                     <div class="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                                         <span class="bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded mr-2" x-text="product.sku"></span>
+                                                        <span x-show="product.unit_label" class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded mr-2" x-text="product.unit_label"></span>
                                                         <span :class="product.stock > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'" x-text="product.stock > 0 ? product.stock + ' in Stock' : 'Out of Stock'"></span>
                                                     </div>
                                                 </div>
@@ -244,7 +314,10 @@
                                                 </td>
                                                 <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">
                                                     <div x-text="item.name"></div>
-                                                    <div class="text-xs text-gray-500 dark:text-gray-400" x-text="item.sku"></div>
+                                                    <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                                                        <span x-text="item.sku"></span>
+                                                        <span x-show="item.unit_label" class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded" x-text="item.unit_label"></span>
+                                                    </div>
                                                     <div x-show="item.selling_price < item.limit_price" class="text-xs text-red-500 min-w-max font-bold mt-1">
                                                         Below Limit (<span x-text="item.limit_price"></span>)
                                                     </div>
@@ -288,58 +361,45 @@
                             </div>
                         </div>
 
-                        <!-- Payment & Information Section -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            
-                            <!-- Add Payment Details Card -->
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                                <h3 class="text-lg font-bold text-blue-700 dark:text-blue-500 mb-4">Add Payment</h3>
-                                
-                                <div class="space-y-4">
-                                    <!-- Sub Total -->
+                        <!-- Payment & Summary -->
+                        <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                            <div class="xl:col-span-7 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                                <h3 class="text-lg font-bold text-blue-700 dark:text-blue-500 mb-4">Payment Setup</h3>
+
+                                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <div>
                                         <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Sub Total</label>
                                         <div class="w-full bg-gray-100 border border-gray-300 text-gray-800 text-sm rounded-lg p-2.5 font-bold dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                             <span x-text="subTotal.toFixed(2)"></span>
                                         </div>
                                     </div>
-
-                                    <!-- Courier -->
                                     <div>
                                         <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Courier</label>
-                                        <select x-model="form.courier_id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                                        <select x-model="form.courier_id" @change="onCourierChange()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
                                             <option value="">Select Courier</option>
                                             @foreach($couriers as $courier)
                                                 <option value="{{ $courier->id }}">{{ $courier->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
-
-                                    <!-- Delivery Charge -->
                                     <div>
                                         <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Delivery Charge</label>
-                                        <input type="number" x-model="form.courier_charge" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" step="0.01">
+                                        <select x-model="form.courier_charge" :disabled="!form.courier_id || selectedCourierRates.length === 0" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 disabled:bg-gray-100 disabled:text-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400">
+                                            <option value="" x-text="!form.courier_id ? 'Select courier first' : (selectedCourierRates.length === 0 ? 'No configured charges' : 'Select delivery charge')"></option>
+                                            <template x-for="rate in selectedCourierRates" :key="`create-rate-${form.courier_id}-${rate}`">
+                                                <option :value="rate" x-text="`LKR ${rate}`"></option>
+                                            </template>
+                                        </select>
+                                        <p x-show="form.courier_id && selectedCourierRates.length === 0" class="mt-1 text-xs text-amber-600 dark:text-amber-400">No delivery charge values configured for selected courier.</p>
                                     </div>
-
-                                    <!-- Commission Agent (Reseller) -->
-                                    <div x-show="isResellerOrder">
-                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Commission Agent</label>
-                                        <div class="w-full bg-gray-100 border border-gray-300 text-gray-800 text-sm rounded-lg p-2.5 font-bold dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                            <span x-text="totalCommission"></span>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Payment Method -->
                                     <div>
                                         <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Payment Method</label>
                                         <select x-model="form.payment_method" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                                            <option value="Cash on Delivery">Cash on Delivery</option>
+                                            <option value="COD">Cash on Delivery (COD)</option>
                                             <option value="Bank Transfer">Bank Transfer</option>
                                             <option value="Online Payment">Online Payment</option>
                                         </select>
                                     </div>
-
-                                     <!-- Call Status -->
                                     <div>
                                         <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Call Status</label>
                                         <select x-model="form.call_status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
@@ -348,45 +408,58 @@
                                             <option value="cancel">Cancel</option>
                                         </select>
                                     </div>
+                                    <div x-show="form.order_type === 'reseller'">
+                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Commission</label>
+                                        <div class="w-full bg-gray-100 border border-gray-300 text-gray-800 text-sm rounded-lg p-2.5 font-bold dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                            <span x-text="totalCommission"></span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Summary Card -->
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 h-fit">
-                                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Summary</h3>
-                                
-                                <div class="space-y-4">
-                                    <div>
-                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Net Total</label>
-                                        <div class="w-full bg-gray-200 border border-gray-300 text-gray-900 text-lg rounded-lg p-3 font-bold dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                            <span x-text="totalAmount"></span>
+                            <div class="xl:col-span-5">
+                                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 h-fit xl:sticky xl:top-24">
+                                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Summary</h3>
+
+                                    <div class="space-y-3 text-sm">
+                                        <div class="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                                            <span>Line Items</span>
+                                            <span class="font-semibold" x-text="form.items.length"></span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                                            <span>Total Quantity</span>
+                                            <span class="font-semibold" x-text="itemsCount"></span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                                            <span>Sub Total</span>
+                                            <span class="font-semibold" x-text="subTotal.toFixed(2)"></span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                                            <span>Delivery</span>
+                                            <span class="font-semibold" x-text="(parseFloat(form.courier_charge) || 0).toFixed(2)"></span>
+                                        </div>
+                                        <div class="border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between text-base text-gray-900 dark:text-white">
+                                            <span class="font-semibold">Net Total</span>
+                                            <span class="font-bold" x-text="totalAmount"></span>
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Balance</label>
-                                        <div class="w-full bg-gray-200 border border-gray-300 text-gray-900 text-lg rounded-lg p-3 font-bold dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                            <span x-text="totalAmount"></span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="flex items-center mt-4">
-                                         <input type="checkbox" id="send_sms" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
-                                         <label for="send_sms" class="ml-2 text-sm text-gray-900 dark:text-gray-300">Send sms (Confirm orders only)</label>
-                                    </div>
-
-                                    <div class="pt-4 mt-4">
-                                        <button type="submit" 
+                                    <div class="pt-4 mt-4 space-y-2">
+                                        <button type="submit"
                                                 class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-3 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition duration-200"
                                                 :disabled="form.items.length === 0 || isSubmitting">
                                             <span x-show="!isSubmitting">Save Order</span>
                                             <span x-show="isSubmitting">Processing...</span>
                                         </button>
-                                        <p class="text-center text-xs text-gray-400 dark:text-gray-500 mt-2">Instead of Clicky IT Solution</p>
+                                        <button type="button" @click="clearItems()" class="w-full text-gray-700 bg-gray-100 hover:bg-gray-200 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 focus:outline-none">
+                                            Clear Items
+                                        </button>
+                                        <a href="{{ route('orders.index') }}" class="block w-full text-center text-gray-700 bg-white hover:bg-gray-100 border border-gray-300 focus:ring-4 focus:ring-gray-200 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700">
+                                            Cancel
+                                        </a>
                                     </div>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                     
@@ -400,7 +473,6 @@
         function orderManager() {
             return {
                 isSubmitting: false,
-                isResellerOrder: false,
                 resellerSearch: '',
                 resellers: [],
                 selectedReseller: null,
@@ -408,17 +480,20 @@
                 productSearch: '',
                 productResults: [],
 
-                provinces: @json($slData),
-                availableDistricts: [],
+                cities: @json($cities),
+                citySearch: '',
+                filteredCities: [],
+                showCityDropdown: false,
+                courierRatesMap: @json($couriers->mapWithKeys(fn($courier) => [(string) $courier->id => collect($courier->rates ?? [])->map(fn($rate) => number_format((float) $rate, 2, '.', ''))->values()->all()])),
                 
                 form: {
                     order_type: 'direct', 
-                    order_date: new Date().toISOString().split('T')[0],
+                    order_date: @json($currentOrderDate),
                     order_status: 'pending',
                     reseller_id: null,
                     courier_id: null,
-                    courier_charge: 0,
-                    payment_method: 'Cash on Delivery',
+                    courier_charge: '',
+                    payment_method: 'COD',
                     call_status: 'pending',
                     sales_note: '',
 
@@ -427,38 +502,121 @@
                         mobile: '',
                         landline: '',
                         address: '',
+                        city_id: null,
                         city: '',
                         district: '',
-                        province: 'Western' 
+                        province: ''
                     },
                     items: []
                 },
-                
-                init() {
-                    this.$watch('isResellerOrder', (val) => {
-                         this.form.order_type = val ? 'reseller' : 'direct';
-                    });
-                    this.$watch('form.customer.province', (value) => {
-                        this.updateDistricts();
-                    });
-                    this.updateDistricts();
+
+                notify(type, message) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: type,
+                            text: message,
+                            timer: 2200,
+                            showConfirmButton: false,
+                            toast: true,
+                            position: 'top-end'
+                        });
+                        return;
+                    }
+                    alert(message);
                 },
                 
-                updateDistricts() {
-                    if (this.provinces) {
-                        let all = [];
-                        Object.values(this.provinces).forEach(d => all = all.concat(d));
-                        this.availableDistricts = all.sort();
+                init() {
+                    this.$watch('form.order_type', (val) => {
+                        if (val !== 'reseller') {
+                            this.selectedReseller = null;
+                            this.form.reseller_id = null;
+                            this.resellerSearch = '';
+                            this.resellers = [];
+                        }
+                    });
+                    this.$watch('form.courier_id', () => this.onCourierChange());
+                    this.filterCities();
+                },
+
+                normalizeRate(rate) {
+                    if (rate === null || rate === '') {
+                        return '';
                     }
+                    const parsed = Number(rate);
+                    if (!Number.isFinite(parsed) || parsed < 0) {
+                        return '';
+                    }
+                    return parsed.toFixed(2);
+                },
+
+                get selectedCourierRates() {
+                    const id = String(this.form.courier_id || '');
+                    const rates = this.courierRatesMap[id] || [];
+                    return Array.isArray(rates) ? rates : [];
+                },
+
+                onCourierChange() {
+                    if (!this.form.courier_id) {
+                        this.form.courier_charge = '';
+                        return;
+                    }
+
+                    const rates = this.selectedCourierRates;
+                    const normalizedCurrent = this.normalizeRate(this.form.courier_charge);
+                    if (rates.length === 0) {
+                        this.form.courier_charge = '';
+                        return;
+                    }
+
+                    this.form.courier_charge = rates.includes(normalizedCurrent) ? normalizedCurrent : '';
+                },
+                
+                filterCities() {
+                    const q = (this.citySearch || '').trim().toLowerCase();
+                    const source = Array.isArray(this.cities) ? this.cities : [];
+
+                    this.filteredCities = source
+                        .filter((city) => {
+                            if (!q) return true;
+                            const haystack = `${city.city_name || ''} ${city.district || ''} ${city.province || ''} ${city.postal_code || ''}`.toLowerCase();
+                            return haystack.includes(q);
+                        })
+                        .slice(0, 30);
+                },
+
+                onCitySearchInput() {
+                    if ((this.citySearch || '').trim() !== (this.form.customer.city || '')) {
+                        this.form.customer.city_id = null;
+                        this.form.customer.city = '';
+                        this.form.customer.district = '';
+                        this.form.customer.province = '';
+                    }
+                    this.showCityDropdown = true;
+                    this.filterCities();
+                },
+
+                selectCity(city) {
+                    this.form.customer.city_id = city.id;
+                    this.form.customer.city = city.city_name;
+                    this.form.customer.district = city.district || '';
+                    this.form.customer.province = city.province || '';
+                    this.citySearch = city.city_name;
+                    this.showCityDropdown = false;
                 },
                 
                 async searchResellers() {
-                    if (this.resellerSearch.length < 2) {
+                    if (this.form.order_type !== 'reseller') {
+                        this.resellers = [];
+                        return;
+                    }
+
+                    const query = (this.resellerSearch || '').trim();
+                    if (query.length < 2) {
                         this.resellers = [];
                         return;
                     }
                     try {
-                        const response = await fetch(`/orders/search-resellers?q=${this.resellerSearch}`);
+                        const response = await fetch(`/orders/search-resellers?q=${encodeURIComponent(query)}`);
                         this.resellers = await response.json();
                     } catch (error) {
                         console.error('Error searching resellers:', error);
@@ -468,7 +626,7 @@
                 selectReseller(reseller) {
                     this.selectedReseller = reseller;
                     this.form.reseller_id = reseller.id;
-                    this.isResellerOrder = true;
+                    this.form.order_type = 'reseller';
                     this.resellers = [];
                     this.resellerSearch = '';
                 },
@@ -476,16 +634,16 @@
                 clearReseller() {
                     this.selectedReseller = null;
                     this.form.reseller_id = null;
-                    this.isResellerOrder = false;
                 },
                 
                 async searchProducts() {
-                    if (this.productSearch.length < 2) {
+                    const query = (this.productSearch || '').trim();
+                    if (query.length < 2) {
                         this.productResults = [];
                         return;
                     }
                     try {
-                        const response = await fetch(`/orders/search-products?q=${this.productSearch}`);
+                        const response = await fetch(`/orders/search-products?q=${encodeURIComponent(query)}`);
                         this.productResults = await response.json();
                     } catch (error) {
                         console.error('Error searching products:', error);
@@ -494,7 +652,7 @@
                 
                 addItem(product) {
                      if (product.stock <= 0) {
-                         alert("This product is out of stock.");
+                         this.notify('warning', 'This product is out of stock.');
                          return;
                      }
                      const existing = this.form.items.find(i => i.id === product.id);
@@ -502,13 +660,14 @@
                          if (existing.quantity < product.stock) {
                              existing.quantity++;
                          } else {
-                             alert("Max stock reached for this item.");
+                             this.notify('warning', 'Max stock reached for this item.');
                          }
                      } else {
                          this.form.items.push({
                              id: product.id,
-                             name: product.name,
+                             name: product.display_name || product.name,
                              sku: product.sku,
+                             unit_label: product.unit_label || '',
                              quantity: 1,
                              selling_price: parseFloat(product.selling_price),
                              limit_price: parseFloat(product.limit_price),
@@ -523,6 +682,18 @@
                 removeItem(index) {
                     this.form.items.splice(index, 1);
                 },
+
+                clearItems() {
+                    if (this.form.items.length === 0) {
+                        return;
+                    }
+                    this.form.items = [];
+                    this.notify('success', 'Items cleared.');
+                },
+
+                get itemsCount() {
+                    return this.form.items.reduce((sum, item) => sum + (parseInt(item.quantity, 10) || 0), 0);
+                },
                 
                 get subTotal() {
                     return this.form.items.reduce((sum, item) => sum + (item.quantity * item.selling_price), 0);
@@ -535,7 +706,7 @@
                 },
                 
                 get totalCommission() {
-                    if (!this.isResellerOrder) return '0.00';
+                    if (this.form.order_type !== 'reseller') return '0.00';
                     return this.form.items.reduce((sum, item) => {
                         const commissionPerUnit = item.selling_price - item.limit_price;
                         return sum + (item.quantity * commissionPerUnit);
@@ -543,13 +714,36 @@
                 },
                 
                 async submitOrder() {
-                    if (this.isResellerOrder && !this.form.reseller_id) {
-                        alert("Please select a reseller.");
+                    if (this.form.order_type === 'reseller' && !this.form.reseller_id) {
+                        this.notify('warning', 'Please select a reseller.');
                         return;
+                    }
+                    if (this.form.courier_id) {
+                        const rates = this.selectedCourierRates;
+                        if (rates.length === 0) {
+                            this.notify('warning', 'Selected courier has no configured delivery charges.');
+                            return;
+                        }
+                        const selectedCharge = this.normalizeRate(this.form.courier_charge);
+                        if (!selectedCharge || !rates.includes(selectedCharge)) {
+                            this.notify('warning', 'Select a delivery charge from the selected courier charge list.');
+                            return;
+                        }
+                        this.form.courier_charge = selectedCharge;
+                    } else {
+                        this.form.courier_charge = 0;
                     }
                     const invalidPrice = this.form.items.find(item => item.selling_price < item.limit_price);
                     if (invalidPrice) {
-                        alert(`Selling price for ${invalidPrice.name} cannot be lower than the limit price (${invalidPrice.limit_price}).`);
+                        this.notify('error', `Selling price for ${invalidPrice.name} cannot be lower than limit price (${invalidPrice.limit_price}).`);
+                        return;
+                    }
+                    if (this.form.items.length === 0) {
+                        this.notify('warning', 'Add at least one item before saving.');
+                        return;
+                    }
+                    if (!this.form.customer.city_id) {
+                        this.notify('warning', 'Please select a city from the list.');
                         return;
                     }
                     
@@ -564,15 +758,16 @@
                             body: JSON.stringify(this.form)
                         });
                         const result = await response.json();
-                        if (result.success) {
+                        if (response.ok && result.success) {
                             window.location.href = result.redirect;
                         } else {
-                            alert("Error: " + result.message);
+                            const firstValidationError = result.errors ? Object.values(result.errors).flat()[0] : null;
+                            this.notify('error', firstValidationError || result.message || 'Failed to save order.');
                             this.isSubmitting = false;
                         }
                     } catch (error) {
                         console.error('Submission error:', error);
-                        alert("An unexpected error occurred.");
+                        this.notify('error', 'An unexpected error occurred.');
                         this.isSubmitting = false;
                     }
                 }

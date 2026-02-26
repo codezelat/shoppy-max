@@ -145,11 +145,12 @@
                     <div class="heading">Reseller Info</div>
                     <strong>{{ $order->reseller->name }}</strong><br>
                     {{ $order->reseller->business_name }}<br>
-                    Mobile: {{ $order->reseller->mobile }}
+                    Mobile: {{ $order->reseller->mobile }}<br>
+                    Account: {{ $order->reseller->reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller' }}
                 @else
                     <div class="heading">Details</div>
                     Type: {{ ucfirst($order->order_type) }}<br>
-                    Pay Method: {{ $order->payment_method }}<br>
+                    Pay Method: {{ $order->payment_method === 'COD' ? 'Cash on Delivery (COD)' : $order->payment_method }}<br>
                     @if($order->courier)
                         Courier: {{ $order->courier->name }}<br>
                     @endif
