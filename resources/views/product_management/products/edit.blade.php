@@ -431,10 +431,81 @@
                     if (! event.target.files.length) return
                     let file = event.target.files[0],
                         reader = new FileReader()
+                    
+                    // Frontend file size check (2MB per file)
+                    const maxSizeMB = 2;
+                    if (file.size > maxSizeMB * 1024 * 1024) {
+                        event.target.value = '';
+                        if (typeof window.Swal !== 'undefined') {
+                            window.Swal.fire({
+                                icon: 'error',
+                                title: 'File Too Large',
+                                text: `The selected image (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds the ${maxSizeMB}MB limit. Please choose a smaller image.`,
+                                background: document.documentElement.classList.contains('dark') ? '#1f2937' : '#fff',
+                                color: document.documentElement.classList.contains('dark') ? '#fff' : '#1f2937'
+                            });
+                        } else {
+                            alert(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max: ${maxSizeMB}MB`);
+                        }
+                        return;
+                    }
+                    
                     reader.readAsDataURL(file)
                     reader.onload = e => callback(e.target.result)
                 }
             }
         }
+
+        // Global form submit guard: check total file size before submitting
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form[enctype="multipart/form-data"]');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const fileInputs = form.querySelectorAll('input[type="file"]');
+                    let totalSize = 0;
+                    const maxPerFile = 2 * 1024 * 1024; // 2MB per file
+                    const maxTotal = 10 * 1024 * 1024; // 10MB total
+                    
+                    for (const input of fileInputs) {
+                        if (input.files && input.files.length > 0) {
+                            const file = input.files[0];
+                            totalSize += file.size;
+                            
+                            if (file.size > maxPerFile) {
+                                e.preventDefault();
+                                if (typeof window.Swal !== 'undefined') {
+                                    window.Swal.fire({
+                                        icon: 'error',
+                                        title: 'File Too Large',
+                                        text: `"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum allowed is 2MB per image.`,
+                                        background: document.documentElement.classList.contains('dark') ? '#1f2937' : '#fff',
+                                        color: document.documentElement.classList.contains('dark') ? '#fff' : '#1f2937'
+                                    });
+                                } else {
+                                    alert(`File "${file.name}" is too large. Max: 2MB per image.`);
+                                }
+                                return;
+                            }
+                        }
+                    }
+                    
+                    if (totalSize > maxTotal) {
+                        e.preventDefault();
+                        if (typeof window.Swal !== 'undefined') {
+                            window.Swal.fire({
+                                icon: 'error',
+                                title: 'Total Upload Too Large',
+                                text: `Total file size (${(totalSize / 1024 / 1024).toFixed(1)}MB) exceeds the 10MB limit. Please reduce image sizes.`,
+                                background: document.documentElement.classList.contains('dark') ? '#1f2937' : '#fff',
+                                color: document.documentElement.classList.contains('dark') ? '#fff' : '#1f2937'
+                            });
+                        } else {
+                            alert(`Total upload size too large. Max: 10MB.`);
+                        }
+                        return;
+                    }
+                });
+            }
+        });
     </script>
 </x-app-layout>

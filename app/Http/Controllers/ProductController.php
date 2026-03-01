@@ -134,15 +134,9 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
-        // Log file details for debugging
-        if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            \Illuminate\Support\Facades\Log::info('Product Image Upload:', [
-                'original_name' => $file->getClientOriginalName(),
-                'mime_type' => $file->getMimeType(),
-                'client_mime_type' => $file->getClientMimeType(),
-                'extension' => $file->getClientOriginalExtension(),
-            ]);
+        // Guard: detect if PHP silently discarded the POST body (post_max_size exceeded)
+        if ($request->method() === 'POST' && empty($request->all()) && empty($_FILES)) {
+            return back()->with('error', 'Upload failed: The file(s) you selected may be too large. Please reduce image sizes and try again. (Server limit: ' . ini_get('post_max_size') . ')');
         }
 
         $validated = $request->validate([
@@ -167,44 +161,51 @@ class ProductController extends Controller
 
         $this->ensureUniqueProductNameIgnoreCase($validated['name']);
 
-        // 1. Handle Product Image
-        if ($request->hasFile('image')) {
-            $validated['image'] = Cloudinary::uploadApi()->upload($request->file('image')->getRealPath(), ['verify' => false])['secure_url'];
-        }
-
-        // 2. Create Product
-        $product = Product::create([
-            'name' => trim($validated['name']),
-            'category_id' => $validated['category_id'],
-            'sub_category_id' => $validated['sub_category_id'] ?? null,
-            'description' => $validated['description'] ?? null,
-            'warranty_period' => $validated['warranty_period'] ?? null,
-            'warranty_period_type' => $validated['warranty_period_type'] ?? null,
-            'image' => $validated['image'] ?? null,
-            'barcode_data' => null, // Or derive from first variant SKU?
-        ]);
-
-        // 3. Create Variants
-        foreach ($request->variants as $index => $variantData) {
-            $variantImage = null;
-            // Handle variant image upload check
-            if ($request->hasFile("variants.{$index}.image")) {
-                 $variantImage = Cloudinary::uploadApi()->upload($request->file("variants.{$index}.image")->getRealPath(), ['verify' => false])['secure_url'];
+        try {
+            // 1. Handle Product Image
+            if ($request->hasFile('image')) {
+                $validated['image'] = $this->safeCloudinaryUpload($request->file('image'));
             }
 
-            $product->variants()->create([
-                'unit_id' => $variantData['unit_id'],
-                'unit_value' => $variantData['unit_value'] ?? null,
-                'sku' => $variantData['sku'],
-                'selling_price' => $variantData['selling_price'],
-                'limit_price' => $variantData['limit_price'] ?? null,
-                'quantity' => 0,
-                'alert_quantity' => $variantData['alert_quantity'] ?? 0,
-                'image' => $variantImage,
+            // 2. Create Product
+            $product = Product::create([
+                'name' => trim($validated['name']),
+                'category_id' => $validated['category_id'],
+                'sub_category_id' => $validated['sub_category_id'] ?? null,
+                'description' => $validated['description'] ?? null,
+                'warranty_period' => $validated['warranty_period'] ?? null,
+                'warranty_period_type' => $validated['warranty_period_type'] ?? null,
+                'image' => $validated['image'] ?? null,
+                'barcode_data' => null,
             ]);
-        }
 
-        return redirect()->route('products.success', $product)->with('success', 'Product created successfully.');
+            // 3. Create Variants
+            foreach ($request->variants as $index => $variantData) {
+                $variantImage = null;
+                if ($request->hasFile("variants.{$index}.image")) {
+                    $variantImage = $this->safeCloudinaryUpload($request->file("variants.{$index}.image"));
+                }
+
+                $product->variants()->create([
+                    'unit_id' => $variantData['unit_id'],
+                    'unit_value' => $variantData['unit_value'] ?? null,
+                    'sku' => $variantData['sku'],
+                    'selling_price' => $variantData['selling_price'],
+                    'limit_price' => $variantData['limit_price'] ?? null,
+                    'quantity' => 0,
+                    'alert_quantity' => $variantData['alert_quantity'] ?? 0,
+                    'image' => $variantImage,
+                ]);
+            }
+
+            return redirect()->route('products.success', $product)->with('success', 'Product created successfully.');
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Product creation failed: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return back()->withInput()->with('error', 'Failed to create product: ' . $e->getMessage());
+        }
     }
 
     public function edit(Product $product)
@@ -218,14 +219,9 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
-        // Log file details for debugging
-        if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            \Illuminate\Support\Facades\Log::info('Product Update - Image Upload:', [
-                'original_name' => $file->getClientOriginalName(),
-                'mime_type' => $file->getMimeType(),
-                'client_mime_type' => $file->getClientMimeType(),
-            ]);
+        // Guard: detect if PHP silently discarded the POST body (post_max_size exceeded)
+        if (empty($request->all()) && empty($_FILES)) {
+            return back()->with('error', 'Upload failed: The file(s) you selected may be too large. Please reduce image sizes and try again. (Server limit: ' . ini_get('post_max_size') . ')');
         }
 
         $validated = $request->validate([
@@ -241,11 +237,7 @@ class ProductController extends Controller
             'variants.*.id' => 'nullable|exists:product_variants,id',
             'variants.*.unit_id' => 'required|exists:units,id',
             'variants.*.unit_value' => 'nullable|string|max:50',
-            'variants.*.sku' => 'required|string|distinct', 
-            // We can't easily use unique rule with ignore inside array validation in Laravel validation simple syntax
-            // We'll rely on DB constraints or manual check if needed, but 'distinct' helps within the request.
-            // For proper DB unique check ignoring self: we might need custom closure or loop check.
-            
+            'variants.*.sku' => 'required|string|distinct',
             'variants.*.selling_price' => 'required|numeric|min:0',
             'variants.*.limit_price' => 'nullable|numeric|min:0',
             'variants.*.alert_quantity' => 'nullable|integer|min:0',
@@ -254,63 +246,72 @@ class ProductController extends Controller
 
         $this->ensureUniqueProductNameIgnoreCase($validated['name'], $product->id);
 
-        // Update Product Image
-        if ($request->hasFile('image')) {
-            $validated['image'] = Cloudinary::uploadApi()->upload($request->file('image')->getRealPath(), ['verify' => false])['secure_url'];
-        }
-        
-        $product->update([
-            'name' => trim($validated['name']),
-            'category_id' => $validated['category_id'],
-            'sub_category_id' => $validated['sub_category_id'] ?? null,
-            'description' => $validated['description'] ?? null,
-            'warranty_period' => $validated['warranty_period'] ?? null,
-            'warranty_period_type' => $validated['warranty_period_type'] ?? null,
-            'image' => $validated['image'] ?? $product->image,
-        ]);
-
-        // Sync Variants
-        $existingVariantIds = [];
-
-        foreach ($request->variants as $index => $variantData) {
-            $variantImage = null;
-             if ($request->hasFile("variants.{$index}.image")) {
-                 $variantImage = Cloudinary::uploadApi()->upload($request->file("variants.{$index}.image")->getRealPath(), ['verify' => false])['secure_url'];
+        try {
+            // Update Product Image
+            if ($request->hasFile('image')) {
+                $validated['image'] = $this->safeCloudinaryUpload($request->file('image'));
             }
+            
+            $product->update([
+                'name' => trim($validated['name']),
+                'category_id' => $validated['category_id'],
+                'sub_category_id' => $validated['sub_category_id'] ?? null,
+                'description' => $validated['description'] ?? null,
+                'warranty_period' => $validated['warranty_period'] ?? null,
+                'warranty_period_type' => $validated['warranty_period_type'] ?? null,
+                'image' => $validated['image'] ?? $product->image,
+            ]);
 
-            if (isset($variantData['id']) && $variantData['id']) {
-                $variant = $product->variants()->find($variantData['id']);
-                if ($variant) {
-                    $variant->update([
+            // Sync Variants
+            $existingVariantIds = [];
+
+            foreach ($request->variants as $index => $variantData) {
+                $variantImage = null;
+                if ($request->hasFile("variants.{$index}.image")) {
+                    $variantImage = $this->safeCloudinaryUpload($request->file("variants.{$index}.image"));
+                }
+
+                if (isset($variantData['id']) && $variantData['id']) {
+                    $variant = $product->variants()->find($variantData['id']);
+                    if ($variant) {
+                        $variant->update([
+                            'unit_id' => $variantData['unit_id'],
+                            'unit_value' => $variantData['unit_value'] ?? null,
+                            'sku' => $variantData['sku'],
+                            'selling_price' => $variantData['selling_price'],
+                            'limit_price' => $variantData['limit_price'] ?? null,
+                            'alert_quantity' => $variantData['alert_quantity'] ?? 0,
+                            'image' => $variantImage ?? $variant->image,
+                        ]);
+                        $existingVariantIds[] = $variant->id;
+                    }
+                } else {
+                    $newVariant = $product->variants()->create([
                         'unit_id' => $variantData['unit_id'],
                         'unit_value' => $variantData['unit_value'] ?? null,
                         'sku' => $variantData['sku'],
                         'selling_price' => $variantData['selling_price'],
                         'limit_price' => $variantData['limit_price'] ?? null,
+                        'quantity' => 0,
                         'alert_quantity' => $variantData['alert_quantity'] ?? 0,
-                        'image' => $variantImage ?? $variant->image,
+                        'image' => $variantImage,
                     ]);
-                    $existingVariantIds[] = $variant->id;
+                    $existingVariantIds[] = $newVariant->id;
                 }
-            } else {
-                $newVariant = $product->variants()->create([
-                    'unit_id' => $variantData['unit_id'],
-                    'unit_value' => $variantData['unit_value'] ?? null,
-                    'sku' => $variantData['sku'],
-                    'selling_price' => $variantData['selling_price'],
-                    'limit_price' => $variantData['limit_price'] ?? null,
-                    'quantity' => 0,
-                    'alert_quantity' => $variantData['alert_quantity'] ?? 0,
-                    'image' => $variantImage,
-                ]);
-                $existingVariantIds[] = $newVariant->id;
             }
+
+            // Delete removed variants
+            $product->variants()->whereNotIn('id', $existingVariantIds)->delete();
+
+            return redirect()->route('products.index')->with('success', 'Product updated successfully.');
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Product update failed: ' . $e->getMessage(), [
+                'product_id' => $product->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return back()->withInput()->with('error', 'Failed to update product: ' . $e->getMessage());
         }
-
-        // Delete removed variants
-        $product->variants()->whereNotIn('id', $existingVariantIds)->delete();
-
-        return redirect()->route('products.index')->with('success', 'Product updated successfully.');
     }
 
     public function destroy(Product $product)
@@ -377,6 +378,27 @@ class ProductController extends Controller
     {
         $product->load(['category', 'subCategory', 'variants.unit']);
         return response()->json($product);
+    }
+
+    /**
+     * Safely upload a file to Cloudinary with error handling.
+     */
+    private function safeCloudinaryUpload($file): string
+    {
+        try {
+            $result = Cloudinary::uploadApi()->upload($file->getRealPath(), [
+                'verify' => false,
+                'timeout' => 60,
+            ]);
+            return $result['secure_url'];
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Cloudinary upload failed: ' . $e->getMessage(), [
+                'file_name' => $file->getClientOriginalName(),
+                'file_size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+            ]);
+            throw new \RuntimeException('Image upload failed: ' . $e->getMessage());
+        }
     }
 
     private function ensureUniqueProductNameIgnoreCase(string $name, ?int $ignoreProductId = null): void

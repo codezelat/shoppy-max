@@ -119,7 +119,7 @@
                     @if(session('success'))
                         Toast.fire({
                             icon: 'success',
-                            title: "{{ session('success') }}",
+                            title: {!! json_encode(session('success')) !!},
                             background: isDarkMode() ? '#1f2937' : '#fff',
                             color: isDarkMode() ? '#fff' : '#1f2937'
                         });
@@ -128,7 +128,7 @@
                     @if(session('error'))
                         Toast.fire({
                             icon: 'error',
-                            title: "{{ session('error') }}",
+                            title: {!! json_encode(session('error')) !!},
                             background: isDarkMode() ? '#1f2937' : '#fff',
                             color: isDarkMode() ? '#fff' : '#1f2937'
                         });
