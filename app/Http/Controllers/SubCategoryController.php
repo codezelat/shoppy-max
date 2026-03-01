@@ -12,20 +12,23 @@ class SubCategoryController extends Controller
     {
         $query = SubCategory::with('category');
 
-        if ($request->has('search')) {
-            $search = $request->input('search');
-            $query->where('name', 'like', "%{$search}%")
-                  ->orWhereHas('category', function($q) use ($search) {
-                      $q->where('name', 'like', "%{$search}%");
-                  });
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
         }
 
-        if ($request->has('category_id') && $request->category_id != '') {
-             $query->where('category_id', $request->category_id);
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhereHas('category', function($catQ) use ($search) {
+                      $catQ->where('name', 'like', "%{$search}%");
+                  });
+            });
         }
 
         $subCategories = $query->paginate(10);
-        $categories = Category::all(); // For filter dropdown
+        $subCategories->appends($request->all());
+        $categories = Category::orderBy('name')->get();
         return view('product_management.sub_categories.index', compact('subCategories', 'categories'));
     }
 
