@@ -276,12 +276,11 @@
                         @endif
                     </span>
                     <span class="muted-line">SKU: {{ $item->variant?->sku ?? '-' }}</span>
-                    @if($item->inventoryUnits->isNotEmpty())
+                    @if($item->trackedUnitCount() > 0)
                         <div class="tracking-list">
-                            <strong>Tracked Labels:</strong><br>
-                            @foreach($item->inventoryUnits as $trackedUnit)
-                                <span class="tracking-unit">{{ $trackedUnit->unit_code }}</span>
-                            @endforeach
+                            <strong>Labels:</strong>
+                            {{ $item->trackedUnitRangeLabel() }}
+                            ({{ number_format($item->trackedUnitCount(), 0) }})
                         </div>
                     @endif
                 </td>

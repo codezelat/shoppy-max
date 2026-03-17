@@ -221,20 +221,11 @@
                                     <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{{ $item->product_name }}</td>
                                     <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{{ $item->sku ?: '-' }}</td>
                                     <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                                        @if($item->inventoryUnits->isNotEmpty())
-                                            <div class="space-y-1">
-                                                @foreach($item->inventoryUnits as $trackedUnit)
-                                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-900/40">
-                                                        <div class="font-mono text-[11px] text-gray-800 dark:text-gray-200">{{ $trackedUnit->unit_code }}</div>
-                                                        <div class="text-[10px] text-gray-500 dark:text-gray-400">
-                                                            {{ $trackedUnit->purchase?->purchase_number ? 'Source: ' . $trackedUnit->purchase->purchase_number : 'Source: Legacy stock' }}
-                                                        </div>
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                        @else
-                                            -
-                                        @endif
+                                        <x-inventory-unit-summary
+                                            :units="$item->trackedUnits()"
+                                            :title="'Tracked Units: ' . $item->product_name"
+                                            :show-source="true"
+                                        />
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{{ $variantLabel !== '' ? $variantLabel : '-' }}</td>
                                     <td class="px-4 py-3 text-sm text-center text-gray-900 dark:text-gray-100">{{ (int) $item->quantity }}</td>

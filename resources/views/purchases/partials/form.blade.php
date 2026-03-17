@@ -81,14 +81,22 @@
     $initialNumber = old('purchase_number', $isEditing ? $purchase->purchase_number : ($suggestedNumber ?? ''));
     $initialStatus = old('status', $isEditing ? ($purchase->status ?? 'pending') : 'pending');
     $statusOptions = \App\Models\Purchase::STATUSES;
+    $statusHelperText = 'New purchases always start at pending.';
     if ($isEditing) {
-        $currentStatusIndex = array_search($purchase->status ?? 'pending', \App\Models\Purchase::STATUSES, true);
+        $currentStatus = $purchase->status ?? 'pending';
+        $currentStatusIndex = array_search($currentStatus, \App\Models\Purchase::STATUSES, true);
         if ($currentStatusIndex === false) {
             $currentStatusIndex = 0;
         }
-        $statusOptions = array_slice(\App\Models\Purchase::STATUSES, $currentStatusIndex, 2);
+        if ($currentStatus === 'verified') {
+            $statusOptions = ['verified'];
+            $statusHelperText = 'Use GRN checking to complete this purchase. The form can keep it at verified only.';
+        } else {
+            $statusOptions = array_slice(\App\Models\Purchase::STATUSES, $currentStatusIndex, 2);
+            $statusHelperText = 'Status can stay the same or move forward one step only.';
+        }
         if (empty($statusOptions)) {
-            $statusOptions = [$purchase->status ?? 'pending'];
+            $statusOptions = [$currentStatus];
         }
     }
     $initialDiscountType = old('discount_type', $isEditing ? ($purchase->discount_type ?: 'fixed') : 'fixed');
@@ -261,13 +269,13 @@
                                 <option value="{{ $statusOption }}" @selected($initialStatus === $statusOption)>{{ ucfirst($statusOption) }}</option>
                             @endforeach
                         </select>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Status can stay the same or move forward one step only.</p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $statusHelperText }}</p>
                     @else
                         <input type="hidden" name="status" value="pending">
                         <div class="inline-flex rounded-lg bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-800 dark:bg-gray-700 dark:text-gray-200">
                             Pending
                         </div>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">New purchases always start at pending.</p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $statusHelperText }}</p>
                     @endif
                     @error('status')
                         <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>

@@ -31,6 +31,8 @@
         $balance = (float) $purchase->net_total - (float) $purchase->paid_amount;
         $totalItemCount = (int) $purchase->items->count();
         $totalQuantityCount = (int) $purchase->items->sum('quantity');
+        $hasStartedReceiving = $purchase->hasStartedReceiving();
+        $structureLocked = $purchase->isStructureLocked();
         $statusStyles = [
             'pending' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
             'checking' => 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
@@ -57,9 +59,13 @@
             </div>
         @endif
 
-        @if(($purchase->status ?? 'pending') !== 'complete')
+        @if(($purchase->status ?? 'pending') !== 'complete' && !$hasStartedReceiving)
             <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-300">
-                Inventory is still pending for this purchase. Stock will be added only when the purchase status is moved to <span class="font-semibold">Complete</span>.
+                Inventory is still pending for this purchase. Open the GRN checking view after verification to start scanning labels into stock.
+            </div>
+        @elseif(($purchase->status ?? 'pending') !== 'complete' && $hasStartedReceiving)
+            <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">
+                GRN scanning is in progress. {{ number_format($purchase->grnProgressUnitsCount(), 0) }} of {{ number_format($purchase->totalTrackedUnitsCount(), 0) }} labels have been scanned, but stock will stay unavailable until the final label completes this GRN.
             </div>
         @else
             <div class="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-300">
@@ -68,7 +74,7 @@
         @endif
 
         <div class="mb-4 flex flex-wrap items-center justify-end gap-2">
-            @if(($purchase->status ?? 'pending') !== 'complete')
+            @if(!$structureLocked)
                 <a href="{{ route('purchases.edit', $purchase) }}" class="inline-flex items-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
                     <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                     Edit
@@ -76,8 +82,13 @@
             @else
                 <span class="inline-flex items-center rounded-lg border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
                     <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V9a5 5 0 00-10 0v2H6a2 2 0 00-2 2v6a2 2 0 002 2zm3-10V9a3 3 0 016 0v2H9z"></path></svg>
-                    Editing Locked
+                    {{ ($purchase->status ?? 'pending') === 'complete' ? 'Editing Locked' : 'GRN In Progress' }}
                 </span>
+            @endif
+            @if(in_array((string) ($purchase->status ?? 'pending'), ['verified', 'complete'], true))
+                <a href="{{ route('purchases.grn.show', $purchase) }}" class="inline-flex items-center rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 focus:ring-4 focus:ring-emerald-200 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/30">
+                    Open GRN Checking
+                </a>
             @endif
             <a href="{{ route('purchases.barcodes', $purchase) }}" target="_blank" class="inline-flex items-center rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 focus:ring-4 focus:ring-blue-200 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30">
                 <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7V4m0 3h16M4 7v13m0-13h16m0 0V4m0 3v13M9 11h6m-6 4h6"></path></svg>
@@ -162,7 +173,7 @@
                             <th class="px-6 py-3">#</th>
                             <th class="px-6 py-3">Product Name & Variant</th>
                             <th class="px-6 py-3">SKU</th>
-                            <th class="px-6 py-3">Tracked Labels</th>
+                            <th class="px-6 py-3">Labels</th>
                             <th class="px-6 py-3 text-right">PCS Quantity</th>
                             <th class="px-6 py-3 text-right">Unit Price</th>
                             <th class="px-6 py-3 text-right">Line Total</th>
@@ -187,27 +198,11 @@
                                     {{ $item->variant?->sku ?? '-' }}
                                 </td>
                                 <td class="px-6 py-4">
-                                    @if($item->inventoryUnits->isNotEmpty())
-                                        <div class="flex flex-wrap gap-1.5">
-                                            @foreach($item->inventoryUnits as $trackedUnit)
-                                                @php
-                                                    $trackedStatus = strtolower((string) $trackedUnit->status);
-                                                    $trackedStatusClass = match ($trackedStatus) {
-                                                        'available' => 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-300',
-                                                        'pending_receipt' => 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-300',
-                                                        'allocated' => 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300',
-                                                        'delivered' => 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/40 dark:bg-purple-900/20 dark:text-purple-300',
-                                                        default => 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300',
-                                                    };
-                                                @endphp
-                                                <span class="inline-flex rounded-lg border px-2 py-1 font-mono text-[11px] {{ $trackedStatusClass }}" title="{{ ucfirst(str_replace('_', ' ', $trackedUnit->status)) }}">
-                                                    {{ $trackedUnit->unit_code }}
-                                                </span>
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <span class="text-xs text-gray-400 dark:text-gray-500">No labels generated</span>
-                                    @endif
+                                    <x-inventory-unit-summary
+                                        :units="$item->trackedUnits()"
+                                        :title="'Tracked Labels: ' . $item->product_name"
+                                        :show-status="true"
+                                    />
                                 </td>
                                 <td class="px-6 py-4 text-right font-medium text-gray-900 dark:text-white">{{ number_format((float) $item->quantity, 0) }}</td>
                                 <td class="px-6 py-4 text-right">Rs. {{ number_format((float) $item->purchase_price, 2) }}</td>

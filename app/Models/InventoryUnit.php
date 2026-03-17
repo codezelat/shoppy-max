@@ -9,10 +9,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class InventoryUnit extends Model
 {
     public const STATUS_PENDING_RECEIPT = 'pending_receipt';
+    public const STATUS_GRN_SCANNED = 'grn_scanned';
     public const STATUS_AVAILABLE = 'available';
     public const STATUS_ALLOCATED = 'allocated';
     public const STATUS_DELIVERED = 'delivered';
     public const STATUS_ARCHIVED = 'archived';
+
+    public const GRN_PROGRESS_STATUSES = [
+        self::STATUS_GRN_SCANNED,
+        self::STATUS_AVAILABLE,
+        self::STATUS_ALLOCATED,
+        self::STATUS_DELIVERED,
+    ];
 
     public const ACTIVE_STOCK_STATUSES = [
         self::STATUS_AVAILABLE,

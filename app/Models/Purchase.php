@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 
 class Purchase extends Model
 {
@@ -86,6 +87,60 @@ class Purchase extends Model
     public function inventoryUnits()
     {
         return $this->hasMany(InventoryUnit::class);
+    }
+
+    public function trackedInventoryUnits(): Collection
+    {
+        $units = $this->relationLoaded('inventoryUnits')
+            ? $this->inventoryUnits
+            : $this->inventoryUnits()->orderBy('id')->get();
+
+        return $units
+            ->where('status', '!=', InventoryUnit::STATUS_ARCHIVED)
+            ->sortBy('id')
+            ->values();
+    }
+
+    public function receivedUnitsCount(): int
+    {
+        return $this->trackedInventoryUnits()
+            ->whereIn('status', InventoryUnit::ACTIVE_STOCK_STATUSES)
+            ->count();
+    }
+
+    public function grnProgressUnitsCount(): int
+    {
+        return $this->trackedInventoryUnits()
+            ->whereIn('status', InventoryUnit::GRN_PROGRESS_STATUSES)
+            ->count();
+    }
+
+    public function pendingReceiptUnitsCount(): int
+    {
+        return $this->trackedInventoryUnits()
+            ->where('status', InventoryUnit::STATUS_PENDING_RECEIPT)
+            ->count();
+    }
+
+    public function totalTrackedUnitsCount(): int
+    {
+        return $this->trackedInventoryUnits()->count();
+    }
+
+    public function hasStartedReceiving(): bool
+    {
+        if ($this->relationLoaded('inventoryUnits')) {
+            return $this->grnProgressUnitsCount() > 0;
+        }
+
+        return $this->inventoryUnits()
+            ->whereIn('status', InventoryUnit::GRN_PROGRESS_STATUSES)
+            ->exists();
+    }
+
+    public function isStructureLocked(): bool
+    {
+        return ($this->status ?? 'pending') === 'complete' || $this->hasStartedReceiving();
     }
 
     public function getPaymentStatusAttribute(): string

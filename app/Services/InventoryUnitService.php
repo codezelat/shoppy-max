@@ -42,7 +42,10 @@ class InventoryUnitService
     {
         $units = InventoryUnit::query()
             ->where('purchase_id', $purchase->id)
-            ->where('status', InventoryUnit::STATUS_PENDING_RECEIPT)
+            ->whereIn('status', [
+                InventoryUnit::STATUS_PENDING_RECEIPT,
+                InventoryUnit::STATUS_GRN_SCANNED,
+            ])
             ->lockForUpdate()
             ->get();
 
@@ -50,22 +53,101 @@ class InventoryUnitService
             return 0;
         }
 
-        $now = now();
-
         foreach ($units as $unit) {
-            $unit->status = InventoryUnit::STATUS_AVAILABLE;
-            $unit->available_at = $now;
-            $unit->last_event_at = $now;
-            $unit->save();
-
-            $this->recordEvent($unit, 'received_to_stock', $userId);
+            $this->activatePendingUnit($unit, $userId, null, 'bulk_activation');
         }
 
-        $units->groupBy('product_variant_id')->each(function (Collection $group, $variantId) {
-            ProductVariant::query()->whereKey((int) $variantId)->lockForUpdate()->increment('quantity', $group->count());
-        });
-
         return $units->count();
+    }
+
+    public function scanPendingUnitForPurchase(Purchase $purchase, string $rawUnitCode, ?int $userId = null): array
+    {
+        $unitCode = strtoupper(preg_replace('/\s+/', '', trim($rawUnitCode)));
+
+        if ($unitCode === '') {
+            throw ValidationException::withMessages([
+                'unit_code' => 'Scan a valid GRN barcode.',
+            ]);
+        }
+
+        $unit = InventoryUnit::query()
+            ->with(['purchase', 'purchaseItem.variant.unit'])
+            ->where('unit_code', $unitCode)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$unit) {
+            throw ValidationException::withMessages([
+                'unit_code' => 'Scanned barcode was not found. Use a valid GRN label.',
+            ]);
+        }
+
+        if ((int) $unit->purchase_id !== (int) $purchase->id) {
+            $sourcePurchase = $unit->purchase?->purchase_number;
+
+            throw ValidationException::withMessages([
+                'unit_code' => $sourcePurchase
+                    ? "This label belongs to {$sourcePurchase}, not {$purchase->purchase_number}."
+                    : 'This label belongs to another purchase.',
+            ]);
+        }
+
+        if ($unit->status === InventoryUnit::STATUS_ARCHIVED) {
+            throw ValidationException::withMessages([
+                'unit_code' => 'This label is archived and cannot be scanned into GRN.',
+            ]);
+        }
+
+        if ($unit->status === InventoryUnit::STATUS_GRN_SCANNED) {
+            throw ValidationException::withMessages([
+                'unit_code' => 'This label is already scanned for this GRN.',
+            ]);
+        }
+
+        if ($unit->status !== InventoryUnit::STATUS_PENDING_RECEIPT) {
+            $statusLabel = ucfirst(str_replace('_', ' ', (string) $unit->status));
+
+            throw ValidationException::withMessages([
+                'unit_code' => "This label is already {$statusLabel}.",
+            ]);
+        }
+
+        $this->markUnitAsGrnScanned($unit, $userId);
+
+        $remainingPendingUnits = InventoryUnit::query()
+            ->where('purchase_id', $purchase->id)
+            ->where('status', InventoryUnit::STATUS_PENDING_RECEIPT)
+            ->lockForUpdate()
+            ->count();
+
+        $completed = false;
+
+        if ($remainingPendingUnits === 0 && ($purchase->status ?? 'pending') !== 'complete') {
+            $this->activateScannedUnitsForPurchase($purchase, $userId);
+            $completed = true;
+            $purchase->status = 'complete';
+            $purchase->completed_by = $userId;
+            $purchase->completed_at = now();
+            $purchase->stock_applied_at = now();
+            $purchase->save();
+        }
+
+        $purchaseItem = $unit->purchaseItem;
+        if (!$purchaseItem) {
+            throw ValidationException::withMessages([
+                'unit_code' => 'This label is not linked to a purchase item.',
+            ]);
+        }
+
+        if ($purchaseItem) {
+            $purchaseItem->load(['variant.unit', 'inventoryUnits']);
+        }
+
+        return [
+            'unit' => $unit->fresh(['purchase']),
+            'item' => $purchaseItem,
+            'completed' => $completed,
+        ];
     }
 
     public function ensureOrderUnitsAllocated(Order $order, ?int $userId = null, bool $adjustVariantStock = true): void
@@ -307,6 +389,58 @@ class InventoryUnitService
         }
 
         return $units;
+    }
+
+    private function activatePendingUnit(
+        InventoryUnit $unit,
+        ?int $userId = null,
+        ?string $note = null,
+        string $source = 'grn_scan'
+    ): void
+    {
+        $now = now();
+
+        $unit->status = InventoryUnit::STATUS_AVAILABLE;
+        $unit->available_at = $now;
+        $unit->last_event_at = $now;
+        $unit->save();
+
+        ProductVariant::query()
+            ->whereKey((int) $unit->product_variant_id)
+            ->lockForUpdate()
+            ->increment('quantity', 1);
+
+        $this->recordEvent($unit, 'received_to_stock', $userId, ['source' => $source], $note);
+    }
+
+    private function markUnitAsGrnScanned(InventoryUnit $unit, ?int $userId = null): void
+    {
+        $now = now();
+
+        $unit->status = InventoryUnit::STATUS_GRN_SCANNED;
+        $unit->last_event_at = $now;
+        $unit->save();
+
+        $this->recordEvent($unit, 'grn_scanned', $userId, ['source' => 'grn_scan'], 'Scanned during GRN checking.');
+    }
+
+    private function activateScannedUnitsForPurchase(Purchase $purchase, ?int $userId = null): int
+    {
+        $units = InventoryUnit::query()
+            ->where('purchase_id', $purchase->id)
+            ->where('status', InventoryUnit::STATUS_GRN_SCANNED)
+            ->lockForUpdate()
+            ->get();
+
+        if ($units->isEmpty()) {
+            return 0;
+        }
+
+        foreach ($units as $unit) {
+            $this->activatePendingUnit($unit, $userId, 'GRN fully completed.', 'grn_completion');
+        }
+
+        return $units->count();
     }
 
     private function ensureOrderItemUnitAllocation(OrderItem $item, ?int $userId, bool $adjustVariantStock): void

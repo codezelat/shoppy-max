@@ -49,7 +49,7 @@
                     href="{{ route('purchases.moderation.grn') }}"
                     class="inline-flex items-center justify-center rounded-lg px-4 py-3 text-sm font-medium transition {{ $stage === 'grn' ? 'bg-blue-700 text-white shadow-sm' : 'bg-gray-50 text-gray-700 hover:bg-gray-100 dark:bg-gray-700/60 dark:text-gray-200 dark:hover:bg-gray-700' }}"
                 >
-                    GRN Approval
+                    GRN Checking
                 </a>
             </div>
         </div>
@@ -130,6 +130,11 @@
                         @php
                             $balance = (float) $purchase->net_total - (float) $purchase->paid_amount;
                             $isComplete = ($purchase->status ?? 'pending') === 'complete';
+                            $hasReceivedUnits = (int) ($purchase->grn_progress_units_count ?? 0) > 0;
+                            $actionsLocked = $isComplete || $hasReceivedUnits;
+                            $viewRoute = $stage === 'grn'
+                                ? route('purchases.grn.show', $purchase)
+                                : route('purchases.show', $purchase);
                         @endphp
                         <tr class="border-b bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700/50">
                             <td class="px-6 py-4">{{ optional($purchase->purchase_date)->format('d M Y') }}</td>
@@ -142,7 +147,17 @@
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="font-semibold text-gray-900 dark:text-white">{{ number_format((float) ($purchase->total_item_quantity ?? 0), 0) }} pcs</div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ $purchase->items_count }} item{{ $purchase->items_count === 1 ? '' : 's' }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">
+                                    {{ $purchase->items_count }} item{{ $purchase->items_count === 1 ? '' : 's' }}
+                                    @if($stage === 'grn')
+                                        •
+                                        @if($isComplete)
+                                            GRN complete
+                                        @else
+                                            {{ number_format((int) ($purchase->grn_progress_units_count ?? 0), 0) }} scanned • {{ number_format((int) ($purchase->pending_units_count ?? 0), 0) }} remaining
+                                        @endif
+                                    @endif
+                                </div>
                             </td>
                             @unless($stageConfig['final_stage'])
                                 <td class="px-6 py-4 text-right font-semibold text-gray-900 dark:text-white">{{ number_format((float) $purchase->net_total, 2) }}</td>
@@ -156,19 +171,19 @@
                             @endunless
                             <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    <a href="{{ route('purchases.show', $purchase) }}" class="rounded-lg p-2 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-gray-700" title="View">
+                                    <a href="{{ $viewRoute }}" class="rounded-lg p-2 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-gray-700" title="{{ $stage === 'grn' ? 'Open GRN' : 'View' }}">
                                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                     </a>
-                                    @if(!$isComplete)
+                                    @if(!$actionsLocked)
                                         <a href="{{ route('purchases.edit', $purchase) }}" class="rounded-lg p-2 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-gray-700" title="Edit">
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                         </a>
                                     @else
-                                        <span class="rounded-lg p-2 text-gray-400 dark:text-gray-500" title="Editing locked after completion">
+                                        <span class="rounded-lg p-2 text-gray-400 dark:text-gray-500" title="{{ $isComplete ? 'Editing locked after completion' : 'Editing locked after GRN scanning starts' }}">
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V9a5 5 0 00-10 0v2H6a2 2 0 00-2 2v6a2 2 0 002 2zm3-10V9a3 3 0 016 0v2H9z"></path></svg>
                                         </span>
                                     @endif
-                                    @if(!$isComplete)
+                                    @if(!$actionsLocked)
                                         <form action="{{ route('purchases.destroy', $purchase) }}" method="POST" class="inline" onsubmit="return confirm('Delete this purchase?');">
                                             @csrf
                                             @method('DELETE')
@@ -177,11 +192,11 @@
                                             </button>
                                         </form>
                                     @else
-                                        <span class="rounded-lg p-2 text-gray-400 dark:text-gray-500" title="Deletion locked after completion">
+                                        <span class="rounded-lg p-2 text-gray-400 dark:text-gray-500" title="{{ $isComplete ? 'Deletion locked after completion' : 'Deletion locked after GRN scanning starts' }}">
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V9a5 5 0 00-10 0v2H6a2 2 0 00-2 2v6a2 2 0 002 2zm3-10V9a3 3 0 016 0v2H9z"></path></svg>
                                         </span>
                                     @endif
-                                    @if(!$isComplete)
+                                    @if(!$stageConfig['final_stage'] && !$isComplete)
                                         <form action="{{ route('purchases.moderation.approve', $purchase) }}" method="POST" class="inline">
                                             @csrf
                                             <input type="hidden" name="stage" value="{{ $stage }}">
@@ -189,7 +204,7 @@
                                                 {{ $stageConfig['action_label'] }}
                                             </button>
                                         </form>
-                                    @else
+                                    @elseif($stageConfig['final_stage'] && $isComplete)
                                         <span class="inline-flex items-center rounded-lg bg-green-100 px-3 py-2 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">
                                             {{ $stageConfig['completed_label'] }}
                                         </span>

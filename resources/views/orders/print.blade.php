@@ -322,14 +322,11 @@
                                         -
                                     @endif
                                 </span>
-                                @if($item->inventoryUnits->isNotEmpty())
+                                @if($item->trackedUnitCount() > 0)
                                     <div class="tracking-list">
-                                        <strong>Tracked Units:</strong><br>
-                                        @foreach($item->inventoryUnits as $trackedUnit)
-                                            <span class="tracking-unit">
-                                                {{ $trackedUnit->unit_code }}{{ $trackedUnit->purchase?->purchase_number ? ' [' . $trackedUnit->purchase->purchase_number . ']' : ' [Legacy]' }}
-                                            </span>
-                                        @endforeach
+                                        <strong>Tracked Units:</strong>
+                                        {{ $item->trackedUnitRangeLabel() }}
+                                        ({{ number_format($item->trackedUnitCount(), 0) }})
                                     </div>
                                 @endif
                             </td>

@@ -370,10 +370,20 @@
                                             <div x-text="item.product_name"></div>
                                             <div class="text-xs text-gray-500" x-text="item.sku"></div>
                                             <template x-if="item.inventory_units && item.inventory_units.length">
-                                                <div class="mt-2 flex flex-wrap gap-1.5">
-                                                    <template x-for="trackedUnit in item.inventory_units" :key="trackedUnit.id">
-                                                        <span class="inline-flex rounded-md border border-gray-200 bg-gray-50 px-2 py-1 font-mono text-[11px] text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300" x-text="trackedUnit.unit_code + (trackedUnit.purchase?.purchase_number ? ' [' + trackedUnit.purchase.purchase_number + ']' : ' [Legacy]')"></span>
-                                                    </template>
+                                                <div class="mt-2" x-data="{ open: false }">
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        <span class="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" x-text="`${item.inventory_units.length} labels`"></span>
+                                                        <span class="font-mono text-[11px] text-gray-600 dark:text-gray-300" x-text="unitRange(item.inventory_units)"></span>
+                                                        <button type="button" class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700" @click="open = !open" x-text="open ? 'Hide' : 'View All'"></button>
+                                                    </div>
+                                                    <div x-show="open" x-transition.opacity class="mt-3 space-y-2">
+                                                        <template x-for="trackedUnit in item.inventory_units" :key="trackedUnit.id">
+                                                            <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40">
+                                                                <div class="font-mono text-[11px] text-gray-800 dark:text-gray-200" x-text="trackedUnit.unit_code"></div>
+                                                                <div class="text-[10px] text-gray-500 dark:text-gray-400" x-text="trackedUnit.purchase?.purchase_number ? `Source: ${trackedUnit.purchase.purchase_number}` : 'Source: Legacy stock'"></div>
+                                                            </div>
+                                                        </template>
+                                                    </div>
                                                 </div>
                                             </template>
                                         </td>
@@ -489,6 +499,17 @@
                 isReturnedResellerOrder(order) {
                     return String(order?.order_type || '') === 'reseller'
                         && String(order?.delivery_status || '').toLowerCase() === 'returned';
+                },
+                unitRange(units) {
+                    const list = Array.isArray(units) ? units : [];
+                    if (!list.length) {
+                        return '-';
+                    }
+
+                    const firstCode = list[0]?.unit_code || '-';
+                    const lastCode = list[list.length - 1]?.unit_code || firstCode;
+
+                    return firstCode === lastCode ? firstCode : `${firstCode} to ${lastCode}`;
                 }
             }
         }

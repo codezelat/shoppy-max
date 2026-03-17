@@ -7,6 +7,7 @@ use App\Models\PurchaseItem;
 use App\Models\Supplier;
 use App\Models\ProductVariant;
 use App\Models\BankAccount;
+use App\Models\InventoryUnit;
 use App\Services\InventoryUnitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +38,7 @@ class PurchaseController extends Controller
             'statuses' => ['checking'],
             'next_status' => 'verified',
             'title' => 'Purchase Verification',
-            'description' => 'Validate checked purchases and mark them as verified before GRN approval.',
+            'description' => 'Validate checked purchases and move them into GRN checking.',
             'switcher_label' => 'Purchase Verification',
             'action_label' => 'Mark Verified',
             'completed_label' => 'Verified',
@@ -47,12 +48,12 @@ class PurchaseController extends Controller
         'grn' => [
             'statuses' => ['verified', 'complete'],
             'next_status' => 'complete',
-            'title' => 'GRN Approval',
-            'description' => 'Approve verified purchases into complete GRN records. Stock is added only at this stage. Completed rows stay here for reference.',
-            'switcher_label' => 'GRN Approval',
-            'action_label' => 'Approve GRN',
+            'title' => 'GRN Checking',
+            'description' => 'Open the GRN detail view and scan each received barcode. Stock is added as units are scanned, and the purchase completes automatically when all units are confirmed.',
+            'switcher_label' => 'GRN Checking',
+            'action_label' => 'Open GRN',
             'completed_label' => 'Completed',
-            'success_message' => 'GRN approved successfully and stock was added to inventory.',
+            'success_message' => 'GRN completed successfully and stock was added to inventory.',
             'final_stage' => true,
         ],
     ];
@@ -62,7 +63,12 @@ class PurchaseController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Purchase::with(['supplier', 'items.variant.unit', 'items.inventoryUnits'])->withCount('items')->latest('purchase_date');
+        $query = Purchase::with(['supplier', 'items.variant.unit', 'items.inventoryUnits'])
+            ->withCount('items')
+            ->withCount([
+                'inventoryUnits as grn_progress_units_count' => fn ($unitQuery) => $unitQuery->whereIn('status', InventoryUnit::GRN_PROGRESS_STATUSES),
+            ])
+            ->latest('purchase_date');
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -135,6 +141,109 @@ class PurchaseController extends Controller
         return $this->renderModerationStage($request, 'grn');
     }
 
+    public function showGrn(Purchase $purchase)
+    {
+        if (!in_array((string) ($purchase->status ?? 'pending'), ['verified', 'complete'], true)) {
+            return redirect()
+                ->route('purchases.show', $purchase)
+                ->with('error', 'GRN checking is available only after purchase verification.');
+        }
+
+        $purchase->load([
+            'supplier',
+            'creator',
+            'checker',
+            'verifier',
+            'completer',
+            'inventoryUnits.purchase',
+            'items.variant.product',
+            'items.variant.unit',
+            'items.inventoryUnits.purchase',
+        ]);
+
+        return view('purchases.grn.show', compact('purchase'));
+    }
+
+    public function scanGrnUnit(Request $request, Purchase $purchase)
+    {
+        if (($purchase->status ?? 'pending') === 'complete') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This GRN is already complete.',
+            ], 422);
+        }
+
+        if (($purchase->status ?? 'pending') !== 'verified') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Scan is available only after purchase verification.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'unit_code' => 'required|string|max:100',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $scanResult = $this->inventoryUnits()->scanPendingUnitForPurchase(
+                $purchase,
+                (string) $validated['unit_code'],
+                $request->user()?->id
+            );
+
+            $purchase->refresh()->load([
+                'inventoryUnits',
+                'items.inventoryUnits',
+            ]);
+
+            $item = $scanResult['item'];
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => $scanResult['completed']
+                    ? 'All labels were scanned. GRN is now complete.'
+                    : 'Label scanned successfully.',
+                'purchase' => [
+                    'status' => (string) $purchase->status,
+                    'grn_progress_units_count' => $purchase->grnProgressUnitsCount(),
+                    'received_units_count' => $purchase->receivedUnitsCount(),
+                    'pending_units_count' => $purchase->pendingReceiptUnitsCount(),
+                    'total_units_count' => $purchase->totalTrackedUnitsCount(),
+                    'completed_at' => optional($purchase->completed_at)->format('d M Y h:i A'),
+                ],
+                'item' => [
+                    'id' => (int) $item->id,
+                    'scanned_count' => $item->scannedUnitCount(),
+                    'remaining_count' => $item->pendingUnitCount(),
+                ],
+                'unit' => [
+                    'code' => (string) $scanResult['unit']->unit_code,
+                    'product_name' => (string) $item->product_name,
+                    'variant_label' => $item->variant ? $this->buildVariantLabel($item->variant) : '',
+                ],
+                'completed' => (bool) $scanResult['completed'],
+            ]);
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first() ?: 'Unable to scan this barcode.',
+            ], 422);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to process the scanned barcode.',
+            ], 500);
+        }
+    }
+
     public function approveModerationStage(Request $request, Purchase $purchase)
     {
         $stage = (string) $request->input('stage');
@@ -142,6 +251,12 @@ class PurchaseController extends Controller
 
         if (!$config) {
             return redirect()->route('purchases.index')->with('error', 'Invalid moderation stage.');
+        }
+
+        if ($stage === 'grn') {
+            return redirect()
+                ->route('purchases.grn.show', $purchase)
+                ->with('info', 'Use the GRN scanner to complete this purchase.');
         }
 
         if (!in_array((string) $purchase->status, $config['statuses'], true)) {
@@ -360,10 +475,10 @@ class PurchaseController extends Controller
      */
     public function edit(Purchase $purchase)
     {
-        if (($purchase->status ?? 'pending') === 'complete') {
+        if ($this->purchaseStructureLocked($purchase)) {
             return redirect()
                 ->route('purchases.show', $purchase)
-                ->with('error', 'Completed purchases are locked. Stock was already added to inventory and the purchase can no longer be edited.');
+                ->with('error', $this->purchaseLockMessage($purchase));
         }
 
         $suppliers = Supplier::all();
@@ -381,10 +496,10 @@ class PurchaseController extends Controller
      */
     public function update(Request $request, Purchase $purchase)
     {
-        if (($purchase->status ?? 'pending') === 'complete') {
+        if ($this->purchaseStructureLocked($purchase)) {
             return redirect()
                 ->route('purchases.show', $purchase)
-                ->with('error', 'Completed purchases are locked. Stock was already added to inventory and the purchase can no longer be edited.');
+                ->with('error', $this->purchaseLockMessage($purchase));
         }
 
         // Validation similar to store, but unique purchase_number check ignores current id
@@ -438,8 +553,6 @@ class PurchaseController extends Controller
             $paymentsData = $this->normalizePayments($validated['payments'] ?? []);
             $paidAmount = (float) collect($paymentsData)->sum('amount');
             $this->ensurePaidAmountWithinTotal($paidAmount, $totals['net_total']);
-            $shouldApplyStockAfterUpdate = $statusTransition['status'] === 'complete';
-
             $purchase->load('items');
             $this->inventoryUnits()->archivePendingUnitsForPurchase(
                 $purchase,
@@ -464,9 +577,7 @@ class PurchaseController extends Controller
                 'payment_reference' => null,
                 'payment_account' => null, // Deprecated
                 'payment_note' => null, // Deprecated
-                'stock_applied_at' => $shouldApplyStockAfterUpdate
-                    ? now()
-                    : null,
+                'stock_applied_at' => null,
             ] + $statusTransition['audit']);
 
             // Sync Items: Delete old and create new
@@ -476,14 +587,8 @@ class PurchaseController extends Controller
                 $this->createPurchaseItem($purchase, $item, false);
             }
 
-            if ($shouldApplyStockAfterUpdate) {
-                $this->applyPurchaseStock($purchase->items()->get());
-            }
-
             DB::commit();
-            return redirect()->route('purchases.index')->with('success', $statusTransition['status'] === 'complete'
-                ? 'Purchase completed successfully and stock was added to inventory.'
-                : 'Purchase updated successfully.');
+            return redirect()->route('purchases.index')->with('success', 'Purchase updated successfully.');
 
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -612,10 +717,10 @@ class PurchaseController extends Controller
      */
     public function destroy(Purchase $purchase)
     {
-        if (($purchase->status ?? 'pending') === 'complete' || !is_null($purchase->stock_applied_at)) {
+        if ($this->purchaseStructureLocked($purchase) || !is_null($purchase->stock_applied_at)) {
             return back()->with(
                 'error',
-                'Completed purchases are locked. Stock was already added to inventory and the purchase can no longer be deleted.'
+                $this->purchaseLockMessage($purchase)
             );
         }
 
@@ -936,6 +1041,12 @@ class PurchaseController extends Controller
             ]);
         }
 
+        if ($requestedStatus === 'complete' && $currentStatus !== 'complete') {
+            throw ValidationException::withMessages([
+                'status' => 'Complete status is set only from GRN scanning.',
+            ]);
+        }
+
         $audit = [];
 
         if ($requestedIndex === $currentIndex + 1) {
@@ -968,6 +1079,10 @@ class PurchaseController extends Controller
         $query = Purchase::query()
             ->with(['supplier'])
             ->withCount('items')
+            ->withCount([
+                'inventoryUnits as grn_progress_units_count' => fn ($unitQuery) => $unitQuery->whereIn('status', InventoryUnit::GRN_PROGRESS_STATUSES),
+                'inventoryUnits as pending_units_count' => fn ($unitQuery) => $unitQuery->where('status', InventoryUnit::STATUS_PENDING_RECEIPT),
+            ])
             ->withSum('items as total_item_quantity', 'quantity')
             ->whereIn('status', $config['statuses'])
             ->latest('purchase_date');
@@ -1020,6 +1135,20 @@ class PurchaseController extends Controller
         if ($purchase) {
             $this->inventoryUnits()->activatePendingUnitsForPurchase($purchase, auth()->id());
         }
+    }
+
+    private function purchaseStructureLocked(Purchase $purchase): bool
+    {
+        return $purchase->isStructureLocked();
+    }
+
+    private function purchaseLockMessage(Purchase $purchase): string
+    {
+        if (($purchase->status ?? 'pending') === 'complete') {
+            return 'Completed purchases are locked. Stock was already added to inventory and the purchase can no longer be edited or deleted.';
+        }
+
+        return 'GRN scanning has already started for this purchase. Purchase details are locked while scanned labels are being verified for final receipt.';
     }
 
     private function inventoryUnits(): InventoryUnitService

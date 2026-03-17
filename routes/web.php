@@ -164,6 +164,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/purchases/moderation/verifying', [\App\Http\Controllers\PurchaseController::class, 'moderationVerifying'])->name('purchases.moderation.verifying');
     Route::get('/purchases/moderation/grn-checking', [\App\Http\Controllers\PurchaseController::class, 'moderationGrn'])->name('purchases.moderation.grn');
     Route::post('/purchases/{purchase}/approve-stage', [\App\Http\Controllers\PurchaseController::class, 'approveModerationStage'])->name('purchases.moderation.approve');
+    Route::get('/purchases/{purchase}/grn-checking', [\App\Http\Controllers\PurchaseController::class, 'showGrn'])->name('purchases.grn.show');
+    Route::post('/purchases/{purchase}/grn-checking/scan', [\App\Http\Controllers\PurchaseController::class, 'scanGrnUnit'])->name('purchases.grn.scan');
     Route::get('/purchases/search-suppliers', [\App\Http\Controllers\PurchaseController::class, 'searchSuppliers'])->name('purchases.search-suppliers');
     Route::get('/purchases/search-products', [\App\Http\Controllers\PurchaseController::class, 'searchProducts'])->name('purchases.search-products');
     Route::resource('purchases', \App\Http\Controllers\PurchaseController::class);

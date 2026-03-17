@@ -173,22 +173,25 @@
                             </td>
                             <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
+                                    @php
+                                        $structureLocked = ($purchase->status ?? 'pending') === 'complete' || (int) ($purchase->grn_progress_units_count ?? 0) > 0;
+                                    @endphp
                                     <a href="{{ route('purchases.show', $purchase) }}" class="rounded-lg p-2 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-gray-700" title="View">
                                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                     </a>
                                     <a href="{{ route('purchases.barcodes', $purchase) }}" target="_blank" rel="noopener noreferrer" class="rounded-lg p-2 text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-gray-700" title="Print All Barcodes">
                                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                     </a>
-                                    @if(($purchase->status ?? 'pending') !== 'complete')
+                                    @if(!$structureLocked)
                                         <a href="{{ route('purchases.edit', $purchase) }}" class="rounded-lg p-2 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-gray-700" title="Edit">
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                         </a>
                                     @else
-                                        <span class="rounded-lg p-2 text-gray-400 dark:text-gray-500" title="Editing locked after completion">
+                                        <span class="rounded-lg p-2 text-gray-400 dark:text-gray-500" title="{{ ($purchase->status ?? 'pending') === 'complete' ? 'Editing locked after completion' : 'Editing locked after GRN scanning starts' }}">
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V9a5 5 0 00-10 0v2H6a2 2 0 00-2 2v6a2 2 0 002 2zm3-10V9a3 3 0 016 0v2H9z"></path></svg>
                                         </span>
                                     @endif
-                                    @if(($purchase->status ?? 'pending') !== 'complete')
+                                    @if(!$structureLocked)
                                         <form action="{{ route('purchases.destroy', $purchase) }}" method="POST" class="inline" onsubmit="return confirm('Delete this purchase?');">
                                             @csrf
                                             @method('DELETE')
@@ -197,7 +200,7 @@
                                             </button>
                                         </form>
                                     @else
-                                        <span class="rounded-lg p-2 text-gray-400 dark:text-gray-500" title="Deletion locked after completion">
+                                        <span class="rounded-lg p-2 text-gray-400 dark:text-gray-500" title="{{ ($purchase->status ?? 'pending') === 'complete' ? 'Deletion locked after completion' : 'Deletion locked after GRN scanning starts' }}">
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V9a5 5 0 00-10 0v2H6a2 2 0 00-2 2v6a2 2 0 002 2zm3-10V9a3 3 0 016 0v2H9z"></path></svg>
                                         </span>
                                     @endif
@@ -224,7 +227,7 @@
                                                 <tr>
                                                     <th class="px-4 py-3">Product Name & Variant</th>
                                                     <th class="px-4 py-3">SKU</th>
-                                                    <th class="px-4 py-3">Tracked Labels</th>
+                                                    <th class="px-4 py-3">Labels</th>
                                                     <th class="px-4 py-3 text-right">PCS Quantity</th>
                                                     <th class="px-4 py-3 text-right">Unit Price</th>
                                                     <th class="px-4 py-3 text-right">Line Total</th>
@@ -245,27 +248,11 @@
                                                         </td>
                                                         <td class="px-4 py-3 font-mono text-[11px]">{{ $item->variant?->sku ?? '-' }}</td>
                                                         <td class="px-4 py-3">
-                                                            @if($item->inventoryUnits->isNotEmpty())
-                                                                <div class="flex flex-wrap gap-1.5">
-                                                                    @foreach($item->inventoryUnits as $trackedUnit)
-                                                                        @php
-                                                                            $trackedStatus = strtolower((string) $trackedUnit->status);
-                                                                            $trackedStatusClass = match ($trackedStatus) {
-                                                                                'available' => 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-300',
-                                                                                'pending_receipt' => 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-300',
-                                                                                'allocated' => 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300',
-                                                                                'delivered' => 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/40 dark:bg-purple-900/20 dark:text-purple-300',
-                                                                                default => 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300',
-                                                                            };
-                                                                        @endphp
-                                                                        <span class="inline-flex rounded-lg border px-2 py-1 font-mono text-[11px] {{ $trackedStatusClass }}" title="{{ ucfirst(str_replace('_', ' ', $trackedUnit->status)) }}">
-                                                                            {{ $trackedUnit->unit_code }}
-                                                                        </span>
-                                                                    @endforeach
-                                                                </div>
-                                                            @else
-                                                                <span class="text-xs text-gray-400 dark:text-gray-500">No labels generated</span>
-                                                            @endif
+                                                            <x-inventory-unit-summary
+                                                                :units="$item->trackedUnits()"
+                                                                :title="'Tracked Labels: ' . $item->product_name"
+                                                                :show-status="true"
+                                                            />
                                                         </td>
                                                         <td class="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{{ number_format((float) $item->quantity, 0) }}</td>
                                                         <td class="px-4 py-3 text-right">Rs. {{ number_format((float) $item->purchase_price, 2) }}</td>

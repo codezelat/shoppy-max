@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Collection;
 
 class OrderItem extends Model
 {
@@ -50,5 +51,43 @@ class OrderItem extends Model
     public function inventoryUnits()
     {
         return $this->hasMany(InventoryUnit::class);
+    }
+
+    public function trackedUnits(): Collection
+    {
+        $units = $this->relationLoaded('inventoryUnits')
+            ? $this->inventoryUnits
+            : $this->inventoryUnits()->orderBy('id')->get();
+
+        return $units
+            ->where('status', '!=', InventoryUnit::STATUS_ARCHIVED)
+            ->sortBy('id')
+            ->values();
+    }
+
+    public function trackedUnitCount(): int
+    {
+        return $this->trackedUnits()->count();
+    }
+
+    public function trackedUnitRangeLabel(): ?string
+    {
+        $units = $this->trackedUnits();
+        $count = $units->count();
+
+        if ($count === 0) {
+            return null;
+        }
+
+        $firstCode = $units->first()?->unit_code;
+        $lastCode = $units->last()?->unit_code;
+
+        if (!$firstCode) {
+            return null;
+        }
+
+        return $count === 1 || $firstCode === $lastCode
+            ? $firstCode
+            : $firstCode . ' to ' . $lastCode;
     }
 }
