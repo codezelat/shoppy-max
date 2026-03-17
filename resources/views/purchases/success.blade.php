@@ -1,3 +1,17 @@
+@php
+    $statusStyles = [
+        'pending' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+        'checking' => 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
+        'verified' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+        'complete' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    ];
+    $paymentStatusStyles = [
+        'due' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+        'partial' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+        'paid' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    ];
+@endphp
+
 <x-app-layout>
     <div class="py-12">
         <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
@@ -12,7 +26,7 @@
                         <strong class="text-gray-900 dark:text-white">{{ $purchase->supplier->business_name ?? $purchase->supplier->name }}</strong>.
                     </p>
 
-                    <div class="mb-8 grid grid-cols-1 gap-4 text-left sm:grid-cols-3">
+                    <div class="mb-8 grid grid-cols-1 gap-4 text-left sm:grid-cols-2 xl:grid-cols-5">
                         <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/30">
                             <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Purchasing ID</p>
                             <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $purchase->purchase_number }}</p>
@@ -24,6 +38,18 @@
                         <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/30">
                             <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Items</p>
                             <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $purchase->items->count() }}</p>
+                        </div>
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/30">
+                            <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Status</p>
+                            <span class="mt-1 inline-flex rounded px-2.5 py-0.5 text-xs font-medium {{ $statusStyles[$purchase->status ?? 'pending'] ?? $statusStyles['pending'] }}">
+                                {{ ucfirst($purchase->status ?? 'pending') }}
+                            </span>
+                        </div>
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/30">
+                            <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Payment Status</p>
+                            <span class="mt-1 inline-flex rounded px-2.5 py-0.5 text-xs font-medium {{ $paymentStatusStyles[$purchase->payment_status] ?? $paymentStatusStyles['due'] }}">
+                                {{ ucfirst($purchase->payment_status) }}
+                            </span>
                         </div>
                     </div>
 

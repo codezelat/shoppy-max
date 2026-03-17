@@ -49,10 +49,10 @@
         </div>
 
         <div class="rounded-md border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                <form method="GET" action="{{ route('purchases.index') }}" class="w-full space-y-3 xl:flex-1">
+            <div class="flex flex-col gap-4">
+                <form method="GET" action="{{ route('purchases.index') }}" class="space-y-3">
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
-                        <div class="relative xl:col-span-6">
+                        <div class="relative xl:col-span-4">
                             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                                 <svg class="h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/></svg>
                             </div>
@@ -67,23 +67,44 @@
                             <input type="date" name="date_to" value="{{ request('date_to') }}" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white" title="To date">
                         </div>
 
-                        <div class="flex items-center gap-2 xl:col-span-2 xl:justify-end">
+                        <div class="xl:col-span-2">
+                            <select name="status" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="">All Statuses</option>
+                                <option value="pending" @selected(request('status') === 'pending')>Pending</option>
+                                <option value="checking" @selected(request('status') === 'checking')>Checking</option>
+                                <option value="verified" @selected(request('status') === 'verified')>Verified</option>
+                                <option value="complete" @selected(request('status') === 'complete')>Complete</option>
+                            </select>
+                        </div>
+
+                        <div class="xl:col-span-2">
+                            <select name="payment_status" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <option value="">All Payment Statuses</option>
+                                <option value="due" @selected(request('payment_status') === 'due')>Due</option>
+                                <option value="partial" @selected(request('payment_status') === 'partial')>Partial</option>
+                                <option value="paid" @selected(request('payment_status') === 'paid')>Paid</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 border-t border-gray-200 pt-3 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex flex-wrap items-center gap-2">
                             <button type="submit" class="inline-flex items-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
                                 Apply
                             </button>
-                            @if(request()->filled('search') || request()->filled('date_from') || request()->filled('date_to'))
+                            @if(request()->filled('search') || request()->filled('date_from') || request()->filled('date_to') || request()->filled('status') || request()->filled('payment_status'))
                                 <a href="{{ route('purchases.index') }}" class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:ring-4 focus:ring-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
                                     Clear
                                 </a>
                             @endif
                         </div>
+
+                        <a href="{{ route('purchases.create') }}" class="inline-flex items-center justify-center rounded-lg bg-blue-700 px-5 py-2 text-sm font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
+                            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            New Purchase
+                        </a>
                     </div>
                 </form>
-
-                <a href="{{ route('purchases.create') }}" class="inline-flex items-center justify-center rounded-lg bg-blue-700 px-5 py-2 text-sm font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
-                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                    New Purchase
-                </a>
             </div>
         </div>
 
@@ -99,6 +120,7 @@
                         <th class="px-6 py-3 text-right">Paid</th>
                         <th class="px-6 py-3 text-right">Balance</th>
                         <th class="px-6 py-3 text-center">Status</th>
+                        <th class="px-6 py-3 text-center">Payment Status</th>
                         <th class="px-6 py-3 text-center">Action</th>
                     </tr>
                 </thead>
@@ -121,13 +143,27 @@
                             <td class="px-6 py-4 text-right">{{ number_format((float) $purchase->paid_amount, 2) }}</td>
                             <td class="px-6 py-4 text-right {{ $balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400' }}">{{ number_format(max($balance, 0), 2) }}</td>
                             <td class="px-6 py-4 text-center">
-                                @if($balance <= 0)
-                                    <span class="rounded bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">Paid</span>
-                                @elseif($purchase->paid_amount > 0)
-                                    <span class="rounded bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">Partial</span>
-                                @else
-                                    <span class="rounded bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900 dark:text-red-300">Due</span>
-                                @endif
+                                @php
+                                    $statusStyles = [
+                                        'pending' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+                                        'checking' => 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
+                                        'verified' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+                                        'complete' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+                                    ];
+                                    $paymentStatusStyles = [
+                                        'due' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+                                        'partial' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+                                        'paid' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+                                    ];
+                                @endphp
+                                <span class="rounded px-2.5 py-0.5 text-xs font-medium {{ $statusStyles[$purchase->status ?? 'pending'] ?? $statusStyles['pending'] }}">
+                                    {{ ucfirst($purchase->status ?? 'pending') }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="rounded px-2.5 py-0.5 text-xs font-medium {{ $paymentStatusStyles[$purchase->payment_status] ?? $paymentStatusStyles['due'] }}">
+                                    {{ ucfirst($purchase->payment_status) }}
+                                </span>
                             </td>
                             <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
@@ -149,7 +185,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">No purchases found for current filters.</td>
+                            <td colspan="10" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">No purchases found for current filters.</td>
                         </tr>
                     @endforelse
                 </tbody>

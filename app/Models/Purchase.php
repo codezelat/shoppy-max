@@ -6,10 +6,18 @@ use Illuminate\Database\Eloquent\Model;
 
 class Purchase extends Model
 {
+    public const STATUSES = [
+        'pending',
+        'checking',
+        'verified',
+        'complete',
+    ];
+
     protected $fillable = [
         'purchase_number',
         'supplier_id',
         'purchase_date',
+        'status',
         'currency',
         'sub_total',
         'discount_type',
@@ -40,5 +48,21 @@ class Purchase extends Model
     public function items()
     {
         return $this->hasMany(PurchaseItem::class);
+    }
+
+    public function getPaymentStatusAttribute(): string
+    {
+        $netTotal = (float) ($this->net_total ?? 0);
+        $paidAmount = (float) ($this->paid_amount ?? 0);
+
+        if ($netTotal <= 0 || $paidAmount >= $netTotal) {
+            return 'paid';
+        }
+
+        if ($paidAmount > 0) {
+            return 'partial';
+        }
+
+        return 'due';
     }
 }

@@ -79,6 +79,7 @@
 
     $initialDate = old('purchase_date', $isEditing ? optional($purchase->purchase_date)->format('Y-m-d') : now()->toDateString());
     $initialNumber = old('purchase_number', $isEditing ? $purchase->purchase_number : ($suggestedNumber ?? ''));
+    $initialStatus = old('status', $isEditing ? ($purchase->status ?? 'pending') : 'pending');
     $initialDiscountType = old('discount_type', $isEditing ? ($purchase->discount_type ?: 'fixed') : 'fixed');
     $initialDiscountValue = old('discount_value', $isEditing ? (float) $purchase->discount_value : 0);
     $bankAccountOptions = collect($bankAccounts ?? [])
@@ -237,6 +238,19 @@
                         <input type="text" name="purchase_number" value="{{ $initialNumber }}" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white" required readonly>
                     @endif
                     @error('purchase_number')
+                        <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Status <span class="text-red-500">*</span></label>
+                    <select name="status" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white" required>
+                        <option value="pending" @selected($initialStatus === 'pending')>Pending</option>
+                        <option value="checking" @selected($initialStatus === 'checking')>Checking</option>
+                        <option value="verified" @selected($initialStatus === 'verified')>Verified</option>
+                        <option value="complete" @selected($initialStatus === 'complete')>Complete</option>
+                    </select>
+                    @error('status')
                         <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                     @enderror
                 </div>

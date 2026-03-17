@@ -139,6 +139,22 @@
             background-color: #f8d7da;
             color: #721c24;
         }
+        .status-pending {
+            background-color: #e5e7eb;
+            color: #1f2937;
+        }
+        .status-checking {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .status-verified {
+            background-color: #dbeafe;
+            color: #1d4ed8;
+        }
+        .status-complete {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
         @media print {
             body {
                 margin: 0;
@@ -147,6 +163,23 @@
     </style>
 </head>
 <body>
+    @php
+        $balance = $purchase->net_total - $purchase->paid_amount;
+        $statusClass = [
+            'pending' => 'status-pending',
+            'checking' => 'status-checking',
+            'verified' => 'status-verified',
+            'complete' => 'status-complete',
+        ][$purchase->status ?? 'pending'] ?? 'status-pending';
+
+        $paymentStatus = $purchase->payment_status;
+        $paymentStatusClass = [
+            'paid' => 'status-paid',
+            'partial' => 'status-partial',
+            'due' => 'status-unpaid',
+        ][$paymentStatus] ?? 'status-unpaid';
+    @endphp
+
     <!-- Header -->
     <div class="header">
         <table>
@@ -163,15 +196,9 @@
                     <div style="font-size: 12px; color: #666; margin-top: 5px;">
                         Inventory Department
                     </div>
-                    @php $balance = $purchase->net_total - $purchase->paid_amount; @endphp
                     <div style="margin-top: 10px;">
-                        @if($balance <= 0)
-                            <span class="status-badge status-paid">PAID</span>
-                        @elseif($purchase->paid_amount > 0)
-                            <span class="status-badge status-partial">PARTIAL</span>
-                        @else
-                            <span class="status-badge status-unpaid">UNPAID</span>
-                        @endif
+                        <span class="status-badge {{ $statusClass }}">{{ strtoupper($purchase->status ?? 'pending') }}</span>
+                        <span class="status-badge {{ $paymentStatusClass }}">PAYMENT: {{ strtoupper($paymentStatus) }}</span>
                     </div>
                 </td>
             </tr>

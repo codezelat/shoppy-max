@@ -29,6 +29,17 @@
 
     @php
         $balance = (float) $purchase->net_total - (float) $purchase->paid_amount;
+        $statusStyles = [
+            'pending' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+            'checking' => 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
+            'verified' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+            'complete' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+        ];
+        $paymentStatusStyles = [
+            'due' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+            'partial' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+            'paid' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+        ];
     @endphp
 
     <x-form-layout>
@@ -48,7 +59,7 @@
         </div>
 
         <x-form-section title="Purchase Summary">
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
                 <div>
                     <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Purchasing ID</p>
                     <p class="mt-1 font-semibold text-gray-900 dark:text-white">{{ $purchase->purchase_number }}</p>
@@ -63,13 +74,15 @@
                 </div>
                 <div>
                     <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Status</p>
-                    @if($balance <= 0)
-                        <span class="mt-1 inline-flex rounded bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">Paid</span>
-                    @elseif($purchase->paid_amount > 0)
-                        <span class="mt-1 inline-flex rounded bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">Partial</span>
-                    @else
-                        <span class="mt-1 inline-flex rounded bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900 dark:text-red-300">Due</span>
-                    @endif
+                    <span class="mt-1 inline-flex rounded px-2.5 py-0.5 text-xs font-medium {{ $statusStyles[$purchase->status ?? 'pending'] ?? $statusStyles['pending'] }}">
+                        {{ ucfirst($purchase->status ?? 'pending') }}
+                    </span>
+                </div>
+                <div>
+                    <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Payment Status</p>
+                    <span class="mt-1 inline-flex rounded px-2.5 py-0.5 text-xs font-medium {{ $paymentStatusStyles[$purchase->payment_status] ?? $paymentStatusStyles['due'] }}">
+                        {{ ucfirst($purchase->payment_status) }}
+                    </span>
                 </div>
             </div>
         </x-form-section>

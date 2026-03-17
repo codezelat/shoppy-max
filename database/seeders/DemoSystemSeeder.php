@@ -1012,6 +1012,7 @@ class DemoSystemSeeder extends Seeder
             [
                 'purchase_number' => 'PUR-DEMO-0001',
                 'supplier' => 'Nova Imports',
+                'status' => 'verified',
                 'purchase_date' => now()->subDays(6)->toDateString(),
                 'currency' => 'LKR',
                 'discount_type' => 'fixed',
@@ -1031,6 +1032,7 @@ class DemoSystemSeeder extends Seeder
             [
                 'purchase_number' => 'PUR-DEMO-0002',
                 'supplier' => 'GreenLeaf Distributors',
+                'status' => 'checking',
                 'purchase_date' => now()->subDays(4)->toDateString(),
                 'currency' => 'LKR',
                 'discount_type' => 'percentage',
@@ -1057,6 +1059,7 @@ class DemoSystemSeeder extends Seeder
             $purchase->purchase_number = $row['purchase_number'];
             $purchase->supplier_id = $supplier->id;
             $purchase->purchase_date = $row['purchase_date'];
+            $purchase->status = $row['status'] ?? 'pending';
             $purchase->currency = $row['currency'];
             $purchase->discount_type = $row['discount_type'];
             $purchase->discount_value = $row['discount_value'];

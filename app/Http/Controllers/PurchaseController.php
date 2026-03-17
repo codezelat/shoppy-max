@@ -46,6 +46,31 @@ class PurchaseController extends Controller
             $query->whereDate('purchase_date', '<=', $request->date_to);
         }
 
+        if ($request->filled('status')) {
+            $status = strtolower((string) $request->status);
+            if (in_array($status, Purchase::STATUSES, true)) {
+                $query->where('status', $status);
+            }
+        }
+
+        if ($request->filled('payment_status')) {
+            $paymentStatus = strtolower((string) $request->payment_status);
+
+            if ($paymentStatus === 'paid') {
+                $query->where(function ($paidQuery) {
+                    $paidQuery->where('net_total', '<=', 0)
+                        ->orWhereColumn('paid_amount', '>=', 'net_total');
+                });
+            } elseif ($paymentStatus === 'partial') {
+                $query->where('paid_amount', '>', 0)
+                    ->where('net_total', '>', 0)
+                    ->whereColumn('paid_amount', '<', 'net_total');
+            } elseif ($paymentStatus === 'due') {
+                $query->where('net_total', '>', 0)
+                    ->where('paid_amount', '<=', 0);
+            }
+        }
+
         // Stats for Dashboard Cards
         $totalPurchases = Purchase::count();
         $totalSpent = Purchase::sum('net_total');
@@ -83,6 +108,7 @@ class PurchaseController extends Controller
             'supplier_id' => 'required|exists:suppliers,id',
             'purchase_date' => 'required|date',
             'purchase_number' => 'required|string|max:100|unique:purchases,purchase_number',
+            'status' => 'required|in:' . implode(',', Purchase::STATUSES),
             'items' => 'required|array|min:1',
             'items.*.product_variant_id' => 'nullable|exists:product_variants,id',
             'items.*.product_id' => 'nullable|exists:products,id',
@@ -116,6 +142,7 @@ class PurchaseController extends Controller
                 'purchase_number' => $purchaseNumber,
                 'supplier_id' => $validated['supplier_id'],
                 'purchase_date' => $validated['purchase_date'],
+                'status' => $validated['status'],
                 'currency' => 'LKR',
                 'sub_total' => $totals['sub_total'],
                 'discount_type' => $totals['discount_type'],
@@ -218,6 +245,7 @@ class PurchaseController extends Controller
             'supplier_id' => 'required|exists:suppliers,id',
             'purchase_date' => 'required|date',
             'purchase_number' => 'required|string|max:100|unique:purchases,purchase_number,' . $purchase->id,
+            'status' => 'required|in:' . implode(',', Purchase::STATUSES),
             'items' => 'required|array|min:1',
             'items.*.product_variant_id' => 'nullable|exists:product_variants,id',
             'items.*.product_id' => 'nullable|exists:products,id',
@@ -265,6 +293,7 @@ class PurchaseController extends Controller
                 'purchase_number' => $currentPurchaseNumber,
                 'supplier_id' => $validated['supplier_id'],
                 'purchase_date' => $currentPurchaseDate,
+                'status' => $validated['status'],
                 // currency ignored/kept as LKR
                 'sub_total' => $totals['sub_total'],
                 'discount_type' => $totals['discount_type'],
