@@ -52,8 +52,10 @@ composer run test
 ./vendor/bin/pint
 ```
 
+```bash
 # Type-check
-> TODO: No dedicated static type-check command is currently documented.
+# TODO: No dedicated static type-check command is currently documented.
+```
 
 ```bash
 # Build frontend assets
