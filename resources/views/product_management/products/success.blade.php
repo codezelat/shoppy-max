@@ -1,37 +1,56 @@
 <x-app-layout>
     <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 dark:text-gray-100 text-center">
+        <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+            <div class="overflow-hidden rounded-lg bg-white shadow-sm dark:bg-gray-800">
+                <div class="p-6 text-center text-gray-900 dark:text-gray-100">
                     <div class="mb-4">
-                         <svg class="mx-auto h-16 w-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <svg class="mx-auto h-16 w-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     </div>
-                    <h2 class="text-3xl font-bold mb-2">Product Created Successfully!</h2>
-                    <p class="text-gray-600 dark:text-gray-400 mb-8 text-lg">The product <strong class="text-gray-900 dark:text-white">{{ $product->name }}</strong> has been added to the inventory.</p>
+                    <h2 class="mb-2 text-3xl font-bold">Product Created Successfully!</h2>
+                    <p class="mb-8 text-lg text-gray-600 dark:text-gray-400">
+                        Product <strong class="text-gray-900 dark:text-white">{{ $product->name }}</strong> has been added to the inventory with
+                        <strong class="text-gray-900 dark:text-white">{{ $product->variants->count() }}</strong> barcode-ready variant{{ $product->variants->count() === 1 ? '' : 's' }}.
+                    </p>
 
-                    <h3 class="text-xl font-semibold mb-4 text-left border-b pb-2 border-gray-200 dark:border-gray-700">Generated Variants</h3>
-                    
-                    <div class="relative overflow-x-auto rounded-lg mb-8 border border-gray-200 dark:border-gray-700">
-                        <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                    <div class="mb-8 grid grid-cols-1 gap-4 text-left sm:grid-cols-3">
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/30">
+                            <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Product</p>
+                            <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $product->name }}</p>
+                        </div>
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/30">
+                            <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Category</p>
+                            <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $product->category?->name ?? '-' }}</p>
+                        </div>
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/30">
+                            <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Variants</p>
+                            <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $product->variants->count() }}</p>
+                        </div>
+                    </div>
+
+                    <h3 class="mb-4 border-b border-gray-200 pb-2 text-left text-xl font-semibold dark:border-gray-700">Generated Variants</h3>
+
+                    <div class="relative mb-8 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                        <table class="w-full text-left text-sm text-gray-500 dark:text-gray-400">
+                            <thead class="bg-gray-50 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3">Unit</th>
-                                    <th scope="col" class="px-6 py-3">SKU</th>
-                                    <th scope="col" class="px-6 py-3">Price</th>
-                                    <th scope="col" class="px-6 py-3 text-center">Actions</th>
+                                    <th class="px-6 py-3">Variant</th>
+                                    <th class="px-6 py-3">SKU</th>
+                                    <th class="px-6 py-3 text-right">Price</th>
+                                    <th class="px-6 py-3 text-center">Barcode</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($product->variants as $variant)
-                                    <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 last:border-b-0">
-                                        <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">{{ $variant->unit_value ? $variant->unit_value . ' ' : '' }}{{ $variant->unit->name }} ({{ $variant->unit->short_name }})</td>
-                                        <td class="px-6 py-4 font-mono">{{ $variant->sku }}</td>
-                                        <td class="px-6 py-4">Rs. {{ number_format($variant->selling_price, 2) }}</td>
+                                    <tr class="border-b bg-white dark:border-gray-700 dark:bg-gray-800 last:border-b-0">
+                                        <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                                            {{ $variant->unit_value ? $variant->unit_value . ' ' : '' }}{{ $variant->unit->name }}{{ $variant->unit->short_name ? ' (' . $variant->unit->short_name . ')' : '' }}
+                                        </td>
+                                        <td class="px-6 py-4 font-mono text-xs">{{ $variant->sku }}</td>
+                                        <td class="px-6 py-4 text-right">Rs. {{ number_format((float) $variant->selling_price, 2) }}</td>
                                         <td class="px-6 py-4 text-center">
-                                            <button onclick="window.open('{{ route('products.barcode.print', $variant->id) }}', '_blank', 'width=400,height=400')" class="inline-flex items-center text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-xs px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 transition-colors">
-                                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4h-4v-4H8m13-4V4H3v7m2-7v11h14V4.9M3 17h18m-8-5v-2m-3 2v-2"></path></svg>
+                                            <a href="{{ route('products.barcode.print', $variant->id) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-lg bg-blue-700 px-4 py-2 text-xs font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
                                                 Print Barcode
-                                            </button>
+                                            </a>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -39,11 +58,11 @@
                         </table>
                     </div>
 
-                    <div class="flex flex-col sm:flex-row justify-center gap-4">
-                        <a href="{{ route('products.index') }}" class="py-2.5 px-5 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 transition-colors">
+                    <div class="flex flex-col justify-center gap-4 sm:flex-row">
+                        <a href="{{ route('products.index') }}" class="rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-900 hover:bg-gray-100 hover:text-blue-700 focus:ring-4 focus:ring-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">
                             Back to Product List
                         </a>
-                        <a href="{{ route('products.create') }}" class="text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-green-600 dark:hover:bg-green-700 focus:outline-none dark:focus:ring-green-800 transition-colors shadow-lg shadow-green-500/30">
+                        <a href="{{ route('products.create') }}" class="rounded-lg bg-green-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-green-800 focus:ring-4 focus:ring-green-300 dark:bg-green-600 dark:hover:bg-green-700">
                             Add Another Product
                         </a>
                     </div>

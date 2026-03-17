@@ -37,6 +37,10 @@
                 <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                 Edit
             </a>
+            <a href="{{ route('purchases.barcodes', $purchase) }}" target="_blank" class="inline-flex items-center rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 focus:ring-4 focus:ring-blue-200 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30">
+                <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7V4m0 3h16M4 7v13m0-13h16m0 0V4m0 3v13M9 11h6m-6 4h6"></path></svg>
+                Print All Barcodes
+            </a>
             <a href="{{ route('purchases.pdf', $purchase) }}" target="_blank" class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:ring-4 focus:ring-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
                 <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z"></path></svg>
                 Print / PDF
@@ -77,9 +81,12 @@
                         <tr>
                             <th class="px-6 py-3">#</th>
                             <th class="px-6 py-3">Product</th>
+                            <th class="px-6 py-3">Variant</th>
+                            <th class="px-6 py-3">SKU</th>
                             <th class="px-6 py-3 text-right">Qty</th>
                             <th class="px-6 py-3 text-right">Unit Price</th>
                             <th class="px-6 py-3 text-right">Total</th>
+                            <th class="px-6 py-3 text-center">Barcode</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -87,9 +94,28 @@
                             <tr class="border-b bg-white dark:border-gray-700 dark:bg-gray-800">
                                 <td class="px-6 py-4">{{ $index + 1 }}</td>
                                 <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">{{ $item->product_name }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                    @if($item->variant)
+                                        {{ $item->variant->unit_value ? $item->variant->unit_value . ' ' : '' }}{{ $item->variant->unit->name ?? ($item->variant->unit->short_name ?? '-') }}
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4 font-mono text-xs text-gray-600 dark:text-gray-300">
+                                    {{ $item->variant?->sku ?? '-' }}
+                                </td>
                                 <td class="px-6 py-4 text-right">{{ $item->quantity }}</td>
                                 <td class="px-6 py-4 text-right">{{ number_format((float) $item->purchase_price, 2) }}</td>
                                 <td class="px-6 py-4 text-right font-semibold text-gray-900 dark:text-white">{{ number_format((float) $item->total, 2) }}</td>
+                                <td class="px-6 py-4 text-center">
+                                    @if($item->variant)
+                                        <a href="{{ route('products.barcode.print', $item->variant->id) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30">
+                                            Print
+                                        </a>
+                                    @else
+                                        <span class="text-xs text-gray-400 dark:text-gray-500">N/A</span>
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

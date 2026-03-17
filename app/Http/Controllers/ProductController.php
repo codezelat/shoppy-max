@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProductsExport;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
-use Picqer\Barcode\BarcodeGeneratorHTML;
+use Picqer\Barcode\BarcodeGeneratorPNG;
 use App\Models\ProductVariant;
 use Illuminate\Validation\ValidationException;
 
@@ -325,14 +325,14 @@ class ProductController extends Controller
     }
     public function success(Product $product)
     {
-        $product->load('variants.unit');
+        $product->load(['category', 'variants.unit']);
         return view('product_management.products.success', compact('product'));
     }
 
     public function printBarcode(ProductVariant $variant)
     {
-        $generator = new BarcodeGeneratorHTML();
-        $barcode = $generator->getBarcode($variant->sku, $generator::TYPE_CODE_128);
+        $generator = new BarcodeGeneratorPNG();
+        $barcode = base64_encode($generator->getBarcode($variant->sku, $generator::TYPE_CODE_128));
         
         return view('product_management.products.barcode_preview', compact('variant', 'barcode'));
     }

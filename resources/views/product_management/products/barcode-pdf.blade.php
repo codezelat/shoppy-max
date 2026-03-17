@@ -4,62 +4,83 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>Barcodes</title>
     <style>
-        body { font-family: sans-serif; }
-        .container {
+        @page {
+            size: A4 portrait;
+            margin: 6mm;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: #111827;
+        }
+
+        .sheet {
             width: 100%;
         }
+
         .barcode-item {
             float: left;
-            width: 32%; /* 3 items per row with margin */
-            margin-right: 1.3%;
-            margin-bottom: 10px;
-            border: 1px dashed #ccc;
-            padding: 5px;
+            width: 34mm;
+            height: 25mm;
+            margin-right: 2mm;
+            margin-bottom: 2mm;
+            border: 0.2mm solid #d1d5db;
+            padding: 1.3mm 1.5mm 1mm;
             text-align: center;
-            height: 110px; /* Fixed height to force alignment */
             box-sizing: border-box;
+            overflow: hidden;
             page-break-inside: avoid;
         }
-        /* Clear every 3rd item to ensure new row starts cleanly */
-        .barcode-item:nth-child(3n+1) {
-            clear: left;
-        }
-        /* Remove right margin for the last item in a row */
-        .barcode-item:nth-child(3n) {
+
+        .barcode-item:nth-child(5n) {
             margin-right: 0;
         }
 
+        .barcode-item:nth-child(5n+1) {
+            clear: left;
+        }
+
         .product-name {
-            font-size: 10px;
-            font-weight: bold;
-            margin-bottom: 5px;
+            font-size: 8px;
+            font-weight: 700;
+            line-height: 1.1;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 100%;
         }
+
         .variant-info {
-            font-size: 9px;
-            margin-bottom: 3px;
+            margin-top: 0.6mm;
+            min-height: 2.6mm;
+            font-size: 6.5px;
+            line-height: 1.1;
+            color: #4b5563;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .price {
-            font-size: 10px;
-            font-weight: bold;
-            margin-top: 3px;
+
+        .barcode-wrap {
+            margin: 0.8mm 0 0.4mm;
+            height: 9.5mm;
         }
+
         .barcode-img {
-            height: 25px; /* Slightly smaller to fit */
-            margin: 2px auto;
+            width: 100%;
+            height: 9.5mm;
+            object-fit: contain;
             display: block;
-            width: 90%; /* prevent overflow */
         }
+
         .sku {
-             font-size: 8px;
-             letter-spacing: 1px;
-        }
-        @page { 
-            size: A4 portrait;
-            margin: 20px; 
+            font-family: "Courier New", monospace;
+            font-size: 7px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
     </style>
 </head>
@@ -68,18 +89,23 @@
         $generator = new \Picqer\Barcode\BarcodeGeneratorPNG();
     @endphp
 
-    <div>
+    <div class="sheet">
         @foreach($variants as $variant)
             <div class="barcode-item">
                 <div class="product-name">{{ $variant->product->name }}</div>
                 <div class="variant-info">
-                    {{ $variant->unit_value }} {{ $variant->unit->short_name }}
+                    {{ $variant->unit_value ? $variant->unit_value . ' ' : '' }}{{ $variant->unit->name }}{{ $variant->unit->short_name ? ' (' . $variant->unit->short_name . ')' : '' }}
                 </div>
-                
-                <img class="barcode-img" src="data:image/png;base64,{{ base64_encode($generator->getBarcode($variant->sku, $generator::TYPE_CODE_128)) }}">
-                
+
+                <div class="barcode-wrap">
+                    <img
+                        class="barcode-img"
+                        src="data:image/png;base64,{{ base64_encode($generator->getBarcode($variant->sku, $generator::TYPE_CODE_128)) }}"
+                        alt="Barcode for {{ $variant->sku }}"
+                    >
+                </div>
+
                 <div class="sku">{{ $variant->sku }}</div>
-    
             </div>
         @endforeach
     </div>

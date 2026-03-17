@@ -376,8 +376,17 @@
                             </div>
                         </div>
 
-                        <!-- Variants Table -->
-                        <h5 class="text-md font-semibold mb-2 text-gray-900 dark:text-white">Product Variants</h5>
+                        <div class="mb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <h5 class="text-md font-semibold text-gray-900 dark:text-white">Product Variants</h5>
+                            <button
+                                type="button"
+                                @click="printActiveProductBarcodes()"
+                                class="inline-flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 focus:ring-4 focus:ring-blue-200 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
+                            >
+                                <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                Print All Barcodes
+                            </button>
+                        </div>
                          <div class="relative overflow-x-auto border rounded-lg border-gray-200 dark:border-gray-700">
                             <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                                 <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -401,9 +410,9 @@
                                                  <span :class="variant.quantity <= (variant.alert_quantity || 0) ? 'text-red-600 bg-red-100' : 'text-green-600 bg-green-100'" class="px-2 py-0.5 rounded text-xs font-medium" x-text="variant.quantity"></span>
                                             </td>
                                             <td class="px-4 py-2 text-center">
-                                                <button @click="window.open('/admin/variants/'+variant.id+'/print-barcode', '_blank', 'width=400,height=400')" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-xs">
+                                                <a :href="'/admin/variants/' + variant.id + '/print-barcode'" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-xs">
                                                     Print Barcode
-                                                </button>
+                                                </a>
                                             </td>
                                         </tr>
                                     </template>
@@ -685,6 +694,13 @@
                 
                 const ids = this.selected.join(',');
                 const url = "{{ route('products.barcode.bulk') }}?products=" + ids;
+                window.open(url, '_blank');
+            },
+
+            printActiveProductBarcodes() {
+                if (!this.activeProduct?.id) return;
+
+                const url = "{{ route('products.barcode.bulk') }}?products=" + this.activeProduct.id;
                 window.open(url, '_blank');
             },
 

@@ -135,7 +135,7 @@ class PurchaseController extends Controller
             }
 
             DB::commit();
-            return redirect()->route('purchases.index')->with('success', 'Purchase recorded successfully.');
+            return redirect()->route('purchases.success', $purchase)->with('success', 'Purchase recorded successfully.');
 
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -151,8 +151,15 @@ class PurchaseController extends Controller
      */
     public function show(Purchase $purchase)
     {
-        $purchase->load(['items', 'supplier']);
+        $purchase->load(['items.variant.product', 'items.variant.unit', 'supplier']);
         return view('purchases.show', compact('purchase'));
+    }
+
+    public function success(Purchase $purchase)
+    {
+        $purchase->load(['items.variant.product', 'items.variant.unit', 'supplier']);
+
+        return view('purchases.success', compact('purchase'));
     }
 
     /**
@@ -160,8 +167,30 @@ class PurchaseController extends Controller
      */
     public function pdf(Purchase $purchase)
     {
-        $purchase->load(['items', 'supplier']);
+        $purchase->load(['items.variant.product', 'items.variant.unit', 'supplier']);
         return view('purchases.pdf', compact('purchase'));
+    }
+
+    public function printBarcodes(Purchase $purchase)
+    {
+        $purchase->load(['items.variant.product', 'items.variant.unit']);
+
+        $variants = $purchase->items
+            ->pluck('variant')
+            ->filter()
+            ->unique('id')
+            ->values();
+
+        if ($variants->isEmpty()) {
+            return redirect()
+                ->route('purchases.show', $purchase)
+                ->with('error', 'No barcode-ready variants found for this purchase.');
+        }
+
+        $pdf = app('dompdf.wrapper');
+        $pdf->loadView('product_management.products.barcode-pdf', compact('variants'));
+
+        return $pdf->stream('purchase_' . $purchase->purchase_number . '_barcodes.pdf');
     }
 
     /**

@@ -154,6 +154,8 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('bank-accounts', \App\Http\Controllers\BankAccountController::class)->except(['show']);
     // Purchases
     Route::get('/purchases/{purchase}/pdf', [\App\Http\Controllers\PurchaseController::class, 'pdf'])->name('purchases.pdf');
+    Route::get('/purchases/{purchase}/success', [\App\Http\Controllers\PurchaseController::class, 'success'])->name('purchases.success');
+    Route::get('/purchases/{purchase}/barcodes', [\App\Http\Controllers\PurchaseController::class, 'printBarcodes'])->name('purchases.barcodes');
     Route::get('/purchases/search-suppliers', [\App\Http\Controllers\PurchaseController::class, 'searchSuppliers'])->name('purchases.search-suppliers');
     Route::get('/purchases/search-products', [\App\Http\Controllers\PurchaseController::class, 'searchProducts'])->name('purchases.search-products');
     Route::resource('purchases', \App\Http\Controllers\PurchaseController::class);
