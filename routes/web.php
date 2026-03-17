@@ -156,6 +156,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/purchases/{purchase}/pdf', [\App\Http\Controllers\PurchaseController::class, 'pdf'])->name('purchases.pdf');
     Route::get('/purchases/{purchase}/success', [\App\Http\Controllers\PurchaseController::class, 'success'])->name('purchases.success');
     Route::get('/purchases/{purchase}/barcodes', [\App\Http\Controllers\PurchaseController::class, 'printBarcodes'])->name('purchases.barcodes');
+    Route::get('/purchases/{purchase}/items/{item}/barcodes', [\App\Http\Controllers\PurchaseController::class, 'printItemBarcodes'])->name('purchases.items.barcodes');
+    Route::get('/purchases/moderation', function () {
+        return redirect()->route('purchases.moderation.checking');
+    })->name('purchases.moderation.index');
+    Route::get('/purchases/moderation/checking', [\App\Http\Controllers\PurchaseController::class, 'moderationChecking'])->name('purchases.moderation.checking');
+    Route::get('/purchases/moderation/verifying', [\App\Http\Controllers\PurchaseController::class, 'moderationVerifying'])->name('purchases.moderation.verifying');
+    Route::get('/purchases/moderation/grn-checking', [\App\Http\Controllers\PurchaseController::class, 'moderationGrn'])->name('purchases.moderation.grn');
+    Route::post('/purchases/{purchase}/approve-stage', [\App\Http\Controllers\PurchaseController::class, 'approveModerationStage'])->name('purchases.moderation.approve');
     Route::get('/purchases/search-suppliers', [\App\Http\Controllers\PurchaseController::class, 'searchSuppliers'])->name('purchases.search-suppliers');
     Route::get('/purchases/search-products', [\App\Http\Controllers\PurchaseController::class, 'searchProducts'])->name('purchases.search-products');
     Route::resource('purchases', \App\Http\Controllers\PurchaseController::class);

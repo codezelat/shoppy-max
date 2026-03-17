@@ -53,6 +53,10 @@
                         </div>
                     </div>
 
+                    <div class="mb-8 rounded-lg border border-blue-200 bg-blue-50 p-4 text-left text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-300">
+                        Inventory has not been added yet. Stock will update only when this purchase is moved to <span class="font-semibold">Complete</span>.
+                    </div>
+
                     <div class="mb-8 flex flex-wrap justify-center gap-3">
                         <a href="{{ route('purchases.barcodes', $purchase) }}" target="_blank" class="inline-flex items-center rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
                             <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7V4m0 3h16M4 7v13m0-13h16m0 0V4m0 3v13M9 11h6m-6 4h6"></path></svg>
@@ -93,8 +97,8 @@
                                         <td class="px-6 py-4 text-right">Rs. {{ number_format((float) $item->purchase_price, 2) }}</td>
                                         <td class="px-6 py-4 text-center">
                                             @if($item->variant)
-                                                <a href="{{ route('products.barcode.print', $item->variant->id) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-lg bg-blue-700 px-4 py-2 text-xs font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
-                                                    Print Barcode
+                                                <a href="{{ route('purchases.items.barcodes', [$purchase, $item]) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-lg bg-blue-700 px-4 py-2 text-xs font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700" title="Print {{ number_format((float) $item->quantity, 0) }} labels">
+                                                    Print {{ number_format((float) $item->quantity, 0) }} Labels
                                                 </a>
                                             @else
                                                 <span class="text-xs text-gray-400 dark:text-gray-500">N/A</span>

@@ -331,10 +331,12 @@ class ProductController extends Controller
 
     public function printBarcode(ProductVariant $variant)
     {
-        $generator = new BarcodeGeneratorPNG();
-        $barcode = base64_encode($generator->getBarcode($variant->sku, $generator::TYPE_CODE_128));
-        
-        return view('product_management.products.barcode_preview', compact('variant', 'barcode'));
+        $variant->loadMissing(['product', 'unit']);
+
+        $pdf = app('dompdf.wrapper');
+        $pdf->loadView('product_management.products.barcode-single-pdf', compact('variant'));
+
+        return $pdf->stream('barcode_' . $variant->sku . '.pdf');
     }
 
     public function bulkPrintBarcode(Request $request) 

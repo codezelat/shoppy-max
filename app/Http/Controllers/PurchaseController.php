@@ -20,6 +20,42 @@ class PurchaseController extends Controller
         'Online Payment',
     ];
 
+    private const MODERATION_STAGES = [
+        'checking' => [
+            'statuses' => ['pending'],
+            'next_status' => 'checking',
+            'title' => 'Purchase Checking',
+            'description' => 'Review pending purchases and mark them as checked before verification.',
+            'switcher_label' => 'Purchase Checking',
+            'action_label' => 'Mark Checked',
+            'completed_label' => 'Checked',
+            'success_message' => 'Purchase moved to Checking successfully.',
+            'final_stage' => false,
+        ],
+        'verifying' => [
+            'statuses' => ['checking'],
+            'next_status' => 'verified',
+            'title' => 'Purchase Verification',
+            'description' => 'Validate checked purchases and mark them as verified before GRN approval.',
+            'switcher_label' => 'Purchase Verification',
+            'action_label' => 'Mark Verified',
+            'completed_label' => 'Verified',
+            'success_message' => 'Purchase moved to Verified successfully.',
+            'final_stage' => false,
+        ],
+        'grn' => [
+            'statuses' => ['verified', 'complete'],
+            'next_status' => 'complete',
+            'title' => 'GRN Approval',
+            'description' => 'Approve verified purchases into complete GRN records. Stock is added only at this stage. Completed rows stay here for reference.',
+            'switcher_label' => 'GRN Approval',
+            'action_label' => 'Approve GRN',
+            'completed_label' => 'Completed',
+            'success_message' => 'GRN approved successfully and stock was added to inventory.',
+            'final_stage' => true,
+        ],
+    ];
+
     /**
      * Display a listing of the resource.
      */
@@ -81,6 +117,88 @@ class PurchaseController extends Controller
 
         $purchases = $query->paginate(15);
         return view('purchases.index', compact('purchases', 'totalPurchases', 'totalSpent', 'totalDue'));
+    }
+
+    public function moderationChecking(Request $request)
+    {
+        return $this->renderModerationStage($request, 'checking');
+    }
+
+    public function moderationVerifying(Request $request)
+    {
+        return $this->renderModerationStage($request, 'verifying');
+    }
+
+    public function moderationGrn(Request $request)
+    {
+        return $this->renderModerationStage($request, 'grn');
+    }
+
+    public function approveModerationStage(Request $request, Purchase $purchase)
+    {
+        $stage = (string) $request->input('stage');
+        $config = self::MODERATION_STAGES[$stage] ?? null;
+
+        if (!$config) {
+            return redirect()->route('purchases.index')->with('error', 'Invalid moderation stage.');
+        }
+
+        if (!in_array((string) $purchase->status, $config['statuses'], true)) {
+            return redirect()->route($this->moderationRouteName($stage))->with(
+                'error',
+                'This purchase is no longer available in the selected moderation queue.'
+            );
+        }
+
+        if (($purchase->status ?? 'pending') === 'complete') {
+            return redirect()->route($this->moderationRouteName($stage))->with(
+                'info',
+                'This purchase is already complete.'
+            );
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $purchase->load(['items.variant']);
+
+            $statusTransition = $this->resolveStatusTransition(
+                $purchase,
+                $config['next_status'],
+                $request->user()?->id
+            );
+
+            $updateData = [
+                'status' => $statusTransition['status'],
+            ] + $statusTransition['audit'];
+
+            if ($statusTransition['status'] === 'complete' && is_null($purchase->stock_applied_at)) {
+                $this->applyPurchaseStock($purchase->items);
+                $updateData['stock_applied_at'] = now();
+            }
+
+            $purchase->update($updateData);
+
+            DB::commit();
+
+            $message = $config['success_message'];
+
+            return redirect()->route($this->moderationRouteName($stage))->with('success', $message);
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            return redirect()->route($this->moderationRouteName($stage))->with(
+                'error',
+                collect($e->errors())->flatten()->first() ?: 'Unable to approve purchase.'
+            );
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->route($this->moderationRouteName($stage))->with(
+                'error',
+                'Unable to approve purchase: ' . $e->getMessage()
+            );
+        }
     }
 
     /**
@@ -156,10 +274,11 @@ class PurchaseController extends Controller
                 'payment_reference' => null,
                 'payment_account' => null,
                 'payment_note' => null,
+                'stock_applied_at' => null,
             ]);
 
             foreach ($validated['items'] as $item) {
-                $this->createPurchaseItemAndApplyStock($purchase, $item);
+                $this->createPurchaseItem($purchase, $item, false);
             }
 
             DB::commit();
@@ -203,11 +322,7 @@ class PurchaseController extends Controller
     {
         $purchase->load(['items.variant.product', 'items.variant.unit']);
 
-        $variants = $purchase->items
-            ->pluck('variant')
-            ->filter()
-            ->unique('id')
-            ->values();
+        $variants = $this->buildPurchaseBarcodeVariantSet($purchase->items);
 
         if ($variants->isEmpty()) {
             return redirect()
@@ -221,11 +336,39 @@ class PurchaseController extends Controller
         return $pdf->stream('purchase_' . $purchase->purchase_number . '_barcodes.pdf');
     }
 
+    public function printItemBarcodes(Purchase $purchase, PurchaseItem $item)
+    {
+        abort_if((int) $item->purchase_id !== (int) $purchase->id, 404);
+
+        $item->loadMissing(['variant.product', 'variant.unit']);
+
+        $variants = $this->buildPurchaseBarcodeVariantSet(collect([$item]));
+
+        if ($variants->isEmpty()) {
+            return redirect()
+                ->route('purchases.show', $purchase)
+                ->with('error', 'No barcode-ready variant found for this purchase item.');
+        }
+
+        $pdf = app('dompdf.wrapper');
+        $pdf->loadView('product_management.products.barcode-pdf', compact('variants'));
+
+        $sku = $item->variant?->sku ?: 'labels';
+
+        return $pdf->stream('purchase_' . $purchase->purchase_number . '_' . $sku . '_barcodes.pdf');
+    }
+
     /**
      * Show the form for editing the specified resource.
      */
     public function edit(Purchase $purchase)
     {
+        if (($purchase->status ?? 'pending') === 'complete') {
+            return redirect()
+                ->route('purchases.show', $purchase)
+                ->with('error', 'Completed purchases are locked. Stock was already added to inventory and the purchase can no longer be edited.');
+        }
+
         $suppliers = Supplier::all();
         $bankAccounts = BankAccount::query()
             ->where('is_active', true)
@@ -241,6 +384,12 @@ class PurchaseController extends Controller
      */
     public function update(Request $request, Purchase $purchase)
     {
+        if (($purchase->status ?? 'pending') === 'complete') {
+            return redirect()
+                ->route('purchases.show', $purchase)
+                ->with('error', 'Completed purchases are locked. Stock was already added to inventory and the purchase can no longer be edited.');
+        }
+
         // Validation similar to store, but unique purchase_number check ignores current id
         $validated = $request->validate([
             'supplier_id' => 'required|exists:suppliers,id',
@@ -292,9 +441,13 @@ class PurchaseController extends Controller
             $paymentsData = $this->normalizePayments($validated['payments'] ?? []);
             $paidAmount = (float) collect($paymentsData)->sum('amount');
             $this->ensurePaidAmountWithinTotal($paidAmount, $totals['net_total']);
+            $stockAlreadyApplied = !is_null($purchase->stock_applied_at);
+            $shouldApplyStockAfterUpdate = $stockAlreadyApplied || $statusTransition['status'] === 'complete';
 
             $purchase->load('items');
-            $this->revertPurchaseStock($purchase->items, 'update');
+            if ($stockAlreadyApplied) {
+                $this->revertPurchaseStock($purchase->items, 'update');
+            }
 
             $purchase->update([
                 'purchase_number' => $currentPurchaseNumber,
@@ -313,17 +466,22 @@ class PurchaseController extends Controller
                 'payment_reference' => null,
                 'payment_account' => null, // Deprecated
                 'payment_note' => null, // Deprecated
+                'stock_applied_at' => $shouldApplyStockAfterUpdate
+                    ? ($purchase->stock_applied_at ?? now())
+                    : null,
             ] + $statusTransition['audit']);
 
             // Sync Items: Delete old and create new
             $purchase->items()->delete();
 
             foreach ($validated['items'] as $item) {
-                $this->createPurchaseItemAndApplyStock($purchase, $item);
+                $this->createPurchaseItem($purchase, $item, $shouldApplyStockAfterUpdate);
             }
 
             DB::commit();
-            return redirect()->route('purchases.index')->with('success', 'Purchase updated successfully.');
+            return redirect()->route('purchases.index')->with('success', $statusTransition['status'] === 'complete'
+                ? 'Purchase completed successfully and stock was added to inventory.'
+                : 'Purchase updated successfully.');
 
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -452,11 +610,17 @@ class PurchaseController extends Controller
      */
     public function destroy(Purchase $purchase)
     {
+        if (($purchase->status ?? 'pending') === 'complete' || !is_null($purchase->stock_applied_at)) {
+            return back()->with(
+                'error',
+                'Completed purchases are locked. Stock was already added to inventory and the purchase can no longer be deleted.'
+            );
+        }
+
         DB::beginTransaction();
 
         try {
             $purchase->load('items');
-            $this->revertPurchaseStock($purchase->items, 'delete');
             $purchase->delete();
 
             DB::commit();
@@ -556,7 +720,7 @@ class PurchaseController extends Controller
         ]);
     }
 
-    private function createPurchaseItemAndApplyStock(Purchase $purchase, array $itemData): void
+    private function createPurchaseItem(Purchase $purchase, array $itemData, bool $applyStock): void
     {
         $variant = $this->resolveVariantForPurchaseItem($itemData);
         $quantity = (int) ($itemData['quantity'] ?? 0);
@@ -576,7 +740,9 @@ class PurchaseController extends Controller
             'total' => round($quantity * $price, 2),
         ]);
 
-        $variant->increment('quantity', $quantity);
+        if ($applyStock) {
+            $variant->increment('quantity', $quantity);
+        }
     }
 
     private function revertPurchaseStock($items, string $action): void
@@ -811,5 +977,92 @@ class PurchaseController extends Controller
             'status' => $requestedStatus,
             'audit' => $audit,
         ];
+    }
+
+    private function renderModerationStage(Request $request, string $stage)
+    {
+        $config = self::MODERATION_STAGES[$stage] ?? null;
+
+        abort_if(!$config, 404);
+
+        $query = Purchase::query()
+            ->with(['supplier'])
+            ->withCount('items')
+            ->withSum('items as total_item_quantity', 'quantity')
+            ->whereIn('status', $config['statuses'])
+            ->latest('purchase_date');
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+            $query->where(function ($purchaseQuery) use ($search) {
+                $purchaseQuery->where('purchase_number', 'like', "%{$search}%")
+                    ->orWhereHas('supplier', function ($supplierQuery) use ($search) {
+                        $supplierQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('business_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($request->filled('date')) {
+            $query->whereDate('purchase_date', $request->date);
+        }
+
+        if ($stage === 'grn') {
+            $query->orderByRaw("CASE WHEN status = 'verified' THEN 0 ELSE 1 END")
+                ->orderByDesc('purchase_date');
+        }
+
+        $purchases = $query->paginate(15)->withQueryString();
+
+        return view('purchases.moderation.index', [
+            'purchases' => $purchases,
+            'stage' => $stage,
+            'stageConfig' => $config,
+        ]);
+    }
+
+    private function moderationRouteName(string $stage): string
+    {
+        return match ($stage) {
+            'checking' => 'purchases.moderation.checking',
+            'verifying' => 'purchases.moderation.verifying',
+            'grn' => 'purchases.moderation.grn',
+            default => 'purchases.index',
+        };
+    }
+
+    private function buildPurchaseBarcodeVariantSet($items)
+    {
+        return collect($items)
+            ->flatMap(function ($item) {
+                $variant = $item->variant;
+                $quantity = max((int) ($item->quantity ?? 0), 0);
+
+                if (!$variant || $quantity < 1) {
+                    return collect();
+                }
+
+                return collect(range(1, $quantity))->map(fn () => $variant);
+            })
+            ->values();
+    }
+
+    private function applyPurchaseStock($items): void
+    {
+        foreach ($items as $item) {
+            $variantId = (int) ($item->stock_variant_id ?? 0);
+            $quantity = (int) ($item->quantity ?? 0);
+
+            if ($variantId <= 0 || $quantity <= 0) {
+                continue;
+            }
+
+            $variant = ProductVariant::query()->whereKey($variantId)->lockForUpdate()->first();
+            if (!$variant) {
+                continue;
+            }
+
+            $variant->increment('quantity', $quantity);
+        }
     }
 }

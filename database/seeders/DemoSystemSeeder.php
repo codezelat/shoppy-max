@@ -43,7 +43,7 @@ class DemoSystemSeeder extends Seeder
         $this->seedResellerTargets($resellers);
         [$products, $variants] = $this->seedProducts($categories, $subCategories, $units);
         $customers = $this->seedCustomers($cities);
-        $this->seedPurchases($suppliers, $variants);
+        $this->seedPurchases($users, $suppliers, $variants);
         $orders = $this->seedOrders($users, $resellers, $customers, $couriers, $cities, $variants);
         $this->seedCourierPayments($users, $couriers, $bankAccounts, $orders);
         $this->seedResellerPayments($resellers);
@@ -1004,16 +1004,25 @@ class DemoSystemSeeder extends Seeder
         }
     }
 
-    private function seedPurchases(array $suppliers, array $variants): void
+    private function seedPurchases(array $users, array $suppliers, array $variants): void
     {
         $hasStockVariantIdColumn = Schema::hasColumn('purchase_items', 'stock_variant_id');
+        $superAdminId = $users['super_admin']->id ?? null;
+        $managerId = $users['manager']->id ?? $superAdminId;
 
         $rows = [
             [
                 'purchase_number' => 'PUR-DEMO-0001',
                 'supplier' => 'Nova Imports',
-                'status' => 'verified',
+                'status' => 'complete',
                 'purchase_date' => now()->subDays(6)->toDateString(),
+                'created_by' => $superAdminId,
+                'checked_by' => $managerId,
+                'checked_at' => now()->subDays(5)->setTime(9, 15),
+                'verified_by' => $managerId,
+                'verified_at' => now()->subDays(5)->setTime(11, 0),
+                'completed_by' => $superAdminId,
+                'completed_at' => now()->subDays(5)->setTime(14, 30),
                 'currency' => 'LKR',
                 'discount_type' => 'fixed',
                 'discount_value' => 500.00,
@@ -1032,8 +1041,15 @@ class DemoSystemSeeder extends Seeder
             [
                 'purchase_number' => 'PUR-DEMO-0002',
                 'supplier' => 'GreenLeaf Distributors',
-                'status' => 'checking',
+                'status' => 'verified',
                 'purchase_date' => now()->subDays(4)->toDateString(),
+                'created_by' => $managerId,
+                'checked_by' => $managerId,
+                'checked_at' => now()->subDays(3)->setTime(10, 0),
+                'verified_by' => $superAdminId,
+                'verified_at' => now()->subDays(3)->setTime(15, 45),
+                'completed_by' => null,
+                'completed_at' => null,
                 'currency' => 'LKR',
                 'discount_type' => 'percentage',
                 'discount_value' => 5.00,
@@ -1056,10 +1072,43 @@ class DemoSystemSeeder extends Seeder
             }
 
             $purchase = Purchase::query()->firstOrNew(['purchase_number' => $row['purchase_number']]);
+            $existingItems = $purchase->exists
+                ? PurchaseItem::query()->where('purchase_id', $purchase->id)->get()
+                : collect();
+
+            if ($purchase->exists && !is_null($purchase->stock_applied_at)) {
+                foreach ($existingItems as $existingItem) {
+                    $variantId = (int) ($existingItem->stock_variant_id ?? 0);
+                    $quantity = (int) ($existingItem->quantity ?? 0);
+
+                    if ($variantId <= 0 || $quantity <= 0) {
+                        continue;
+                    }
+
+                    $variant = ProductVariant::query()->find($variantId);
+                    if (!$variant) {
+                        continue;
+                    }
+
+                    $variant->quantity = max(0, (int) $variant->quantity - $quantity);
+                    $variant->save();
+                }
+            }
+
             $purchase->purchase_number = $row['purchase_number'];
             $purchase->supplier_id = $supplier->id;
             $purchase->purchase_date = $row['purchase_date'];
             $purchase->status = $row['status'] ?? 'pending';
+            $purchase->created_by = $row['created_by'] ?? null;
+            $purchase->checked_by = $row['checked_by'] ?? null;
+            $purchase->checked_at = $row['checked_at'] ?? null;
+            $purchase->verified_by = $row['verified_by'] ?? null;
+            $purchase->verified_at = $row['verified_at'] ?? null;
+            $purchase->completed_by = $row['completed_by'] ?? null;
+            $purchase->completed_at = $row['completed_at'] ?? null;
+            $purchase->stock_applied_at = ($row['status'] ?? 'pending') === 'complete'
+                ? ($row['completed_at'] ?? now())
+                : null;
             $purchase->currency = $row['currency'];
             $purchase->discount_type = $row['discount_type'];
             $purchase->discount_value = $row['discount_value'];
@@ -1098,7 +1147,9 @@ class DemoSystemSeeder extends Seeder
 
                 PurchaseItem::create($purchaseItemData);
 
-                $variant->increment('quantity', (int) $itemRow['quantity']);
+                if (($row['status'] ?? 'pending') === 'complete') {
+                    $variant->increment('quantity', (int) $itemRow['quantity']);
+                }
             }
 
             $discountAmount = $row['discount_type'] === 'percentage'

@@ -19,6 +19,11 @@
             width: 100%;
         }
 
+        .barcode-row {
+            width: 100%;
+            clear: both;
+        }
+
         .barcode-item {
             float: left;
             width: 34mm;
@@ -33,12 +38,14 @@
             page-break-inside: avoid;
         }
 
-        .barcode-item:nth-child(5n) {
+        .barcode-item.last-in-row {
             margin-right: 0;
         }
 
-        .barcode-item:nth-child(5n+1) {
-            clear: left;
+        .barcode-row::after {
+            content: "";
+            display: block;
+            clear: both;
         }
 
         .product-name {
@@ -90,22 +97,26 @@
     @endphp
 
     <div class="sheet">
-        @foreach($variants as $variant)
-            <div class="barcode-item">
-                <div class="product-name">{{ $variant->product->name }}</div>
-                <div class="variant-info">
-                    {{ $variant->unit_value ? $variant->unit_value . ' ' : '' }}{{ $variant->unit->name }}{{ $variant->unit->short_name ? ' (' . $variant->unit->short_name . ')' : '' }}
-                </div>
+        @foreach(collect($variants)->chunk(5) as $row)
+            <div class="barcode-row">
+                @foreach($row as $variant)
+                    <div class="barcode-item {{ $loop->last ? 'last-in-row' : '' }}">
+                        <div class="product-name">{{ $variant->product->name }}</div>
+                        <div class="variant-info">
+                            {{ $variant->unit_value ? $variant->unit_value . ' ' : '' }}{{ $variant->unit->name }}{{ $variant->unit->short_name ? ' (' . $variant->unit->short_name . ')' : '' }}
+                        </div>
 
-                <div class="barcode-wrap">
-                    <img
-                        class="barcode-img"
-                        src="data:image/png;base64,{{ base64_encode($generator->getBarcode($variant->sku, $generator::TYPE_CODE_128)) }}"
-                        alt="Barcode for {{ $variant->sku }}"
-                    >
-                </div>
+                        <div class="barcode-wrap">
+                            <img
+                                class="barcode-img"
+                                src="data:image/png;base64,{{ base64_encode($generator->getBarcode($variant->sku, $generator::TYPE_CODE_128)) }}"
+                                alt="Barcode for {{ $variant->sku }}"
+                            >
+                        </div>
 
-                <div class="sku">{{ $variant->sku }}</div>
+                        <div class="sku">{{ $variant->sku }}</div>
+                    </div>
+                @endforeach
             </div>
         @endforeach
     </div>
