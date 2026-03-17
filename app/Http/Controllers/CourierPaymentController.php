@@ -32,15 +32,19 @@ class CourierPaymentController extends Controller
             $query->where('payment_method', $request->payment_method);
         }
 
-        // Filter by date range
-        if ($request->filled('start_date')) {
-            $query->whereDate('payment_date', '>=', $request->start_date);
-        }
-        if ($request->filled('end_date')) {
-            $query->whereDate('payment_date', '<=', $request->end_date);
+        // Filter by exact date, with legacy range support kept for compatibility
+        if ($request->filled('date')) {
+            $query->whereDate('payment_date', $request->date);
+        } else {
+            if ($request->filled('start_date')) {
+                $query->whereDate('payment_date', '>=', $request->start_date);
+            }
+            if ($request->filled('end_date')) {
+                $query->whereDate('payment_date', '<=', $request->end_date);
+            }
         }
 
-        $payments = $query->latest('payment_date')->paginate(20);
+        $payments = $query->latest('payment_date')->latest('id')->paginate(20)->withQueryString();
         
         return view('courier-payments.index', compact('payments'));
     }
@@ -62,7 +66,6 @@ class CourierPaymentController extends Controller
         $validated = $request->validate([
             'courier_id' => 'required|exists:couriers,id',
             'amount' => 'required|numeric|min:0',
-            'payment_date' => 'required|date',
             'payment_method' => 'nullable|string',
             'reference_number' => 'nullable|string|max:255',
             'payment_note' => 'nullable|string',

@@ -107,11 +107,9 @@
                     <!-- Payment Date -->
                     <div>
                         <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Payment Date <span class="text-red-500">*</span></label>
-                        <input type="date" name="payment_date" value="{{ old('payment_date', $courierPayment->payment_date->format('Y-m-d')) }}" required
-                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                        @error('payment_date')
-                            <p class="mt-2 text-sm text-red-600 dark:text-red-500">{{ $message }}</p>
-                        @enderror
+                        <input type="date" value="{{ $courierPayment->payment_date->format('Y-m-d') }}" disabled
+                               class="bg-gray-100 border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Payment date is locked after the courier payment is created.</p>
                     </div>
 
                     <!-- Amount -->

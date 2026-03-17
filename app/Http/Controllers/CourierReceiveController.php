@@ -144,7 +144,6 @@ class CourierReceiveController extends Controller
     public function store(Request $request, Courier $courier)
     {
         $request->validate([
-            'payment_date' => 'required|date',
             'payment_account_id' => 'required|exists:bank_accounts,id',
             'order_ids' => 'required|array',
             'order_ids.*' => 'exists:orders,id',
@@ -153,6 +152,7 @@ class CourierReceiveController extends Controller
         try {
             DB::transaction(function() use ($request, $courier) {
                 $selectedAccount = BankAccount::findOrFail($request->payment_account_id);
+                $paymentDate = now()->toDateString();
 
                 $eligibleOrders = $this->eligibleOrdersQuery($courier)
                     ->whereIn('id', $request->order_ids)
@@ -173,7 +173,7 @@ class CourierReceiveController extends Controller
                     'courier_id' => $courier->id,
                     'user_id' => auth()->id(),
                     'amount' => $totalAmount,
-                    'payment_date' => $request->payment_date,
+                    'payment_date' => $paymentDate,
                     'payment_method' => $selectedAccount->display_label,
                     'bank_account_id' => $selectedAccount->id,
                     'reference_number' => null, // Or generated
