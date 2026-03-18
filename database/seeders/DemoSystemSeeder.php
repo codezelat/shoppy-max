@@ -851,6 +851,29 @@ class DemoSystemSeeder extends Seeder
                     ['sku' => 'FDOJ-1L', 'quantity' => 2, 'selling_price' => 760.00],
                 ],
             ],
+            [
+                'order_number' => 'DEMO-ORD-0007',
+                'order_date' => now()->toDateString(),
+                'order_type' => 'direct',
+                'status' => 'confirm',
+                'call_status' => 'confirm',
+                'delivery_status' => 'pending',
+                'payment_method' => 'COD',
+                'discount_type' => 'fixed',
+                'discount_value' => 0.00,
+                'discount_amount' => 0.00,
+                'customer' => 'Kavindi Jayasekara',
+                'reseller' => null,
+                'city_key' => 'Galle|Galle',
+                'courier' => 'Lanka Post Parcel',
+                'courier_charge' => 400.00,
+                'courier_cost' => 0.00,
+                'sales_note' => 'Waybill queue demo order',
+                'items' => [
+                    ['sku' => 'VLC-1M', 'quantity' => 1, 'selling_price' => 1250.00],
+                    ['sku' => 'PNR-1KG', 'quantity' => 2, 'selling_price' => 310.00],
+                ],
+            ],
         ];
 
         $orderMap = [];
