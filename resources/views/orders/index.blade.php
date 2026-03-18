@@ -120,6 +120,7 @@
                         <select name="payment_method" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
                         <option value="">All Payment Methods</option>
                         <option value="COD" {{ request('payment_method') == 'COD' ? 'selected' : '' }}>COD</option>
+                        <option value="Cash Deposit" {{ request('payment_method') == 'Cash Deposit' ? 'selected' : '' }}>Cash Deposit</option>
                         <option value="Online Payment" {{ request('payment_method') == 'Online Payment' ? 'selected' : '' }}>Online Payment</option>
                     </select>
                 </div>
@@ -250,6 +251,7 @@
                                     $paymentMethod = (string) ($order->payment_method ?? '');
                                     $paymentMethodColors = [
                                         'COD' => 'bg-blue-100 text-blue-800 border-blue-300',
+                                        'Cash Deposit' => 'bg-amber-100 text-amber-800 border-amber-300',
                                         'Online Payment' => 'bg-emerald-100 text-emerald-800 border-emerald-300',
                                     ];
                                 @endphp
@@ -301,9 +303,8 @@
                             </td>
                             <td class="px-6 py-4 text-center">
                                 @php
-                                    $manualEditLocked = in_array(strtolower((string) ($order->delivery_status ?? 'pending')), ['waybill_printed', 'picked_from_rack', 'packed', 'dispatched', 'delivered', 'returned'], true)
-                                        || !empty($order->waybill_printed_at)
-                                        || trim((string) ($order->waybill_number ?? '')) !== '';
+                                    $manualEditLocked = (bool) ($order->manual_edit_locked ?? false);
+                                    $canPaymentEdit = (bool) ($order->can_payment_edit ?? false);
                                 @endphp
                                 <div class="flex items-center justify-center space-x-2">
                                     <a href="{{ route('orders.pdf', $order) }}" target="_blank" class="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg dark:text-indigo-400 dark:hover:bg-gray-700 transition-colors" title="Download PDF">
@@ -312,19 +313,21 @@
                                     <a href="{{ route('orders.show', $order) }}" class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-400 dark:hover:bg-gray-700 transition-colors" title="View Details">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                     </a>
-                                    @if(!$manualEditLocked)
-                                        <a href="{{ route('orders.edit', $order) }}" class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg dark:text-blue-400 dark:hover:bg-gray-700 transition-colors" title="Edit">
+                                    @if(!$manualEditLocked || $canPaymentEdit)
+                                        <a href="{{ route('orders.edit', $order) }}" class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg dark:text-blue-400 dark:hover:bg-gray-700 transition-colors" title="{{ $manualEditLocked ? 'Update Payment' : 'Edit' }}">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                         </a>
-                                        <form action="{{ route('orders.destroy', $order) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to delete this order? This will restore stock.');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="p-2 text-red-600 hover:bg-red-100 rounded-lg dark:text-red-400 dark:hover:bg-gray-700 transition-colors" title="Delete">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                            </button>
-                                        </form>
+                                        @if(!$manualEditLocked)
+                                            <form action="{{ route('orders.destroy', $order) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to delete this order? This will restore stock.');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="p-2 text-red-600 hover:bg-red-100 rounded-lg dark:text-red-400 dark:hover:bg-gray-700 transition-colors" title="Delete">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                </button>
+                                            </form>
+                                        @endif
                                     @else
-                                        <span class="p-2 text-gray-400 dark:text-gray-500" title="Manual edit and delete locked after waybill print">
+                                        <span class="p-2 text-gray-400 dark:text-gray-500" title="Manual edit, payment update, and delete are locked for this order">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5 9 6.343 9 8s1.343 3 3 3Zm0 0v2m-6 6h12a2 2 0 002-2v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2Z"></path></svg>
                                         </span>
                                     @endif

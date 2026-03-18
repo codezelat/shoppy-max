@@ -26,6 +26,17 @@ class OrderController extends Controller
 {
     private const DEFAULT_CUSTOMER_COUNTRY = 'Sri Lanka';
 
+    private const PAYMENT_METHODS = [
+        'COD',
+        'Cash Deposit',
+        'Online Payment',
+    ];
+
+    private const RECORDED_PAYMENT_METHODS = [
+        'Cash Deposit',
+        'Online Payment',
+    ];
+
     private const DELIVERY_STATUSES = [
         'pending',
         'waybill_printed',
@@ -47,6 +58,9 @@ class OrderController extends Controller
             ->latest()
             ->paginate(20)
             ->withQueryString();
+        $orders->setCollection(
+            $orders->getCollection()->map(fn (Order $order) => $this->decorateOrderUiFlags($order))
+        );
         $couriers = Courier::all();
 
         return view('orders.index', compact('orders', 'couriers', 'viewMode'));
@@ -326,7 +340,7 @@ class OrderController extends Controller
             'discount_type' => 'nullable|in:fixed,percentage',
             'discount_value' => 'nullable|numeric|min:0',
             'discount_amount' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|string|in:COD,Online Payment,Bank Transfer',
+            'payment_method' => $this->paymentMethodValidationRules(),
             'paid_amount' => 'nullable|numeric|min:0',
             'payments' => 'nullable|array',
             'payments.*.amount' => 'required_with:payments|numeric|min:0.01',
@@ -592,6 +606,7 @@ class OrderController extends Controller
     public function show(Order $order)
     {
         $order->load(['items.variant.unit', 'items.variant.product', 'items.inventoryUnits.purchase', 'customer', 'reseller', 'user', 'courier']);
+        $this->decorateOrderUiFlags($order);
         return view('orders.show', compact('order'));
     }
 
@@ -669,7 +684,10 @@ class OrderController extends Controller
      */
     public function edit(Order $order)
     {
-        if ($this->isManualOrderLockedAfterWaybill($order)) {
+        $this->decorateOrderUiFlags($order);
+        $canAdjustLockedPayments = (bool) ($order->getAttribute('can_payment_edit') ?? false);
+
+        if (($order->getAttribute('manual_edit_locked') ?? false) && !$canAdjustLockedPayments) {
             return redirect()
                 ->route('orders.show', $order)
                 ->with('error', 'This order cannot be manually edited after the waybill has been printed.');
@@ -688,6 +706,7 @@ class OrderController extends Controller
             'couriers' => $couriers,
             'courierRatesMap' => $courierRatesMap,
             'cities' => $cities,
+            'canAdjustLockedPayments' => $canAdjustLockedPayments,
         ]);
     }
 
@@ -696,7 +715,10 @@ class OrderController extends Controller
      */
     public function update(Request $request, Order $order)
     {
-        if ($this->isManualOrderLockedAfterWaybill($order)) {
+        $manualEditLocked = $this->isManualOrderLockedAfterWaybill($order);
+        $canAdjustLockedPayments = $this->canAdjustLockedOrderPayments($order);
+
+        if ($manualEditLocked && !$canAdjustLockedPayments) {
             return response()->json([
                 'success' => false,
                 'message' => 'This order cannot be manually updated after the waybill has been printed.',
@@ -706,6 +728,7 @@ class OrderController extends Controller
         $isCoreLocked = $this->isCoreDetailsLocked($order);
         if ($isCoreLocked) {
             $validated = $request->validate([
+                'payment_method' => $this->paymentMethodValidationRules(),
                 'paid_amount' => 'nullable|numeric|min:0',
                 'payments' => 'nullable|array',
                 'payments.*.amount' => 'required_with:payments|numeric|min:0.01',
@@ -718,9 +741,13 @@ class OrderController extends Controller
             DB::beginTransaction();
             try {
                 $order->sales_note = $validated['sales_note'] ?? $order->sales_note;
+                $requestedPaymentMethod = (string) ($validated['payment_method'] ?? $order->payment_method ?? 'COD');
+
+                $this->assertLockedOrderPaymentMethodChangeAllowed($order, $requestedPaymentMethod);
+                $order->payment_method = $requestedPaymentMethod;
 
                 $paymentDetails = $this->resolvePaymentDetails(
-                    (string) ($order->payment_method ?? 'COD'),
+                    $requestedPaymentMethod,
                     $validated['payments'] ?? [],
                     $validated['paid_amount'] ?? null,
                     (float) $order->total_amount
@@ -785,7 +812,7 @@ class OrderController extends Controller
             'discount_type' => 'nullable|in:fixed,percentage',
             'discount_value' => 'nullable|numeric|min:0',
             'discount_amount' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|string|in:COD,Online Payment,Bank Transfer',
+            'payment_method' => $this->paymentMethodValidationRules(),
             'paid_amount' => 'nullable|numeric|min:0',
             'payments' => 'nullable|array',
             'payments.*.amount' => 'required_with:payments|numeric|min:0.01',
@@ -848,7 +875,11 @@ class OrderController extends Controller
             $order->discount_amount = 0;
             $order->payment_method = $validated['payment_method'] ?? 'COD';
             $requestedCallStatus = $validated['call_status'] ?? $order->call_status;
-            $order->call_status = ($requestedCallStatus === 'cancel' || empty($requestedCallStatus)) ? 'pending' : $requestedCallStatus;
+            $order->call_status = $this->resolveCreateCallStatus(
+                $requestedCallStatus,
+                (float) ($validated['discount_value'] ?? 0),
+                $validated['payment_method'] ?? 'COD'
+            );
             $requestedDeliveryStatus = $validated['delivery_status'] ?? $order->delivery_status;
             $this->assertDeliveryStatusTransitionAllowed($requestedDeliveryStatus, $previousDeliveryStatus);
             $order->delivery_status = $this->normalizeDeliveryStatus($requestedDeliveryStatus, 'pending');
@@ -1018,6 +1049,9 @@ class OrderController extends Controller
         }
 
         $orders = $query->latest()->paginate(20)->withQueryString();
+        $orders->setCollection(
+            $orders->getCollection()->map(fn (Order $order) => $this->decorateOrderUiFlags($order))
+        );
 
         return view('orders.call_list', compact('orders'));
     }
@@ -1074,6 +1108,13 @@ class OrderController extends Controller
             }
 
             $this->applyDeliveryTimelineTimestamps($order, $previousOrderStatus, $previousDeliveryStatus);
+            $order->payment_status = $this->resolvePaymentStatus(
+                (string) ($order->payment_status ?? 'pending'),
+                (string) ($order->payment_method ?? 'COD'),
+                (float) ($order->paid_amount ?? 0),
+                (float) ($order->total_amount ?? 0),
+                (string) ($order->delivery_status ?? 'pending')
+            );
             $order->save();
             $this->syncOrderInventoryState($order, Auth::id());
             $this->syncOrderCommission($order);
@@ -1167,7 +1208,17 @@ class OrderController extends Controller
 
     private function mustKeepOrderPending(float $discountAmount, ?string $paymentMethod): bool
     {
-        return $discountAmount > 0 || $paymentMethod === 'Online Payment';
+        return $discountAmount > 0 || $this->usesRecordedPayments($paymentMethod);
+    }
+
+    private function paymentMethodValidationRules(): array
+    {
+        return ['nullable', 'string', Rule::in(self::PAYMENT_METHODS)];
+    }
+
+    private function usesRecordedPayments(?string $paymentMethod): bool
+    {
+        return in_array(trim((string) $paymentMethod), self::RECORDED_PAYMENT_METHODS, true);
     }
 
     private function resolveOrderListViewMode(?string $viewMode): string
@@ -1296,6 +1347,67 @@ class OrderController extends Controller
         }
 
         return trim((string) ($order->waybill_number ?? '')) !== '';
+    }
+
+    private function canAdjustLockedOrderPayments(Order $order): bool
+    {
+        $callStatus = strtolower((string) ($order->call_status ?? 'pending'));
+        $deliveryStatus = strtolower((string) ($order->delivery_status ?? 'pending'));
+
+        if ($callStatus === 'cancel') {
+            return false;
+        }
+
+        if (in_array($deliveryStatus, ['delivered', 'returned', 'cancel'], true)) {
+            return false;
+        }
+
+        return empty($order->courier_payment_id);
+    }
+
+    private function decorateOrderUiFlags(Order $order): Order
+    {
+        $order->setAttribute('manual_edit_locked', $this->isManualOrderLockedAfterWaybill($order));
+        $order->setAttribute('can_payment_edit', $this->canAdjustLockedOrderPayments($order));
+
+        return $order;
+    }
+
+    private function orderHasRecordedPayments(Order $order): bool
+    {
+        if (round((float) ($order->paid_amount ?? 0), 2) > 0) {
+            return true;
+        }
+
+        return collect($order->payments_data ?? [])
+            ->filter(fn ($payment) => is_array($payment) && round((float) ($payment['amount'] ?? 0), 2) > 0)
+            ->isNotEmpty();
+    }
+
+    private function assertLockedOrderPaymentMethodChangeAllowed(Order $order, string $requestedPaymentMethod): void
+    {
+        $currentPaymentMethod = trim((string) ($order->payment_method ?? 'COD'));
+        $requestedPaymentMethod = trim($requestedPaymentMethod);
+
+        if ($requestedPaymentMethod === '' || $requestedPaymentMethod === $currentPaymentMethod) {
+            return;
+        }
+
+        if (!$this->canAdjustLockedOrderPayments($order)) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Payment method cannot be changed for this order anymore.',
+            ]);
+        }
+
+        if (
+            $requestedPaymentMethod === 'COD'
+            && $this->usesRecordedPayments($currentPaymentMethod)
+            && $this->orderHasRecordedPayments($order)
+        ) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Orders with recorded payments cannot be switched back to COD after processing starts.',
+            ]);
+        }
     }
 
     private function normalizeDeliveryStatus(?string $requestedStatus, string $orderStatus): string
@@ -1780,8 +1892,9 @@ class OrderController extends Controller
     private function resolvePaymentDetails(string $paymentMethod, array $paymentsInput, $paidAmountInput, float $totalAmount): array
     {
         $normalizedTotal = max(round($totalAmount, 2), 0);
+        $usesRecordedPayments = $this->usesRecordedPayments($paymentMethod);
 
-        if (trim($paymentMethod) !== 'Online Payment') {
+        if (!$usesRecordedPayments) {
             return [
                 'paid_amount' => 0.0,
                 'payments_data' => null,
@@ -1833,9 +1946,9 @@ class OrderController extends Controller
             }
         }
 
-        if ($paymentMethod === 'Online Payment' && $normalizedTotal > 0 && empty($paymentsData)) {
+        if ($usesRecordedPayments && $normalizedTotal > 0 && empty($paymentsData)) {
             throw ValidationException::withMessages([
-                'payments' => 'Add at least one payment entry for Online Payment orders.',
+                'payments' => 'Add at least one payment entry for ' . trim($paymentMethod) . ' orders.',
             ]);
         }
 
@@ -1862,12 +1975,13 @@ class OrderController extends Controller
         string $deliveryStatus
     ): string {
         $normalizedDelivery = strtolower(trim($deliveryStatus));
-        $isOnlinePayment = trim($paymentMethod) === 'Online Payment';
+        $isCod = trim($paymentMethod) === 'COD';
+        $usesRecordedPayments = $this->usesRecordedPayments($paymentMethod);
         $normalizedTotal = max(round($totalAmount, 2), 0);
         $normalizedPaid = max(round($paidAmount, 2), 0);
-        $isOnlineFullyPaid = $isOnlinePayment && $normalizedPaid >= $normalizedTotal;
+        $isRecordedFullyPaid = $usesRecordedPayments && $normalizedPaid >= $normalizedTotal;
 
-        if ($normalizedDelivery === 'delivered' || $isOnlineFullyPaid) {
+        if (($isCod && $normalizedDelivery === 'delivered') || $isRecordedFullyPaid) {
             return 'paid';
         }
 

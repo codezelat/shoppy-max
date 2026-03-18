@@ -90,9 +90,7 @@
                 <tbody>
                     @forelse ($orders as $order)
                         @php
-                            $manualEditLocked = in_array(strtolower((string) ($order->delivery_status ?? 'pending')), ['waybill_printed', 'picked_from_rack', 'packed', 'dispatched', 'delivered', 'returned'], true)
-                                || !empty($order->waybill_printed_at)
-                                || trim((string) ($order->waybill_number ?? '')) !== '';
+                            $manualEditLocked = (bool) ($order->manual_edit_locked ?? false);
                         @endphp
                         <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors" x-data="{ 
                             updating: false, 
@@ -268,17 +266,19 @@
                                     <button @click="viewOrder({{ json_encode($order) }})" class="text-green-600 hover:text-green-800" title="Quick View">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                     </button>
-                                    @if(!$manualEditLocked)
-                                        <a href="{{ route('orders.edit', $order) }}" class="text-blue-600 hover:text-blue-800" title="Edit">
+                                    @if(!$manualEditLocked || ($order->can_payment_edit ?? false))
+                                        <a href="{{ route('orders.edit', $order) }}" class="text-blue-600 hover:text-blue-800" title="{{ $manualEditLocked ? 'Update Payment' : 'Edit' }}">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                         </a>
-                                        <button type="button" @click="cancelOrder()" :disabled="updating" class="text-red-600 hover:text-red-800 disabled:opacity-40 disabled:cursor-not-allowed" title="Cancel Order">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                            </svg>
-                                        </button>
+                                        @if(!$manualEditLocked)
+                                            <button type="button" @click="cancelOrder()" :disabled="updating" class="text-red-600 hover:text-red-800 disabled:opacity-40 disabled:cursor-not-allowed" title="Cancel Order">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        @endif
                                     @else
-                                        <span class="text-gray-400 dark:text-gray-500" title="Manual edits are locked after waybill print">
+                                        <span class="text-gray-400 dark:text-gray-500" title="Manual edit and payment update are locked for this order">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5 9 6.343 9 8s1.343 3 3 3Zm0 0v2m-6 6h12a2 2 0 002-2v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2Z"></path></svg>
                                         </span>
                                     @endif
@@ -446,9 +446,14 @@
                     <button @click="showModal = false" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
                         Close
                     </button>
-                    <a :href="`/orders/${selectedOrder?.id}/edit`" class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700">
-                        Edit Order
-                    </a>
+                    <template x-if="canOpenOrderEdit(selectedOrder)">
+                        <a :href="`/orders/${selectedOrder?.id}/edit`" class="px-4 py-2 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700" x-text="isManualEditLocked(selectedOrder) ? 'Update Payment' : 'Edit Order'"></a>
+                    </template>
+                    <template x-if="!canOpenOrderEdit(selectedOrder)">
+                        <span class="px-4 py-2 text-sm font-medium text-gray-500 bg-gray-100 rounded-lg dark:bg-gray-700 dark:text-gray-300">
+                            Edit Locked
+                        </span>
+                    </template>
                 </div>
             </div>
         </div>
@@ -505,6 +510,55 @@
                 isReturnedResellerOrder(order) {
                     return String(order?.order_type || '') === 'reseller'
                         && String(order?.delivery_status || '').toLowerCase() === 'returned';
+                },
+                isManualEditLocked(order) {
+                    if (!order) {
+                        return false;
+                    }
+
+                    if (typeof order.manual_edit_locked !== 'undefined') {
+                        return Boolean(order.manual_edit_locked);
+                    }
+
+                    const deliveryStatus = String(order?.delivery_status || 'pending').toLowerCase();
+                    if (['waybill_printed', 'picked_from_rack', 'packed', 'dispatched', 'delivered', 'returned'].includes(deliveryStatus)) {
+                        return true;
+                    }
+
+                    if (order?.waybill_printed_at) {
+                        return true;
+                    }
+
+                    return String(order?.waybill_number || '').trim() !== '';
+                },
+                canAdjustLockedPayments(order) {
+                    if (!order) {
+                        return false;
+                    }
+
+                    if (typeof order.can_payment_edit !== 'undefined') {
+                        return Boolean(order.can_payment_edit);
+                    }
+
+                    const callStatus = String(order?.call_status || 'pending').toLowerCase();
+                    const deliveryStatus = String(order?.delivery_status || 'pending').toLowerCase();
+
+                    if (callStatus === 'cancel') {
+                        return false;
+                    }
+
+                    if (['delivered', 'returned', 'cancel'].includes(deliveryStatus)) {
+                        return false;
+                    }
+
+                    return !order?.courier_payment_id;
+                },
+                canOpenOrderEdit(order) {
+                    if (!order) {
+                        return false;
+                    }
+
+                    return !this.isManualEditLocked(order) || this.canAdjustLockedPayments(order);
                 },
                 unitRange(units) {
                     const list = Array.isArray(units) ? units : [];

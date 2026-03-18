@@ -11,23 +11,24 @@
                 <!-- Scanner Section -->
                 <div class="w-full md:w-2/3 bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
                     <div class="mb-6">
-                        <label class="block text-gray-700 text-lg font-bold mb-2">Scan Barcode / SKU</label>
+                        <label class="block text-gray-700 text-lg font-bold mb-2">Scan Unit Barcode</label>
                         <input type="text" x-ref="scanInput" x-model="scanInput" @keydown.enter.prevent="scanItem()" autofocus class="shadow border-2 border-indigo-500 rounded w-full py-4 px-4 text-gray-700 text-xl leading-tight focus:outline-none focus:shadow-outline" placeholder="Scan item barcode here...">
-                        <p class="text-sm text-gray-500 mt-2">First valid scan moves the order to Picked From Rack automatically. Press Enter after scanning or typing SKU.</p>
+                        <p class="text-sm text-gray-500 mt-2">Scan the allocated unit code for each piece. First valid scan moves the order to Picked From Rack automatically.</p>
                     </div>
 
                     <h3 class="text-lg font-bold mb-4">Items to Pack</h3>
                     <div class="space-y-4">
                         @foreach($order->items as $item)
                         <div class="flex justify-between items-center p-4 border rounded" 
-                             :class="isPacked('{{ $item->sku }}') ? 'bg-green-100 border-green-500' : 'bg-gray-50'">
+                             :class="isPacked({{ $item->id }}) ? 'bg-green-100 border-green-500' : 'bg-gray-50'">
                             <div>
                                 <p class="font-bold text-lg">{{ $item->product_name }}</p>
                                 <p class="text-sm text-gray-600">SKU: {{ $item->sku }}</p>
+                                <p class="mt-1 text-xs text-gray-500" x-text="scanRangeLabel({{ $item->id }})"></p>
                             </div>
                             <div class="text-right">
-                                <p class="text-xl font-bold">Qty: {{ $item->quantity }}</p>
-                                <span x-show="isPacked('{{ $item->sku }}')" class="text-green-600 font-bold">PACKED</span>
+                                <p class="text-xl font-bold" x-text="progressLabel({{ $item->id }})"></p>
+                                <span x-show="isPacked({{ $item->id }})" class="text-green-600 font-bold">READY</span>
                             </div>
                         </div>
                         @endforeach
@@ -67,9 +68,26 @@
             return {
                 scanInput: '',
                 currentStatus: @json((string) ($order->delivery_status ?? 'waybill_printed')),
-                markingPicked: false,
-                packedItems: [], // List of SKUs that have been scanned (simplified logic)
-                items: @json($order->items->map(function($item){ return ['sku' => $item->sku, 'qty' => $item->quantity]; })),
+                scanning: false,
+                items: @json($order->items->map(function($item){
+                    $units = $item->inventoryUnits
+                        ->where('status', \App\Models\InventoryUnit::STATUS_ALLOCATED)
+                        ->sortBy('id')
+                        ->values();
+                    $scannedCodes = $units
+                        ->filter(fn ($unit) => !empty($unit->packed_scan_at))
+                        ->pluck('unit_code')
+                        ->filter()
+                        ->values();
+
+                    return [
+                        'id' => $item->id,
+                        'sku' => $item->sku,
+                        'qty' => (int) $item->quantity,
+                        'scanned_count' => $scannedCodes->count(),
+                        'scanned_codes' => $scannedCodes->all(),
+                    ];
+                })),
 
                 get statusText() {
                     const map = {
@@ -96,76 +114,86 @@
                     alert(message);
                 },
 
-                async ensurePickedFromRack() {
-                    if (this.currentStatus !== 'waybill_printed' || this.markingPicked) {
-                        return true;
-                    }
+                async scanItem() {
+                    const sku = this.scanInput.trim();
+                    if (!sku || this.scanning) return;
 
-                    this.markingPicked = true;
+                    this.scanning = true;
 
                     try {
-                        const response = await fetch(@json(route('orders.packing.mark-picked', $order->id)), {
+                        const response = await fetch(@json(route('orders.packing.scan', $order->id)), {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': @json(csrf_token()),
                                 'Accept': 'application/json',
                             },
-                            body: JSON.stringify({}),
+                            body: JSON.stringify({ unit_code: sku }),
                         });
 
                         const data = await response.json().catch(() => ({}));
+
                         if (!response.ok || !data.success) {
-                            this.notify('error', data.message || 'Failed to move order to Picked From Rack.');
-                            return false;
-                        }
-
-                        this.currentStatus = data.delivery_status || 'picked_from_rack';
-                        return true;
-                    } catch (error) {
-                        this.notify('error', 'Failed to update picking status.');
-                        return false;
-                    } finally {
-                        this.markingPicked = false;
-                    }
-                },
-                
-                async scanItem() {
-                    const sku = this.scanInput.trim();
-                    if (!sku) return;
-
-                    // Find item in order
-                    const item = this.items.find(i => i.sku === sku);
-                    
-                    if (item) {
-                        const pickedReady = await this.ensurePickedFromRack();
-                        if (!pickedReady) {
-                            this.scanInput = '';
-                            this.$nextTick(() => this.$refs.scanInput?.focus());
+                            this.notify('error', data.message || 'Failed to scan item.');
                             return;
                         }
 
-                        // Check if already packed or handle qty decrement logic (simplified here to toggle packed)
-                        if (!this.packedItems.includes(sku)) {
-                            this.packedItems.push(sku);
-                            this.notify('success', `${sku} matched.`);
+                        this.currentStatus = data.delivery_status || this.currentStatus;
+
+                        const item = this.items.find((entry) => Number(entry.id) === Number(data.order_item_id));
+                        if (item) {
+                            item.scanned_count = Number(data.scanned_count || item.scanned_count || 0);
+                            if (!Array.isArray(item.scanned_codes)) {
+                                item.scanned_codes = [];
+                            }
+                            if (data.unit_code && !item.scanned_codes.includes(data.unit_code)) {
+                                item.scanned_codes.push(data.unit_code);
+                            }
                         }
-                    } else {
-                        this.notify('error', 'Wrong item. SKU not found in this order.');
+
+                        this.notify('success', `${data.unit_code || sku} matched.`);
+                    } catch (error) {
+                        this.notify('error', 'Failed to scan item.');
+                    } finally {
+                        this.scanning = false;
                     }
                     
-                    this.scanInput = ''; // Clear input for next scan
+                    this.scanInput = '';
                     this.$nextTick(() => this.$refs.scanInput?.focus());
                 },
                 
-                isPacked(sku) {
-                    return this.packedItems.includes(sku);
+                progressLabel(itemId) {
+                    const item = this.items.find((entry) => Number(entry.id) === Number(itemId));
+                    if (!item) {
+                        return '0 / 0';
+                    }
+
+                    return `${item.scanned_count || 0} / ${item.qty || 0}`;
                 },
-                
+
+                isPacked(itemId) {
+                    const item = this.items.find((entry) => Number(entry.id) === Number(itemId));
+                    return !!item && Number(item.scanned_count || 0) >= Number(item.qty || 0);
+                },
+
+                scanRangeLabel(itemId) {
+                    const item = this.items.find((entry) => Number(entry.id) === Number(itemId));
+                    const codes = Array.isArray(item?.scanned_codes) ? item.scanned_codes : [];
+
+                    if (codes.length === 0) {
+                        return 'No unit labels scanned yet.';
+                    }
+
+                    const first = codes[0];
+                    const last = codes[codes.length - 1];
+
+                    return codes.length === 1 || first === last
+                        ? `Scanned label: ${first}`
+                        : `Scanned labels: ${first} to ${last}`;
+                },
+
                 get allPacked() {
-                    // Check if all unique SKUs are in packedItems list
-                    // Real verification should check quantities too
-                    return this.items.every(i => this.packedItems.includes(i.sku));
+                    return this.items.length > 0 && this.items.every((item) => Number(item.scanned_count || 0) >= Number(item.qty || 0));
                 }
             }
         }

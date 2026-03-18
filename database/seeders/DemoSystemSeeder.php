@@ -874,6 +874,37 @@ class DemoSystemSeeder extends Seeder
                     ['sku' => 'PNR-1KG', 'quantity' => 2, 'selling_price' => 310.00],
                 ],
             ],
+            [
+                'order_number' => 'DEMO-ORD-0008',
+                'order_date' => now()->toDateString(),
+                'order_type' => 'direct',
+                'status' => 'confirm',
+                'call_status' => 'confirm',
+                'delivery_status' => 'dispatched',
+                'payment_method' => 'Cash Deposit',
+                'discount_type' => 'fixed',
+                'discount_value' => 0.00,
+                'discount_amount' => 0.00,
+                'customer' => 'Amila Perera',
+                'reseller' => null,
+                'city_key' => 'Colombo 01|Colombo',
+                'courier' => 'Prompt Express',
+                'waybill_number' => 'PRM-240002',
+                'courier_charge' => 450.00,
+                'courier_cost' => 0.00,
+                'sales_note' => 'Cash deposit after dispatch demo order',
+                'payments' => [
+                    [
+                        'amount' => 1000.00,
+                        'date' => now()->toDateString(),
+                        'note' => 'Seeded cash deposit',
+                    ],
+                ],
+                'items' => [
+                    ['sku' => 'PNR-1KG', 'quantity' => 2, 'selling_price' => 310.00],
+                    ['sku' => 'VLC-1M', 'quantity' => 1, 'selling_price' => 1250.00],
+                ],
+            ],
         ];
 
         $orderMap = [];
@@ -979,21 +1010,46 @@ class DemoSystemSeeder extends Seeder
             $order->total_cost = round($totalCost, 2);
             $order->total_commission = round($isCommissionEligible ? max($totalCommission - $discountAmount, 0) : 0, 2);
 
-            if ($order->payment_method === 'Online Payment') {
-                $order->paid_amount = (float) $order->total_amount;
-                $order->payments_data = [[
-                    'amount' => (float) $order->total_amount,
-                    'date' => $order->order_date,
-                    'note' => 'Seeded online payment',
-                ]];
+            $usesRecordedPayments = in_array((string) $order->payment_method, ['Online Payment', 'Cash Deposit'], true);
+
+            if ($usesRecordedPayments) {
+                $paymentsData = collect($row['payments'] ?? [])
+                    ->filter(fn ($payment) => is_array($payment))
+                    ->map(function (array $payment) use ($order) {
+                        return [
+                            'amount' => round((float) ($payment['amount'] ?? 0), 2),
+                            'date' => !empty($payment['date']) ? (string) $payment['date'] : $order->order_date->format('Y-m-d'),
+                            'note' => trim((string) ($payment['note'] ?? '')),
+                        ];
+                    })
+                    ->filter(fn (array $payment) => $payment['amount'] > 0)
+                    ->values()
+                    ->all();
+
+                if ($order->payment_method === 'Online Payment' && empty($paymentsData)) {
+                    $paymentsData = [[
+                        'amount' => (float) $order->total_amount,
+                        'date' => $order->order_date->format('Y-m-d'),
+                        'note' => 'Seeded online payment',
+                    ]];
+                }
+
+                $order->payments_data = !empty($paymentsData) ? $paymentsData : null;
+                $order->paid_amount = round((float) collect($paymentsData)->sum('amount'), 2);
             } else {
                 $order->paid_amount = 0;
                 $order->payments_data = null;
             }
 
             $order->payment_status = (
-                (float) $order->paid_amount >= (float) $order->total_amount && (float) $order->total_amount > 0
-            ) || $order->delivery_status === 'delivered'
+                $order->payment_method === 'COD' && $order->delivery_status === 'delivered'
+            ) || (
+                $usesRecordedPayments
+                && (
+                    (float) $order->total_amount <= 0
+                    || (float) $order->paid_amount >= (float) $order->total_amount
+                )
+            )
                 ? 'paid'
                 : 'pending';
             $order->dispatched_at = $order->delivery_status === 'dispatched' || $order->delivery_status === 'delivered'

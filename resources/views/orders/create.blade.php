@@ -476,6 +476,7 @@
                                         <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Payment Method</label>
                                         <select x-model="form.payment_method" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
                                             <option value="COD">Cash on Delivery (COD)</option>
+                                            <option value="Cash Deposit">Cash Deposit</option>
                                             <option value="Online Payment">Online Payment</option>
                                         </select>
                                     </div>
@@ -502,10 +503,10 @@
                                             Call status is auto-set to Cancel when order status is Cancel.
                                         </p>
                                         <p x-show="form.order_status !== 'cancel' && isStatusLockedToPending" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                                            Call status is fixed to Pending when the order has a discount or uses Online Payment.
+                                            Call status is fixed to Pending when the order has a discount or uses Cash Deposit / Online Payment.
                                         </p>
                                     </div>
-                                    <div class="md:col-span-2" x-show="form.payment_method === 'Online Payment'" x-cloak>
+                                    <div class="md:col-span-2" x-show="usesRecordedPayments()" x-cloak>
                                         <div class="flex items-center justify-between mb-2">
                                             <label class="block text-sm font-medium text-gray-900 dark:text-white">Payment Entries</label>
                                             <button
@@ -880,9 +881,9 @@
                     });
                     this.$watch('form.courier_id', () => this.onCourierChange());
                     this.$watch('form.payment_method', (value) => {
-                        if (value === 'Online Payment' && this.totalAmountNumber > 0 && this.form.payments.length === 0) {
+                        if (this.usesRecordedPayments(value) && this.totalAmountNumber > 0 && this.form.payments.length === 0) {
                             this.addPaymentEntry();
-                        } else if (value !== 'Online Payment' && this.form.payments.length > 0) {
+                        } else if (!this.usesRecordedPayments(value) && this.form.payments.length > 0) {
                             this.form.payments = [];
                             this.form.paid_amount = 0;
                         }
@@ -906,9 +907,9 @@
                             this.selectedCustomer = null;
                         }
                     });
-                    if (this.form.payment_method === 'Online Payment' && this.totalAmountNumber > 0 && this.form.payments.length === 0) {
+                    if (this.usesRecordedPayments() && this.totalAmountNumber > 0 && this.form.payments.length === 0) {
                         this.addPaymentEntry();
-                    } else if (this.form.payment_method !== 'Online Payment' && this.form.payments.length > 0) {
+                    } else if (!this.usesRecordedPayments() && this.form.payments.length > 0) {
                         this.form.payments = [];
                         this.form.paid_amount = 0;
                     }
@@ -922,8 +923,27 @@
                     return new Date().toISOString().split('T')[0];
                 },
 
+                usesRecordedPayments(paymentMethod = null) {
+                    const method = String(paymentMethod ?? this.form.payment_method ?? '').trim();
+                    return ['Cash Deposit', 'Online Payment'].includes(method);
+                },
+
+                recordedPaymentMethodLabel(paymentMethod = null) {
+                    const method = String(paymentMethod ?? this.form.payment_method ?? '').trim();
+
+                    if (method === 'Cash Deposit') {
+                        return 'cash deposit';
+                    }
+
+                    if (method === 'Online Payment') {
+                        return 'online payment';
+                    }
+
+                    return 'recorded payment';
+                },
+
                 addPaymentEntry() {
-                    if (this.form.payment_method !== 'Online Payment') {
+                    if (!this.usesRecordedPayments()) {
                         return;
                     }
                     this.form.payments.push({
@@ -938,7 +958,7 @@
                 },
 
                 normalizePayments() {
-                    if (this.form.payment_method !== 'Online Payment') {
+                    if (!this.usesRecordedPayments()) {
                         return [];
                     }
 
@@ -1240,12 +1260,13 @@
                     return remaining > 0 ? remaining : 0;
                 },
 
-                get isOnlinePaymentFullyPaid() {
-                    return this.form.payment_method === 'Online Payment' && this.remainingAmount <= 0;
+                get isRecordedPaymentFullyPaid() {
+                    return this.usesRecordedPayments() && this.remainingAmount <= 0;
                 },
 
                 get isPaymentStatusForcedPaid() {
-                    return this.form.delivery_status === 'delivered' || this.isOnlinePaymentFullyPaid;
+                    return (this.form.payment_method === 'COD' && this.form.delivery_status === 'delivered')
+                        || this.isRecordedPaymentFullyPaid;
                 },
 
                 syncPaymentStatusRules() {
@@ -1257,23 +1278,23 @@
                 },
 
                 get paymentStatusHelperText() {
-                    if (this.form.delivery_status === 'delivered') {
-                        return 'Auto-set to Paid because delivery is marked Delivered.';
+                    if (this.form.payment_method === 'COD' && this.form.delivery_status === 'delivered') {
+                        return 'Auto-set to Paid because COD collection is completed on delivery.';
                     }
 
-                    if (this.isOnlinePaymentFullyPaid) {
-                        return 'Auto-set to Paid because online payment is fully recorded.';
+                    if (this.isRecordedPaymentFullyPaid) {
+                        return `Auto-set to Paid because ${this.recordedPaymentMethodLabel()} is fully recorded.`;
                     }
 
-                    if (this.form.payment_method === 'Online Payment') {
-                        return 'Pending until the recorded online payments cover the full net total.';
+                    if (this.usesRecordedPayments()) {
+                        return `Pending until the recorded ${this.recordedPaymentMethodLabel()} entries cover the full net total.`;
                     }
 
-                    return 'Pending until delivery or courier settlement completes the collection.';
+                    return 'Pending until delivery or courier settlement completes the COD collection.';
                 },
 
                 get isStatusLockedToPending() {
-                    return this.form.payment_method === 'Online Payment' || this.discountValueNumber > 0;
+                    return this.usesRecordedPayments() || this.discountValueNumber > 0;
                 },
 
                 syncOrderStatusLock() {
@@ -1387,8 +1408,8 @@
                     this.form.payments = normalizedPayments;
                     this.form.paid_amount = this.paidAmount.toFixed(2);
 
-                    if (this.form.payment_method === 'Online Payment' && this.totalAmountNumber > 0 && this.form.payments.length === 0) {
-                        this.notify('warning', 'Add at least one payment entry for online payment orders.');
+                    if (this.usesRecordedPayments() && this.totalAmountNumber > 0 && this.form.payments.length === 0) {
+                        this.notify('warning', `Add at least one payment entry for ${this.recordedPaymentMethodLabel()} orders.`);
                         return;
                     }
 

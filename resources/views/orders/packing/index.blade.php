@@ -35,7 +35,15 @@
                                 <tr>
                                     <td class="px-6 py-4 font-bold">{{ $order->order_number }}</td>
                                     <td class="px-6 py-4 font-mono">{{ $order->waybill_number ?? 'Not Generated' }}</td>
-                                    <td class="px-6 py-4">{{ $order->items->count() }} items</td>
+                                    <td class="px-6 py-4">
+                                        {{ $order->items->count() }} items
+                                        <div class="text-xs text-gray-500">
+                                            {{ $order->items->sum(fn ($item) => $item->inventoryUnits->whereNotNull('packed_scan_at')->count()) }}
+                                            /
+                                            {{ $order->items->sum(fn ($item) => (int) ($item->quantity ?? 0)) }}
+                                            scanned
+                                        </div>
+                                    </td>
                                     <td class="px-6 py-4">
                                         <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium {{ $deliveryStatus === 'packed' ? 'bg-blue-100 text-blue-800' : ($deliveryStatus === 'picked_from_rack' ? 'bg-purple-100 text-purple-800' : 'bg-indigo-100 text-indigo-800') }}">
                                             {{ $deliveryLabels[$deliveryStatus] ?? ucfirst(str_replace('_', ' ', $deliveryStatus)) }}

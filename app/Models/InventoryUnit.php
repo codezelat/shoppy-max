@@ -41,6 +41,8 @@ class InventoryUnit extends Model
         'variant_label_snapshot',
         'available_at',
         'allocated_at',
+        'packed_scan_at',
+        'packed_scan_user_id',
         'delivered_at',
         'archived_at',
         'last_event_at',
@@ -49,6 +51,7 @@ class InventoryUnit extends Model
     protected $casts = [
         'available_at' => 'datetime',
         'allocated_at' => 'datetime',
+        'packed_scan_at' => 'datetime',
         'delivered_at' => 'datetime',
         'archived_at' => 'datetime',
         'last_event_at' => 'datetime',

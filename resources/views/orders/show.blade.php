@@ -9,13 +9,12 @@
                     Back
                 </a>
                 @php
-                    $manualEditLocked = in_array(strtolower((string) ($order->delivery_status ?? 'pending')), ['waybill_printed', 'picked_from_rack', 'packed', 'dispatched', 'delivered', 'returned'], true)
-                        || !empty($order->waybill_printed_at)
-                        || trim((string) ($order->waybill_number ?? '')) !== '';
+                    $manualEditLocked = (bool) ($order->manual_edit_locked ?? false);
+                    $canPaymentEdit = (bool) ($order->can_payment_edit ?? false);
                 @endphp
-                @if(!$manualEditLocked)
+                @if(!$manualEditLocked || $canPaymentEdit)
                     <a href="{{ route('orders.edit', $order) }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">
-                        Edit
+                        {{ $manualEditLocked ? 'Update Payment' : 'Edit' }}
                     </a>
                 @else
                     <span class="inline-flex items-center px-4 py-2 bg-gray-100 border border-gray-300 rounded-md font-semibold text-xs text-gray-500 uppercase tracking-widest dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
@@ -79,18 +78,22 @@
             : 'Fixed Amount';
         $courierCharge = (float) ($order->courier_charge ?? 0);
         $commission = (float) ($order->total_commission ?? 0);
-        $onlinePayment = (string) ($order->payment_method ?? '') === 'Online Payment' ? (float) ($order->paid_amount ?? 0) : 0.0;
+        $paidAmount = (float) ($order->paid_amount ?? 0);
         $returnFeeDeduction = ((string) ($order->order_type ?? '') === 'reseller' && $deliveryStatus === 'returned')
             ? (float) ($order->reseller_return_fee_applied ?? 0)
             : 0.0;
-        $balance = max((float) ($order->total_amount ?? 0) - (float) ($order->paid_amount ?? 0) - $returnFeeDeduction, 0);
+        $balance = max((float) ($order->total_amount ?? 0) - $paidAmount - $returnFeeDeduction, 0);
     @endphp
 
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
             @if($manualEditLocked)
                 <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-300">
-                    Manual edit, cancel, and delete actions are locked because the waybill has already been printed for this order.
+                    @if($canPaymentEdit)
+                        Core order edits are locked because fulfillment has already started. Payment method, payment entries, and note can still be updated.
+                    @else
+                        Manual edit, payment update, cancel, and delete actions are locked for this order.
+                    @endif
                 </div>
             @endif
             <div class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg border border-gray-200 dark:border-gray-700">
@@ -293,8 +296,8 @@
                             <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $discountTypeLabel }}</dd>
                         </div>
                         <div class="flex items-center justify-between">
-                            <dt class="text-gray-500 dark:text-gray-400">Online Payment</dt>
-                            <dd class="font-medium text-gray-900 dark:text-gray-100">LKR {{ number_format($onlinePayment, 2) }}</dd>
+                            <dt class="text-gray-500 dark:text-gray-400">Paid Amount</dt>
+                            <dd class="font-medium text-gray-900 dark:text-gray-100">LKR {{ number_format($paidAmount, 2) }}</dd>
                         </div>
                         @if($returnFeeDeduction > 0)
                             <div class="flex items-center justify-between">

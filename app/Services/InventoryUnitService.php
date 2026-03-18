@@ -226,6 +226,86 @@ class InventoryUnitService
         return $units->count();
     }
 
+    public function scanOrderUnitForPacking(Order $order, string $rawUnitCode, ?int $userId = null): array
+    {
+        $unitCode = strtoupper(preg_replace('/\s+/', '', trim($rawUnitCode)));
+
+        if ($unitCode === '') {
+            throw ValidationException::withMessages([
+                'unit_code' => 'Scan a valid item barcode.',
+            ]);
+        }
+
+        $unit = InventoryUnit::query()
+            ->with(['order', 'orderItem'])
+            ->where('unit_code', $unitCode)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$unit) {
+            throw ValidationException::withMessages([
+                'unit_code' => 'Scanned barcode was not found.',
+            ]);
+        }
+
+        if ((int) ($unit->order_id ?? 0) !== (int) $order->id) {
+            $sourceOrder = $unit->order?->order_number;
+
+            throw ValidationException::withMessages([
+                'unit_code' => $sourceOrder
+                    ? "This label belongs to {$sourceOrder}, not {$order->order_number}."
+                    : 'This label does not belong to this order.',
+            ]);
+        }
+
+        if ($unit->status !== InventoryUnit::STATUS_ALLOCATED) {
+            $statusLabel = ucfirst(str_replace('_', ' ', (string) $unit->status));
+
+            throw ValidationException::withMessages([
+                'unit_code' => "This label is already {$statusLabel}.",
+            ]);
+        }
+
+        if ($unit->packed_scan_at) {
+            throw ValidationException::withMessages([
+                'unit_code' => 'This label is already scanned for packing.',
+            ]);
+        }
+
+        if (!$unit->orderItem) {
+            throw ValidationException::withMessages([
+                'unit_code' => 'This label is not linked to an order item.',
+            ]);
+        }
+
+        $now = now();
+
+        $unit->packed_scan_at = $now;
+        $unit->packed_scan_user_id = $userId;
+        $unit->last_event_at = $now;
+        $unit->save();
+
+        $this->recordEvent(
+            $unit,
+            'packing_scanned',
+            $userId,
+            ['source' => 'packing_scan'],
+            'Scanned during packing.'
+        );
+
+        $scannedCount = InventoryUnit::query()
+            ->where('order_item_id', $unit->order_item_id)
+            ->whereNotNull('packed_scan_at')
+            ->count();
+
+        return [
+            'unit' => $unit->fresh(),
+            'order_item_id' => (int) $unit->order_item_id,
+            'scanned_count' => $scannedCount,
+            'required_count' => max((int) ($unit->orderItem->quantity ?? 0), 0),
+        ];
+    }
+
     public function purchaseUnits(Purchase $purchase): Collection
     {
         return InventoryUnit::query()
@@ -500,6 +580,8 @@ class InventoryUnitService
             $unit->order_id = $item->order_id;
             $unit->order_item_id = $item->id;
             $unit->allocated_at = $now;
+            $unit->packed_scan_at = null;
+            $unit->packed_scan_user_id = null;
             $unit->last_event_at = $now;
             $unit->save();
 
@@ -523,6 +605,8 @@ class InventoryUnitService
             $unit->status = InventoryUnit::STATUS_AVAILABLE;
             $unit->order_id = null;
             $unit->order_item_id = null;
+            $unit->packed_scan_at = null;
+            $unit->packed_scan_user_id = null;
             $unit->available_at = $now;
             $unit->last_event_at = $now;
             $unit->save();
