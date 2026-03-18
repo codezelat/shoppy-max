@@ -245,7 +245,8 @@ class CourierReceiveController extends Controller
             ->where('delivery_status', 'dispatched')
             ->whereNotNull('waybill_number')
             ->where('waybill_number', '!=', '')
-            ->whereNull('courier_payment_id');
+            ->whereNull('courier_payment_id')
+            ->whereRaw('COALESCE(total_amount, 0) > COALESCE(paid_amount, 0)');
     }
 
     private function normalizeRequestedOrderIds(array $orderIds): array

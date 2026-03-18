@@ -61,9 +61,9 @@ class CourierPaymentOrderService
         $order->courier_payment_id = null;
         $order->courier_cost = 0;
 
-        if (strtoupper((string) ($order->payment_method ?? '')) === 'COD') {
-            $order->payment_status = 'pending';
-        }
+        $paidAmount = round((float) ($order->paid_amount ?? 0), 2);
+        $totalAmount = round((float) ($order->total_amount ?? 0), 2);
+        $order->payment_status = $paidAmount >= $totalAmount && $totalAmount > 0 ? 'paid' : 'pending';
 
         $order->delivery_status = 'dispatched';
         $order->delivered_at = null;

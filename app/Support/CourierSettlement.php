@@ -6,6 +6,14 @@ use App\Models\Order;
 
 class CourierSettlement
 {
+    public static function customerOutstandingAmount(Order $order): float
+    {
+        return round(
+            max((float) ($order->total_amount ?? 0) - (float) ($order->paid_amount ?? 0), 0),
+            2
+        );
+    }
+
     public static function systemDeliveryCharge(Order $order): float
     {
         $systemCharge = (float) ($order->courier_charge ?? 0);
@@ -48,7 +56,7 @@ class CourierSettlement
     public static function receivedAmount(Order $order, ?float $overrideRealCharge = null): float
     {
         return round(
-            (float) ($order->total_amount ?? 0) - self::realDeliveryCharge($order, $overrideRealCharge),
+            max(self::customerOutstandingAmount($order) - self::realDeliveryCharge($order, $overrideRealCharge), 0),
             2
         );
     }
@@ -64,6 +72,8 @@ class CourierSettlement
             'payment_method' => (string) ($order->payment_method ?? '-'),
             'delivery_status' => (string) ($order->delivery_status ?? 'pending'),
             'order_amount' => round((float) ($order->total_amount ?? 0), 2),
+            'paid_amount' => round((float) ($order->paid_amount ?? 0), 2),
+            'customer_outstanding_amount' => self::customerOutstandingAmount($order),
             'system_delivery_charge' => self::systemDeliveryCharge($order),
             'real_delivery_charge' => $realDeliveryCharge,
             'courier_commission' => self::courierCommission($order, $realDeliveryCharge),

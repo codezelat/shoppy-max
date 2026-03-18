@@ -464,7 +464,7 @@
                                             <option value="Online Payment">Online Payment</option>
                                         </select>
                                         <p x-show="isEditLocked && canAdjustLockedPayments" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                                            Switch COD to Cash Deposit when the customer pays directly after dispatch. Non-COD orders will not appear in courier COD settlement.
+                                            For partial direct deposits, keep the order as COD and record the paid amount below. Change to Cash Deposit only when the full amount is already collected outside courier settlement.
                                         </p>
                                     </div>
                                     <div>
@@ -486,7 +486,7 @@
                                             <option value="hold">Hold</option>
                                         </select>
                                     </div>
-                                    <div class="md:col-span-2" x-show="usesRecordedPayments()" x-cloak>
+                                    <div class="md:col-span-2" x-show="showsPaymentEntries()" x-cloak>
                                         <div class="flex items-center justify-between mb-2">
                                             <label class="block text-sm font-medium text-gray-900 dark:text-white">Payment Entries</label>
                                             <button
@@ -854,9 +854,9 @@
                             return;
                         }
 
-                        if (this.usesRecordedPayments(value) && this.totalAmountNumber > 0 && this.form.payments.length === 0) {
+                        if (this.showsPaymentEntries(value) && this.totalAmountNumber > 0 && this.form.payments.length === 0) {
                             this.addPaymentEntry();
-                        } else if (!this.usesRecordedPayments(value) && this.form.payments.length > 0) {
+                        } else if (!this.showsPaymentEntries(value) && this.form.payments.length > 0) {
                             this.form.payments = [];
                             this.form.paid_amount = 0;
                         }
@@ -874,9 +874,9 @@
                             this.selectedCustomer = null;
                         }
                     });
-                    if (this.usesRecordedPayments() && this.totalAmountNumber > 0 && this.form.payments.length === 0) {
+                    if (this.showsPaymentEntries() && this.totalAmountNumber > 0 && this.form.payments.length === 0) {
                         this.addPaymentEntry();
-                    } else if (!this.usesRecordedPayments() && this.form.payments.length > 0) {
+                    } else if (!this.showsPaymentEntries() && this.form.payments.length > 0) {
                         this.form.payments = [];
                         this.form.paid_amount = 0;
                     }
@@ -907,6 +907,15 @@
                     return ['Cash Deposit', 'Online Payment'].includes(method);
                 },
 
+                canManageDirectDepositsForCod(paymentMethod = null) {
+                    const method = String(paymentMethod ?? this.form.payment_method ?? '').trim();
+                    return method === 'COD' && this.isEditLocked && this.canAdjustLockedPayments;
+                },
+
+                showsPaymentEntries(paymentMethod = null) {
+                    return this.usesRecordedPayments(paymentMethod) || this.canManageDirectDepositsForCod(paymentMethod);
+                },
+
                 recordedPaymentMethodLabel(paymentMethod = null) {
                     const method = String(paymentMethod ?? this.form.payment_method ?? '').trim();
 
@@ -918,11 +927,15 @@
                         return 'online payment';
                     }
 
+                    if (method === 'COD') {
+                        return 'cash deposit';
+                    }
+
                     return 'recorded payment';
                 },
 
                 addPaymentEntry() {
-                    if (!this.usesRecordedPayments()) {
+                    if (!this.showsPaymentEntries()) {
                         return;
                     }
                     this.form.payments.push({
@@ -937,7 +950,7 @@
                 },
 
                 normalizePayments() {
-                    if (!this.usesRecordedPayments()) {
+                    if (!this.showsPaymentEntries()) {
                         return [];
                     }
 
@@ -1298,8 +1311,16 @@
                         return 'Auto-set to Paid because COD collection is completed on delivery.';
                     }
 
+                    if (this.form.payment_method === 'COD' && this.isRecordedPaymentFullyPaid) {
+                        return 'Auto-set to Paid because direct deposits already cover the full order total.';
+                    }
+
                     if (this.isRecordedPaymentFullyPaid) {
                         return `Auto-set to Paid because ${this.recordedPaymentMethodLabel()} is fully recorded.`;
+                    }
+
+                    if (this.canManageDirectDepositsForCod()) {
+                        return 'Pending until direct deposits fully cover the order total or courier settlement completes the remaining COD collection.';
                     }
 
                     if (this.usesRecordedPayments()) {

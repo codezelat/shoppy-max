@@ -741,17 +741,29 @@ class OrderController extends Controller
             DB::beginTransaction();
             try {
                 $order->sales_note = $validated['sales_note'] ?? $order->sales_note;
-                $requestedPaymentMethod = (string) ($validated['payment_method'] ?? $order->payment_method ?? 'COD');
+                $currentPaymentMethod = (string) ($order->payment_method ?? 'COD');
+                $requestedPaymentMethod = (string) ($validated['payment_method'] ?? $currentPaymentMethod);
 
                 $this->assertLockedOrderPaymentMethodChangeAllowed($order, $requestedPaymentMethod);
-                $order->payment_method = $requestedPaymentMethod;
 
                 $paymentDetails = $this->resolvePaymentDetails(
-                    $requestedPaymentMethod,
+                    $requestedPaymentMethod === 'COD' ? 'COD_WITH_RECORDS' : $requestedPaymentMethod,
                     $validated['payments'] ?? [],
                     $validated['paid_amount'] ?? null,
                     (float) $order->total_amount
                 );
+
+                if (
+                    $currentPaymentMethod === 'COD'
+                    && $requestedPaymentMethod !== 'COD'
+                    && round((float) $paymentDetails['paid_amount'], 2) + 0.01 < round((float) $order->total_amount, 2)
+                ) {
+                    throw ValidationException::withMessages([
+                        'payment_method' => 'Keep the order as COD for partial direct deposits. Change payment method only after the full amount is recorded.',
+                    ]);
+                }
+
+                $order->payment_method = $requestedPaymentMethod;
                 $order->paid_amount = $paymentDetails['paid_amount'];
                 $order->payments_data = $paymentDetails['payments_data'];
                 $order->payment_status = $this->resolvePaymentStatus(
@@ -1218,7 +1230,10 @@ class OrderController extends Controller
 
     private function usesRecordedPayments(?string $paymentMethod): bool
     {
-        return in_array(trim((string) $paymentMethod), self::RECORDED_PAYMENT_METHODS, true);
+        $normalized = trim((string) $paymentMethod);
+
+        return $normalized === 'COD_WITH_RECORDS'
+            || in_array($normalized, self::RECORDED_PAYMENT_METHODS, true);
     }
 
     private function resolveOrderListViewMode(?string $viewMode): string
@@ -1893,6 +1908,7 @@ class OrderController extends Controller
     {
         $normalizedTotal = max(round($totalAmount, 2), 0);
         $usesRecordedPayments = $this->usesRecordedPayments($paymentMethod);
+        $requiresRecordedEntries = in_array(trim($paymentMethod), self::RECORDED_PAYMENT_METHODS, true);
 
         if (!$usesRecordedPayments) {
             return [
@@ -1946,7 +1962,7 @@ class OrderController extends Controller
             }
         }
 
-        if ($usesRecordedPayments && $normalizedTotal > 0 && empty($paymentsData)) {
+        if ($requiresRecordedEntries && $normalizedTotal > 0 && empty($paymentsData)) {
             throw ValidationException::withMessages([
                 'payments' => 'Add at least one payment entry for ' . trim($paymentMethod) . ' orders.',
             ]);
@@ -1962,7 +1978,7 @@ class OrderController extends Controller
 
         return [
             'paid_amount' => $paidAmount,
-            'payments_data' => $paymentsData,
+            'payments_data' => !empty($paymentsData) ? $paymentsData : null,
             'payment_status' => $remaining <= 0 ? 'paid' : 'pending',
         ];
     }
@@ -1976,12 +1992,11 @@ class OrderController extends Controller
     ): string {
         $normalizedDelivery = strtolower(trim($deliveryStatus));
         $isCod = trim($paymentMethod) === 'COD';
-        $usesRecordedPayments = $this->usesRecordedPayments($paymentMethod);
         $normalizedTotal = max(round($totalAmount, 2), 0);
         $normalizedPaid = max(round($paidAmount, 2), 0);
-        $isRecordedFullyPaid = $usesRecordedPayments && $normalizedPaid >= $normalizedTotal;
+        $isFullyPaid = $normalizedPaid >= $normalizedTotal && $normalizedTotal > 0;
 
-        if (($isCod && $normalizedDelivery === 'delivered') || $isRecordedFullyPaid) {
+        if ($isFullyPaid || ($isCod && $normalizedDelivery === 'delivered')) {
             return 'paid';
         }
 

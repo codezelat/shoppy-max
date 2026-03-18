@@ -881,7 +881,7 @@ class DemoSystemSeeder extends Seeder
                 'status' => 'confirm',
                 'call_status' => 'confirm',
                 'delivery_status' => 'dispatched',
-                'payment_method' => 'Cash Deposit',
+                'payment_method' => 'COD',
                 'discount_type' => 'fixed',
                 'discount_value' => 0.00,
                 'discount_amount' => 0.00,
@@ -892,12 +892,43 @@ class DemoSystemSeeder extends Seeder
                 'waybill_number' => 'PRM-240002',
                 'courier_charge' => 450.00,
                 'courier_cost' => 0.00,
-                'sales_note' => 'Cash deposit after dispatch demo order',
+                'sales_note' => 'COD order with partial direct deposit after dispatch',
                 'payments' => [
                     [
                         'amount' => 1000.00,
                         'date' => now()->toDateString(),
-                        'note' => 'Seeded cash deposit',
+                        'note' => 'Seeded partial cash deposit',
+                    ],
+                ],
+                'items' => [
+                    ['sku' => 'PNR-1KG', 'quantity' => 2, 'selling_price' => 310.00],
+                    ['sku' => 'VLC-1M', 'quantity' => 1, 'selling_price' => 1250.00],
+                ],
+            ],
+            [
+                'order_number' => 'DEMO-ORD-0009',
+                'order_date' => now()->toDateString(),
+                'order_type' => 'direct',
+                'status' => 'confirm',
+                'call_status' => 'confirm',
+                'delivery_status' => 'dispatched',
+                'payment_method' => 'Cash Deposit',
+                'discount_type' => 'fixed',
+                'discount_value' => 0.00,
+                'discount_amount' => 0.00,
+                'customer' => 'Nadeesha Silva',
+                'reseller' => null,
+                'city_key' => 'Kandy|Kandy',
+                'courier' => 'Prompt Express',
+                'waybill_number' => 'PRM-240003',
+                'courier_charge' => 450.00,
+                'courier_cost' => 0.00,
+                'sales_note' => 'Fully prepaid cash deposit order after dispatch',
+                'payments' => [
+                    [
+                        'amount' => 2320.00,
+                        'date' => now()->toDateString(),
+                        'note' => 'Seeded full cash deposit',
                     ],
                 ],
                 'items' => [
@@ -1010,21 +1041,23 @@ class DemoSystemSeeder extends Seeder
             $order->total_cost = round($totalCost, 2);
             $order->total_commission = round($isCommissionEligible ? max($totalCommission - $discountAmount, 0) : 0, 2);
 
-            $usesRecordedPayments = in_array((string) $order->payment_method, ['Online Payment', 'Cash Deposit'], true);
+            $seededPayments = collect($row['payments'] ?? [])
+                ->filter(fn ($payment) => is_array($payment))
+                ->map(function (array $payment) use ($order) {
+                    return [
+                        'amount' => round((float) ($payment['amount'] ?? 0), 2),
+                        'date' => !empty($payment['date']) ? (string) $payment['date'] : $order->order_date->format('Y-m-d'),
+                        'note' => trim((string) ($payment['note'] ?? '')),
+                    ];
+                })
+                ->filter(fn (array $payment) => $payment['amount'] > 0)
+                ->values()
+                ->all();
+            $usesRecordedPayments = !empty($seededPayments)
+                || in_array((string) $order->payment_method, ['Online Payment', 'Cash Deposit'], true);
 
             if ($usesRecordedPayments) {
-                $paymentsData = collect($row['payments'] ?? [])
-                    ->filter(fn ($payment) => is_array($payment))
-                    ->map(function (array $payment) use ($order) {
-                        return [
-                            'amount' => round((float) ($payment['amount'] ?? 0), 2),
-                            'date' => !empty($payment['date']) ? (string) $payment['date'] : $order->order_date->format('Y-m-d'),
-                            'note' => trim((string) ($payment['note'] ?? '')),
-                        ];
-                    })
-                    ->filter(fn (array $payment) => $payment['amount'] > 0)
-                    ->values()
-                    ->all();
+                $paymentsData = $seededPayments;
 
                 if ($order->payment_method === 'Online Payment' && empty($paymentsData)) {
                     $paymentsData = [[
