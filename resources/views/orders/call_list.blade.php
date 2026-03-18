@@ -89,10 +89,17 @@
                 </thead>
                 <tbody>
                     @forelse ($orders as $order)
+                        @php
+                            $manualEditLocked = in_array(strtolower((string) ($order->delivery_status ?? 'pending')), ['waybill_printed', 'picked_from_rack', 'packed', 'dispatched', 'delivered', 'returned'], true)
+                                || !empty($order->waybill_printed_at)
+                                || trim((string) ($order->waybill_number ?? '')) !== '';
+                        @endphp
                         <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors" x-data="{ 
                             updating: false, 
+                            isManualLocked: {{ $manualEditLocked ? 'true' : 'false' }},
                             currentStatus: '{{ $order->call_status }}',
                             updateStatus(newStatus) {
+                                if (this.isManualLocked) return;
                                 if (this.currentStatus === newStatus) return;
                                 this.updating = true;
                                 fetch('{{ route('orders.status.update', $order->id) }}', {
@@ -121,6 +128,7 @@
                                 });
                             },
                             async cancelOrder() {
+                                if (this.isManualLocked) return;
                                 const orderNumber = {{ \Illuminate\Support\Js::from($order->order_number) }};
                                 const confirmText = `Cancel ${orderNumber}? This will cancel the order and set call and delivery statuses to Cancel.`;
 
@@ -240,7 +248,8 @@
                                 <div class="relative">
                                     <select @change="updateStatus($event.target.value)" 
                                             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm font-medium rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full min-w-[150px] px-3 py-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                                            :class="{'opacity-50 pointer-events-none': updating, 'bg-green-50 text-green-800 border-green-300': currentStatus === 'confirm', 'bg-orange-50 text-orange-800 border-orange-300': currentStatus === 'hold'}"
+                                            :disabled="updating || isManualLocked"
+                                            :class="{'opacity-50 pointer-events-none': updating || isManualLocked, 'bg-green-50 text-green-800 border-green-300': currentStatus === 'confirm', 'bg-orange-50 text-orange-800 border-orange-300': currentStatus === 'hold'}"
                                     >
                                         <option value="pending" :selected="currentStatus === 'pending'">Pending</option>
                                         <option value="confirm" :selected="currentStatus === 'confirm'">Confirm</option>
@@ -259,14 +268,20 @@
                                     <button @click="viewOrder({{ json_encode($order) }})" class="text-green-600 hover:text-green-800" title="Quick View">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                     </button>
-                                    <a href="{{ route('orders.edit', $order) }}" class="text-blue-600 hover:text-blue-800" title="Edit">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                                    </a>
-                                    <button type="button" @click="cancelOrder()" :disabled="updating" class="text-red-600 hover:text-red-800 disabled:opacity-40 disabled:cursor-not-allowed" title="Cancel Order">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                        </svg>
-                                    </button>
+                                    @if(!$manualEditLocked)
+                                        <a href="{{ route('orders.edit', $order) }}" class="text-blue-600 hover:text-blue-800" title="Edit">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                        </a>
+                                        <button type="button" @click="cancelOrder()" :disabled="updating" class="text-red-600 hover:text-red-800 disabled:opacity-40 disabled:cursor-not-allowed" title="Cancel Order">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                        </button>
+                                    @else
+                                        <span class="text-gray-400 dark:text-gray-500" title="Manual edits are locked after waybill print">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5 9 6.343 9 8s1.343 3 3 3Zm0 0v2m-6 6h12a2 2 0 002-2v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2Z"></path></svg>
+                                        </span>
+                                    @endif
                                 </div>
                             </td>
                         </tr>

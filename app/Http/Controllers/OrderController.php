@@ -669,6 +669,12 @@ class OrderController extends Controller
      */
     public function edit(Order $order)
     {
+        if ($this->isManualOrderLockedAfterWaybill($order)) {
+            return redirect()
+                ->route('orders.show', $order)
+                ->with('error', 'This order cannot be manually edited after the waybill has been printed.');
+        }
+
         $order->load(['items.variant.unit', 'customer', 'reseller']);
         $couriers = Courier::all();
         $courierRatesMap = $this->buildCourierRatesMap($couriers);
@@ -690,6 +696,13 @@ class OrderController extends Controller
      */
     public function update(Request $request, Order $order)
     {
+        if ($this->isManualOrderLockedAfterWaybill($order)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This order cannot be manually updated after the waybill has been printed.',
+            ], 422);
+        }
+
         $isCoreLocked = $this->isCoreDetailsLocked($order);
         if ($isCoreLocked) {
             $validated = $request->validate([
@@ -948,6 +961,12 @@ class OrderController extends Controller
      */
     public function destroy(Order $order)
     {
+        if ($this->isManualOrderLockedAfterWaybill($order)) {
+            return redirect()
+                ->back()
+                ->with('error', 'This order cannot be deleted after the waybill has been printed.');
+        }
+
         DB::beginTransaction();
         try {
             $this->releaseResellerReturnFeePenalty($order);
@@ -1009,6 +1028,14 @@ class OrderController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $order = Order::findOrFail($id);
+
+        if ($this->isManualOrderLockedAfterWaybill($order)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This order cannot be manually changed after the waybill has been printed.',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'status' => 'nullable|in:cancel',
             'call_status' => 'nullable|in:pending,confirm,hold',
@@ -1254,6 +1281,21 @@ class OrderController extends Controller
         }
 
         return $callStatus !== 'pending' || $deliveryStatus !== 'pending';
+    }
+
+    private function isManualOrderLockedAfterWaybill(Order $order): bool
+    {
+        $deliveryStatus = strtolower((string) ($order->delivery_status ?? 'pending'));
+
+        if (in_array($deliveryStatus, ['waybill_printed', 'picked_from_rack', 'packed', 'dispatched', 'delivered', 'returned'], true)) {
+            return true;
+        }
+
+        if (!empty($order->waybill_printed_at)) {
+            return true;
+        }
+
+        return trim((string) ($order->waybill_number ?? '')) !== '';
     }
 
     private function normalizeDeliveryStatus(?string $requestedStatus, string $orderStatus): string
