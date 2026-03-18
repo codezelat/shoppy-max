@@ -31,8 +31,8 @@ This system manages:
 
 - Contacts: customers, suppliers, resellers, direct resellers, cities
 - Product catalog: categories, sub-categories, units, products, variants, pricing
-- Inventory movement: purchases increase stock, orders decrease stock
-- Orders: create/edit/view/print/PDF, call list, waybill queue, packing flow
+- Inventory movement: purchases, GRN intake, unit-level stock tracking, and orders
+- Orders: create/edit/view/print/PDF, call list, waybill queue, packing flow, returns
 - Finance flows: reseller targets/payments/dues, courier payments, bank accounts
 - Reports: province sales, profit/loss, stock, packet count, product sales, user sales
 
@@ -57,11 +57,20 @@ Authentication is provided by Laravel Breeze, and permissions are handled by Spa
   - call status tracking
   - payment entries and derived payment status
   - order lock behavior after status moves away from `pending`
+- Purchase workflow with:
+  - forward-only moderation (`pending -> checking -> verified -> complete`)
+  - GRN checking by barcode scan
+  - stock release only after full GRN completion
+  - immutable purchase date and purchasing ID after creation
+- Unit-level inventory traceability:
+  - purchase labels generated per PCS quantity
+  - orders allocate real inventory units
+  - delivered/cancel/return flows update tracked units
 - Waybill workflow:
   - queue based on `call_status = confirm`
   - print generates waybill numbers
   - printed orders leave the pending waybill queue
-- Courier receive and courier payment tracking
+- Courier receive and courier payment reconciliation
 - Reseller commission/penalty logic (reseller-only, not direct reseller)
 - PDF/print/export support across modules
 
@@ -187,6 +196,9 @@ Seed data includes:
 - Resellers and direct resellers
 - Products/variants
 - Demo purchases/orders/payments/targets/logs
+- Inventory units and barcode-traceable demo stock
+- Courier payment examples with linked settled orders
+- Eligible courier-receive examples for testing receive flow
 
 ## Environment Configuration
 
@@ -217,11 +229,34 @@ These are current implemented behaviors.
 ### Inventory
 
 - Product and variant creation starts stock at `0`.
-- Stock increases from purchases.
-- Stock decreases from active orders.
-- Deleting an order restores its stock.
-- Updating/deleting purchases reverts stock with non-negative guard:
-  - operation is blocked if revert would make stock negative.
+- Purchases create inventory-unit records immediately, but stock does not become available
+  until the purchase is fully completed through GRN.
+- Orders allocate real inventory units, not only aggregate stock counts.
+- Stock decreases when units are allocated to active orders.
+- Delivered orders mark units as delivered.
+- Cancelling, returning, or deleting orders releases units appropriately.
+- Use the inventory-unit reconciliation commands if aggregate stock drifts from tracked units.
+
+### Purchases and GRN
+
+Purchase statuses:
+
+- `pending`
+- `checking`
+- `verified`
+- `complete`
+
+Rules:
+
+- New purchases start at `pending`.
+- Moderation is forward-only:
+  - `pending -> checking -> verified -> complete`
+- Purchase date and purchasing ID are locked after creation.
+- GRN is scanner-driven from the verified stage.
+- Partial GRN scans update progress only.
+- Stock becomes available only when the final GRN scan completes the whole purchase.
+- Once GRN receiving starts, purchase structure is locked.
+- Completed purchases are locked from structural edits and deletion.
 
 ### Orders
 
@@ -267,12 +302,39 @@ When creating/updating orders:
 - Payment status auto-resolves to `paid` when:
   - delivery status is `delivered`, or
   - online payment is fully paid.
+- Only dispatched orders can move to `delivered`.
 
 ### Reseller commission and return fee
 
 - Commission applies only for `reseller` type accounts (not direct reseller).
 - Commission is suppressed for cancelled/returned orders.
 - Returned reseller orders can apply reseller return fee penalty and adjust due amounts.
+
+### Courier receive and courier payments
+
+Orders are eligible for courier receive only when:
+
+- `status = confirm`
+- `payment_method = COD`
+- `delivery_status = dispatched`
+- waybill number exists
+- courier matches the receive screen
+- order is not already linked to a courier payment
+
+Settlement values:
+
+- System delivery charge: order delivery charge at placement time
+- Real delivery charge: what the courier actually charged
+- Courier commission: system delivery charge minus real delivery charge
+- Received amount: order total minus real delivery charge
+
+Behavior:
+
+- Receiving courier payment marks linked orders as delivered.
+- Editing a courier payment can add/remove linked orders.
+- Removing an order from a courier payment reverts that order to `dispatched`,
+  clears settlement-specific values, and restores COD payment state to pending.
+- Whole courier payment deletion is disabled; correction is done through edit/unlink flow.
 
 ### Waybill queue
 
@@ -307,6 +369,7 @@ Available across relevant modules:
 
 - contact exports (Excel/PDF)
 - product export
+- purchase PDF and barcode print
 - order print/PDF/bulk PDF ZIP
 - reseller payment invoice downloads
 
@@ -330,6 +393,7 @@ Important entry points:
   - `/orders/call-list`
   - `/orders/waybill`
 - Purchases: `/purchases`
+- Purchase moderation: `/purchases/moderation`
 - Couriers:
   - `/couriers`
   - `/receive-courier`
@@ -357,6 +421,13 @@ php artisan migrate
 php artisan migrate:fresh --seed
 ```
 
+Inventory reconciliation:
+
+```bash
+php artisan inventory-units:backfill
+php artisan inventory-units:sync-stock
+```
+
 Cache and optimize:
 
 ```bash
@@ -370,6 +441,8 @@ Clear caches:
 
 ```bash
 php artisan optimize:clear
+php artisan route:clear
+php artisan view:clear
 ```
 
 ## Testing and Quality
@@ -388,6 +461,9 @@ Run formatter:
 
 Note:
 
+- The automated test suite is currently light and does not cover the main operational workflows.
+- After changing purchases, GRN, orders, courier settlement, or stock logic, manual workflow
+  verification is still required even if `php artisan test` passes.
 - The default Laravel sample test `Tests\Feature\ExampleTest` expects `/` to return `200`.
 - In this app, `/` redirects to login, so that sample test can fail with `302` unless adjusted.
 
@@ -412,6 +488,16 @@ Current behavior:
 
 - Run:
   - `php artisan migrate:fresh --seed`
+
+### Stock count does not match tracked inventory units
+
+- Run:
+  - `php artisan inventory-units:sync-stock`
+
+### Inventory-unit store is missing for an older dataset
+
+- Run only on a dataset that does not already have inventory units:
+  - `php artisan inventory-units:backfill`
 
 ### Session/queue/cache errors on fresh setup
 
