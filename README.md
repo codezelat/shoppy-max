@@ -32,7 +32,7 @@ This system manages:
 - Contacts: customers, suppliers, resellers, direct resellers, cities
 - Product catalog: categories, sub-categories, units, products, variants, pricing
 - Inventory movement: purchases, GRN intake, unit-level stock tracking, and orders
-- Orders: create/edit/view/print/PDF, call list, waybill queue, packing, and backend-supported returns with the dedicated return operation flow still pending
+- Orders: create/edit/view/print/PDF, call list, waybill queue, plus packing and return flows that exist in part but should still be treated as work-in-progress operational areas
 - Finance flows: reseller targets/payments/dues, courier payments, bank accounts
 - Reports: province sales, profit/loss, stock, packet count, product sales, user sales
 
@@ -56,9 +56,10 @@ Authentication is provided by Laravel Breeze, and permissions are handled by Spa
   - delivery status lifecycle
   - call status tracking
   - payment entries and derived payment status
-  - order lock behavior after status moves away from `pending`
-  - packing with unit-level barcode scans and quantity-accurate completion checks
-  - note: the `returned` state is implemented in backend accounting/inventory logic, but a dedicated post-dispatch return operation screen/action is still pending
+  - order structure locking after intake progresses, with manual edit/cancel/delete blocked once waybill printing starts
+  - packing pages with unit-level barcode scans, persisted scan progress, and quantity-accurate completion checks
+  - note: packing core flow exists, but it is still a work-in-progress operational area and broader hardening / full browser QA are still pending
+  - note: the `returned` state exists in backend accounting/inventory logic, but returns are still a work-in-progress operational area until the dedicated post-dispatch return screen/action exists
 - Purchase workflow with:
   - forward-only moderation (`pending -> checking -> verified -> complete`)
   - GRN checking by barcode scan
@@ -264,12 +265,12 @@ Rules:
 
 - `order_number` is unique and generated daily (`ORD-YYYYMMDD-####`).
 - Soft-deleted orders still reserve their order numbers.
-- If an order status changes away from `pending`, core order details lock:
+- Once an order moves beyond early intake, core order details lock:
   - only payment entries and notes remain editable.
 
 Supported statuses:
 
-- Order status: `pending`, `hold`, `confirm`, `cancel`
+- Internal order status (system-managed): `pending`, `hold`, `confirm`, `cancel`
 - Call status: `pending`, `confirm`, `hold`, `cancel`
 - Delivery status:
   - `pending`
@@ -278,7 +279,6 @@ Supported statuses:
   - `packed`
   - `dispatched`
   - `delivered`
-  - `return_requested`
   - `returned`
   - `cancel`
 
@@ -316,7 +316,7 @@ When creating/updating orders:
 
 Orders are eligible for courier receive only when:
 
-- `status = confirm`
+- `call_status = confirm`
 - `payment_method = COD`
 - `delivery_status = dispatched`
 - waybill number exists
@@ -343,7 +343,7 @@ Behavior:
 Orders are eligible for waybill print only when:
 
 - `call_status = confirm`
-- order status is not `cancel`
+- `delivery_status = pending`
 - waybill number is empty
 
 Printing waybill:

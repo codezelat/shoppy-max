@@ -23,7 +23,7 @@ Shoppy Max is a Laravel 12 operations platform for:
 - product and variant management
 - purchase intake with moderation and GRN scanning
 - unit-level inventory traceability
-- order intake, call flow, waybill generation, packing, and backend-supported returns while the dedicated return operation flow is still pending
+- order intake, call flow, waybill generation, plus packing and return flows that exist in part but should still be treated as work-in-progress operational areas
 - reseller/direct-reseller balances and payments
 - courier settlement and bank-account tracking
 - reporting and print/PDF exports
@@ -148,7 +148,7 @@ Order number format is daily and unique:
 
 - `ORD-YYYYMMDD-####`
 
-Order statuses:
+Internal order statuses:
 
 - `pending`
 - `hold`
@@ -170,7 +170,6 @@ Delivery statuses:
 - `packed`
 - `dispatched`
 - `delivered`
-- `return_requested`
 - `returned`
 - `cancel`
 
@@ -179,7 +178,7 @@ Rules:
 - cancelling an order forces call status and delivery status to `cancel`
 - only dispatched orders can be marked delivered
 - customer is created/updated from order input using mobile identity
-- once order status moves away from `pending`, core order structure becomes locked and only
+- once the order moves beyond early intake, core order structure becomes locked and only
   limited fields remain editable
 - online payment and discount workflows affect status/payment rules; preserve the controller logic
   instead of duplicating it elsewhere
@@ -206,7 +205,7 @@ Courier settlement is constrained.
 
 Only orders that match all of the following are eligible for courier receive:
 
-- `status = confirm`
+- `call_status = confirm`
 - `payment_method = COD`
 - `delivery_status = dispatched`
 - matching courier
@@ -428,9 +427,11 @@ Check:
 - call list
 - waybill queue and print
 - packing flow
-  - packing now scans allocated unit codes, persists scan progress on inventory units, and only allows completion when all required units are scanned
+  - packing pages exist and now scan allocated unit codes, persist scan progress on inventory units, and only allow completion when all required units are scanned
+  - packing is still a work-in-progress operational area; do not describe it as fully hardened or fully browser-QA-proven without a dedicated end-to-end verification pass
 - returns
   - backend logic for `returned` is implemented
+  - returns are still a work-in-progress operational area
   - post-dispatch / post-delivery operational return UI is still TODO
   - do not claim returns are fully operational end-to-end until that dedicated path exists
 - cancel/return behavior
