@@ -148,6 +148,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('receive-courier/{courier}/import', [\App\Http\Controllers\CourierReceiveController::class, 'import'])->name('courier-receive.import'); // For Excel preview/process
     Route::post('receive-courier/{courier}/store', [\App\Http\Controllers\CourierReceiveController::class, 'store'])->name('courier-receive.store');   // Final store
 
+    Route::get('couriers/{courier}/waybills', [\App\Http\Controllers\CourierWaybillController::class, 'index'])->name('couriers.waybills.index');
+    Route::post('couriers/{courier}/waybills', [\App\Http\Controllers\CourierWaybillController::class, 'store'])->name('couriers.waybills.store');
     Route::resource('couriers', \App\Http\Controllers\CourierController::class);
     Route::get('courier-payments/create', function () {
         return redirect()

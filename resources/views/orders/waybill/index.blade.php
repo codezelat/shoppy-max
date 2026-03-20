@@ -51,6 +51,10 @@
                 <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Call Confirmed Pending Waybill</p>
                 <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ number_format($couriers->sum('printable_orders_count')) }}</p>
             </div>
+            <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900/20">
+                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Available Waybill IDs</p>
+                <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ number_format($couriers->sum('available_waybills_count')) }}</p>
+            </div>
         </div>
 
         <div id="empty-search-state" class="hidden col-span-full p-10 text-center text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 rounded-lg dark:border-gray-600 mb-4">
@@ -59,7 +63,15 @@
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" id="courier-card-grid">
             @forelse($couriers as $courier)
-                <a href="{{ route('orders.waybill.show', $courier) }}" class="courier-card block p-5 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-primary-300 dark:bg-gray-800 dark:border-gray-700 dark:hover:border-primary-700 transition-all">
+                @php
+                    $canOpenWaybillQueue = (int) ($courier->available_waybills_count ?? 0) > 0;
+                    $hasShortfall = (int) ($courier->printable_orders_count ?? 0) > (int) ($courier->available_waybills_count ?? 0);
+                @endphp
+                @if($canOpenWaybillQueue)
+                    <a href="{{ route('orders.waybill.show', $courier) }}" class="courier-card block p-5 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-primary-300 dark:bg-gray-800 dark:border-gray-700 dark:hover:border-primary-700 transition-all">
+                @else
+                    <div class="courier-card block p-5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800/70 dark:border-gray-700 opacity-80">
+                @endif
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <h4 class="text-lg font-bold text-gray-900 dark:text-white">{{ $courier->name }}</h4>
@@ -74,9 +86,23 @@
                         <span class="text-gray-500 dark:text-gray-400">Call confirmed pending waybill</span>
                         <span class="font-semibold text-gray-900 dark:text-white">{{ number_format($courier->printable_orders_count ?? 0) }}</span>
                     </div>
+                    <div class="mt-2 flex items-center justify-between text-sm">
+                        <span class="text-gray-500 dark:text-gray-400">Available waybill IDs</span>
+                        <span class="font-semibold {{ ($courier->available_waybills_count ?? 0) > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300' }}">{{ number_format($courier->available_waybills_count ?? 0) }}</span>
+                    </div>
 
-                    <p class="mt-3 text-xs text-primary-700 dark:text-primary-400 font-medium">Open waybill list</p>
-                </a>
+                    @if($hasShortfall)
+                        <p class="mt-3 text-xs font-medium text-amber-700 dark:text-amber-300">Needs more waybill IDs before all eligible orders can be printed.</p>
+                    @elseif($canOpenWaybillQueue)
+                        <p class="mt-3 text-xs text-primary-700 dark:text-primary-400 font-medium">Open waybill list</p>
+                    @else
+                        <p class="mt-3 text-xs font-medium text-red-700 dark:text-red-300">No available waybill IDs. Add them from the courier list first.</p>
+                    @endif
+                @if($canOpenWaybillQueue)
+                    </a>
+                @else
+                    </div>
+                @endif
             @empty
                 <div class="col-span-full p-10 text-center text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 rounded-lg dark:border-gray-600">
                     No active couriers found.

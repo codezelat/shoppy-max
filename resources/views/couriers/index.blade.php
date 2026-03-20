@@ -27,7 +27,7 @@
         </div>
     </x-slot>
 
-    <div class="p-6 overflow-hidden bg-white rounded-md shadow-md dark:bg-gray-800">
+    <div class="p-6 overflow-hidden bg-white rounded-md shadow-md dark:bg-gray-800" x-data="courierWaybillManager()">
         
         <!-- Stats Widgets (Simplified for Couriers) -->
         <div class="grid grid-cols-1 gap-4 mb-8 md:grid-cols-3">
@@ -128,6 +128,14 @@
                             </td>
                             <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center space-x-2">
+                                    <button
+                                        type="button"
+                                        @click="openWaybillModal({ id: {{ $courier->id }}, name: @js($courier->name) })"
+                                        class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg dark:text-blue-400 dark:hover:bg-gray-700 transition-colors"
+                                        title="Waybill IDs"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h6.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    </button>
                                     <a href="{{ route('couriers.edit', $courier) }}" class="p-2 text-yellow-600 hover:bg-yellow-100 rounded-lg dark:text-yellow-400 dark:hover:bg-gray-700 transition-colors" title="Edit">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                     </a>
@@ -158,5 +166,289 @@
         <div class="mt-4">
             {{ $couriers->links() }}
         </div>
+
+        <div
+            x-show="showWaybillModal"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-3 sm:p-4"
+            x-transition.opacity
+        >
+            <div @click.away="closeWaybillModal()" class="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-gray-800">
+                <div class="flex items-start justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Waybill IDs</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400" x-text="selectedCourier ? `${selectedCourier.name} waybill pool and allocation history.` : ''"></p>
+                    </div>
+                    <button type="button" @click="closeWaybillModal()" class="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto">
+                    <div class="grid grid-cols-1 gap-5 p-4 sm:p-6 xl:grid-cols-12">
+                    <div class="xl:col-span-4 xl:max-w-sm">
+                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-900/30">
+                            <h4 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">Add Waybill Range</h4>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Prefix and suffix are optional. Start and end numbers are required, whole numbers only, and end must be larger than start.</p>
+
+                            <div class="mt-4 space-y-4">
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Prefix</label>
+                                    <input x-model="rangeForm.prefix" type="text" class="block w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="SPX-">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Start Number</label>
+                                        <input x-model="rangeForm.start_number" type="number" min="0" step="1" class="block w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="240001">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">End Number</label>
+                                        <input x-model="rangeForm.end_number" type="number" min="1" step="1" class="block w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="240100">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Suffix</label>
+                                    <input x-model="rangeForm.suffix" type="text" class="block w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="-A">
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="submitWaybillRange()"
+                                    :disabled="savingWaybillRange || loadingWaybills"
+                                    class="inline-flex w-full items-center justify-center rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-600 dark:hover:bg-blue-700"
+                                >
+                                    <span x-show="!savingWaybillRange">Add Range</span>
+                                    <span x-show="savingWaybillRange">Saving...</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                            <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/20">
+                                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Total</p>
+                                <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white" x-text="summary.total_waybills ?? 0"></p>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/20">
+                                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Available</p>
+                                <p class="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300" x-text="summary.available_waybills ?? 0"></p>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/20 sm:col-span-2">
+                                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Next Available</p>
+                                <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white break-all" x-text="summary.next_available_waybill || 'None'"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="xl:col-span-8 xl:min-w-0">
+                        <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            <div class="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-5 py-3 dark:border-gray-700 dark:bg-gray-900/20">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-gray-900 dark:text-white">Current Waybill IDs</h4>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Allocated rows show which order already consumed that waybill ID.</p>
+                                </div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400" x-text="pagination.total ? `${pagination.total} total` : '0 total'"></div>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                    <thead class="bg-gray-100 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
+                                        <tr>
+                                            <th class="px-4 py-3">Waybill ID</th>
+                                            <th class="px-4 py-3">Status</th>
+                                            <th class="px-4 py-3">Order</th>
+                                            <th class="px-4 py-3">Allocated At</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-if="loadingWaybills">
+                                            <tr>
+                                                <td colspan="4" class="px-4 py-10 text-center text-gray-500 dark:text-gray-400">Loading waybill IDs...</td>
+                                            </tr>
+                                        </template>
+                                        <template x-if="!loadingWaybills && waybillItems.length === 0">
+                                            <tr>
+                                                <td colspan="4" class="px-4 py-10 text-center text-gray-500 dark:text-gray-400">No waybill IDs added for this courier yet.</td>
+                                            </tr>
+                                        </template>
+                                        <template x-for="item in waybillItems" :key="item.id">
+                                            <tr class="border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                                                <td class="px-4 py-3 font-mono text-xs text-gray-900 dark:text-white" x-text="item.code"></td>
+                                                <td class="px-4 py-3">
+                                                    <span
+                                                        class="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium"
+                                                        :class="item.status === 'allocated' ? 'border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'"
+                                                        x-text="item.status === 'allocated' ? 'Allocated' : 'Available'"
+                                                    ></span>
+                                                </td>
+                                                <td class="px-4 py-3 text-gray-700 dark:text-gray-300" x-text="item.order_number || '-'"></td>
+                                                <td class="px-4 py-3 text-gray-700 dark:text-gray-300" x-text="item.allocated_at || '-'"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-5 py-3 dark:border-gray-700 dark:bg-gray-900/20">
+                                <button
+                                    type="button"
+                                    @click="loadWaybillPage(pagination.current_page - 1)"
+                                    :disabled="loadingWaybills || pagination.current_page <= 1"
+                                    class="inline-flex items-center rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                                >
+                                    Previous
+                                </button>
+                                <span class="text-sm text-gray-600 dark:text-gray-300" x-text="pagination.last_page ? `Page ${pagination.current_page} of ${pagination.last_page}` : 'Page 1 of 1'"></span>
+                                <button
+                                    type="button"
+                                    @click="loadWaybillPage(pagination.current_page + 1)"
+                                    :disabled="loadingWaybills || pagination.current_page >= pagination.last_page"
+                                    class="inline-flex items-center rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <script>
+        function courierWaybillManager() {
+            return {
+                showWaybillModal: false,
+                selectedCourier: null,
+                loadingWaybills: false,
+                savingWaybillRange: false,
+                waybillItems: [],
+                summary: {},
+                pagination: {
+                    current_page: 1,
+                    last_page: 1,
+                    total: 0,
+                },
+                rangeForm: {
+                    prefix: '',
+                    start_number: '',
+                    end_number: '',
+                    suffix: '',
+                },
+                getWaybillUrl(page = 1) {
+                    if (!this.selectedCourier) {
+                        return null;
+                    }
+
+                    const base = @js(url('/couriers/__COURIER__/waybills'));
+                    return `${base.replace('__COURIER__', this.selectedCourier.id)}?page=${page}`;
+                },
+                notify(type, message) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: type,
+                            text: message,
+                            toast: true,
+                            timer: 2500,
+                            showConfirmButton: false,
+                            position: 'top-end',
+                        });
+                        return;
+                    }
+
+                    alert(message);
+                },
+                openWaybillModal(courier) {
+                    this.selectedCourier = courier;
+                    this.showWaybillModal = true;
+                    this.rangeForm = { prefix: '', start_number: '', end_number: '', suffix: '' };
+                    this.loadWaybillPage(1);
+                },
+                closeWaybillModal() {
+                    this.showWaybillModal = false;
+                    this.selectedCourier = null;
+                    this.waybillItems = [];
+                    this.summary = {};
+                    this.pagination = { current_page: 1, last_page: 1, total: 0 };
+                },
+                async loadWaybillPage(page = 1) {
+                    const url = this.getWaybillUrl(page);
+                    if (!url) {
+                        return;
+                    }
+
+                    this.loadingWaybills = true;
+
+                    try {
+                        const response = await fetch(url, {
+                            headers: {
+                                'Accept': 'application/json',
+                            },
+                        });
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Failed to load waybill IDs.');
+                        }
+
+                        this.waybillItems = Array.isArray(data.items) ? data.items : [];
+                        this.summary = data.summary || {};
+                        this.pagination = data.pagination || { current_page: 1, last_page: 1, total: 0 };
+                    } catch (error) {
+                        this.notify('error', error.message || 'Failed to load waybill IDs.');
+                    } finally {
+                        this.loadingWaybills = false;
+                    }
+                },
+                async submitWaybillRange() {
+                    if (!this.selectedCourier) {
+                        return;
+                    }
+
+                    const startNumber = Number(this.rangeForm.start_number);
+                    const endNumber = Number(this.rangeForm.end_number);
+
+                    if (!Number.isInteger(startNumber) || !Number.isInteger(endNumber)) {
+                        this.notify('warning', 'Start and end numbers must be whole numbers.');
+                        return;
+                    }
+
+                    if (endNumber <= startNumber) {
+                        this.notify('warning', 'End number must be larger than start number.');
+                        return;
+                    }
+
+                    this.savingWaybillRange = true;
+
+                    try {
+                        const response = await fetch(this.getWaybillUrl(), {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': @js(csrf_token()),
+                            },
+                            body: JSON.stringify(this.rangeForm),
+                        });
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            const message = data?.message
+                                || Object.values(data?.errors || {}).flat()[0]
+                                || 'Failed to add waybill IDs.';
+                            throw new Error(message);
+                        }
+
+                        this.notify('success', data.message || 'Waybill IDs added successfully.');
+                        this.rangeForm = { prefix: '', start_number: '', end_number: '', suffix: '' };
+                        await this.loadWaybillPage(1);
+                    } catch (error) {
+                        this.notify('error', error.message || 'Failed to add waybill IDs.');
+                    } finally {
+                        this.savingWaybillRange = false;
+                    }
+                },
+            };
+        }
+    </script>
 </x-app-layout>

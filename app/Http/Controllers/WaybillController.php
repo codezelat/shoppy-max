@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Courier;
+use App\Models\CourierWaybill;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class WaybillController extends Controller
 {
@@ -20,6 +22,9 @@ class WaybillController extends Controller
                 'orders as printable_orders_count' => function ($query) {
                     $this->applyPrintableOrderConstraints($query);
                 },
+                'waybills as available_waybills_count' => function ($query) {
+                    $query->whereNull('order_id');
+                },
             ])
             ->orderBy('name')
             ->get();
@@ -32,6 +37,13 @@ class WaybillController extends Controller
      */
     public function show(Request $request, Courier $courier)
     {
+        $availableWaybillsCount = $courier->waybills()->available()->count();
+        if ($availableWaybillsCount < 1) {
+            return redirect()
+                ->route('orders.waybill.index')
+                ->with('error', "Add waybill IDs for {$courier->name} before opening the print queue.");
+        }
+
         $perPage = in_array((int) $request->input('per_page'), [25, 50, 100], true)
             ? (int) $request->input('per_page')
             : 25;
@@ -89,6 +101,9 @@ class WaybillController extends Controller
                         ->where('waybill_number', '!=', '');
                 })
                 ->count(),
+            'available_waybills' => $availableWaybillsCount,
+            'waybill_shortfall' => max(((clone $statsBaseQuery)->where('delivery_status', 'pending')->count()) - $availableWaybillsCount, 0),
+            'next_available_waybill' => $courier->waybills()->available()->orderBy('id')->value('code'),
         ];
 
         return view('orders.waybill.show', compact('courier', 'orders', 'stats'));
@@ -99,41 +114,76 @@ class WaybillController extends Controller
      */
     public function print(Request $request)
     {
+        $validated = $request->validate([
+            'courier_id' => 'required|exists:couriers,id',
+            'order_ids' => 'required|array|min:1',
+            'order_ids.*' => 'integer|exists:orders,id',
+        ]);
+
         $orderIds = collect($request->input('order_ids', []))
             ->filter(fn ($id) => is_numeric($id))
             ->map(fn ($id) => (int) $id)
             ->unique()
             ->values();
+        $courierId = (int) $validated['courier_id'];
 
-        if ($orderIds->isEmpty()) {
-            return back()->with('error', 'No orders selected.');
-        }
+        try {
+            $orders = DB::transaction(function () use ($orderIds, $courierId) {
+                $ordersQuery = Order::query()
+                    ->where('courier_id', $courierId)
+                    ->whereIn('id', $orderIds)
+                    ->with('items', 'city', 'customer')
+                    ->lockForUpdate();
 
-        $ordersQuery = Order::query()
-            ->whereIn('id', $orderIds)
-            ->with('items', 'city', 'customer');
+                $this->applyPrintableOrderConstraints($ordersQuery);
 
-        $this->applyPrintableOrderConstraints($ordersQuery);
+                $orders = $ordersQuery->get()
+                    ->sortBy(fn (Order $order) => $orderIds->search($order->id))
+                    ->values();
 
-        $orders = $ordersQuery->get();
-
-        if ($orders->count() !== $orderIds->count()) {
-            return back()->with('error', 'Only call-confirmed orders with pending delivery and no waybill numbers can be printed.');
-        }
-
-        DB::transaction(function () use ($orders): void {
-            // Generate waybill numbers before rendering print.
-            foreach ($orders as $order) {
-                if (!$order->waybill_number) {
-                    $order->waybill_number = 'WB-' . $order->order_number;
+                if ($orders->count() !== $orderIds->count()) {
+                    throw ValidationException::withMessages([
+                        'order_ids' => 'Only call-confirmed orders with pending delivery and no waybill numbers can be printed.',
+                    ]);
                 }
-                $order->delivery_status = 'waybill_printed';
-                if (!$order->waybill_printed_at) {
-                    $order->waybill_printed_at = now();
+
+                $availableWaybills = CourierWaybill::query()
+                    ->where('courier_id', $courierId)
+                    ->available()
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->limit($orderIds->count())
+                    ->get()
+                    ->values();
+
+                if ($availableWaybills->count() < $orderIds->count()) {
+                    throw ValidationException::withMessages([
+                        'order_ids' => 'Not enough available waybill IDs for this courier. Add more waybill IDs before printing.',
+                    ]);
                 }
-                $order->save();
-            }
-        });
+
+                $timestamp = now();
+
+                foreach ($orders as $index => $order) {
+                    $waybill = $availableWaybills[$index];
+
+                    $order->waybill_number = $waybill->code;
+                    $order->delivery_status = 'waybill_printed';
+                    if (!$order->waybill_printed_at) {
+                        $order->waybill_printed_at = $timestamp;
+                    }
+                    $order->save();
+
+                    $waybill->order_id = $order->id;
+                    $waybill->allocated_at = $timestamp;
+                    $waybill->save();
+                }
+
+                return $orders;
+            });
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first() ?: 'Unable to print waybills.');
+        }
 
         return view('orders.waybill.print', compact('orders'));
     }

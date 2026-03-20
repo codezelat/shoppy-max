@@ -119,6 +119,11 @@ class Order extends Model
         return $this->belongsTo(CourierPayment::class);
     }
 
+    public function waybillAssignment()
+    {
+        return $this->hasOne(CourierWaybill::class);
+    }
+
     public function inventoryUnits()
     {
         return $this->hasMany(InventoryUnit::class);

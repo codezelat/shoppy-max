@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\City;
 use App\Models\Courier;
 use App\Models\CourierPayment;
+use App\Models\CourierWaybill;
 use App\Models\Customer;
 use App\Models\InventoryUnit;
 use App\Models\Order;
@@ -48,6 +49,7 @@ class DemoSystemSeeder extends Seeder
         $customers = $this->seedCustomers($cities);
         $this->seedPurchases($users, $suppliers, $variants);
         $orders = $this->seedOrders($users, $resellers, $customers, $couriers, $cities, $variants);
+        $this->seedCourierWaybills($couriers, $orders);
         $this->seedCourierPayments($users, $couriers, $bankAccounts, $orders);
         $this->seedResellerPayments($resellers);
         $this->syncResellerDueAmounts($resellers);
@@ -1181,6 +1183,80 @@ class DemoSystemSeeder extends Seeder
 
             $payment->amount = round((float) $order->total_amount - (float) $order->courier_cost, 2);
             $payment->save();
+        }
+    }
+
+    private function seedCourierWaybills(array $couriers, array $orders): void
+    {
+        if (!Schema::hasTable('courier_waybills')) {
+            return;
+        }
+
+        CourierWaybill::query()->delete();
+
+        $timestamp = now();
+        $rows = [];
+        $existingCodes = [];
+
+        foreach ($orders as $order) {
+            $waybillNumber = trim((string) ($order->waybill_number ?? ''));
+            if ($waybillNumber === '' || !$order->courier_id) {
+                continue;
+            }
+
+            $rows[] = [
+                'courier_id' => $order->courier_id,
+                'code' => $waybillNumber,
+                'prefix' => null,
+                'sequence_number' => (int) $order->id,
+                'suffix' => null,
+                'range_start' => (int) $order->id,
+                'range_end' => (int) $order->id,
+                'order_id' => $order->id,
+                'allocated_at' => $order->waybill_printed_at ?? $order->created_at ?? $timestamp,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ];
+
+            $existingCodes[$waybillNumber] = true;
+        }
+
+        $ranges = [
+            ['courier' => 'SpeedX Courier', 'prefix' => 'SPX-', 'start' => 240003, 'end' => 240025, 'suffix' => ''],
+            ['courier' => 'Prompt Express', 'prefix' => 'PRM-', 'start' => 240004, 'end' => 240025, 'suffix' => ''],
+            ['courier' => 'Lanka Post Parcel', 'prefix' => 'LPP-', 'start' => 240001, 'end' => 240015, 'suffix' => ''],
+        ];
+
+        foreach ($ranges as $range) {
+            $courier = $couriers[$range['courier']] ?? null;
+            if (!$courier) {
+                continue;
+            }
+
+            for ($number = $range['start']; $number <= $range['end']; $number++) {
+                $code = $range['prefix'] . $number . $range['suffix'];
+                if (isset($existingCodes[$code])) {
+                    continue;
+                }
+
+                $rows[] = [
+                    'courier_id' => $courier->id,
+                    'code' => $code,
+                    'prefix' => $range['prefix'],
+                    'sequence_number' => $number,
+                    'suffix' => $range['suffix'] !== '' ? $range['suffix'] : null,
+                    'range_start' => $range['start'],
+                    'range_end' => $range['end'],
+                    'order_id' => null,
+                    'allocated_at' => null,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ];
+            }
+        }
+
+        foreach (array_chunk($rows, 500) as $chunk) {
+            CourierWaybill::query()->insert($chunk);
         }
     }
 

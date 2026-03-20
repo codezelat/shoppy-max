@@ -29,6 +29,11 @@ class Courier extends Model
         return $this->hasMany(Order::class);
     }
 
+    public function waybills()
+    {
+        return $this->hasMany(CourierWaybill::class);
+    }
+
     public function resellers()
     {
         return $this->belongsToMany(Reseller::class)->withTimestamps();
