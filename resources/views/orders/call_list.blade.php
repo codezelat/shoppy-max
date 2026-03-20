@@ -96,8 +96,11 @@
                             updating: false, 
                             isManualLocked: {{ $manualEditLocked ? 'true' : 'false' }},
                             currentStatus: '{{ $order->call_status }}',
+                            get isConfirmedLocked() {
+                                return String(this.currentStatus || '').toLowerCase() === 'confirm';
+                            },
                             updateStatus(newStatus) {
-                                if (this.isManualLocked) return;
+                                if (this.isManualLocked || this.isConfirmedLocked) return;
                                 if (this.currentStatus === newStatus) return;
                                 this.updating = true;
                                 fetch('{{ route('orders.status.update', $order->id) }}', {
@@ -117,7 +120,7 @@
                                         this.currentStatus = data.call_status;
                                         // Optional: Show toast
                                     } else {
-                                        alert('Failed to update status');
+                                        alert(data.message || 'Failed to update status');
                                     }
                                 })
                                 .catch(() => {
@@ -246,8 +249,8 @@
                                 <div class="relative">
                                     <select @change="updateStatus($event.target.value)" 
                                             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm font-medium rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full min-w-[150px] px-3 py-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                                            :disabled="updating || isManualLocked"
-                                            :class="{'opacity-50 pointer-events-none': updating || isManualLocked, 'bg-green-50 text-green-800 border-green-300': currentStatus === 'confirm', 'bg-orange-50 text-orange-800 border-orange-300': currentStatus === 'hold'}"
+                                            :disabled="updating || isManualLocked || isConfirmedLocked"
+                                            :class="{'opacity-50 pointer-events-none': updating || isManualLocked || isConfirmedLocked, 'bg-green-50 text-green-800 border-green-300': currentStatus === 'confirm', 'bg-orange-50 text-orange-800 border-orange-300': currentStatus === 'hold'}"
                                     >
                                         <option value="pending" :selected="currentStatus === 'pending'">Pending</option>
                                         <option value="confirm" :selected="currentStatus === 'confirm'">Confirm</option>

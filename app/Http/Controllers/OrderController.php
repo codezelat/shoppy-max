@@ -1097,6 +1097,7 @@ class OrderController extends Controller
                 $order->delivery_status = 'cancel';
             } else {
                 if (array_key_exists('call_status', $validated)) {
+                    $this->assertCallStatusTransitionAllowed($validated['call_status'], $order->call_status);
                     $order->call_status = $validated['call_status'];
                 } elseif ($order->call_status === 'cancel') {
                     $order->call_status = 'pending';
@@ -1332,6 +1333,22 @@ class OrderController extends Controller
         return in_array($normalizedCallStatus, ['pending', 'hold', 'confirm'], true)
             ? $normalizedCallStatus
             : 'pending';
+    }
+
+    private function assertCallStatusTransitionAllowed(?string $requestedStatus, ?string $previousStatus): void
+    {
+        $requestedStatus = strtolower((string) ($requestedStatus ?? 'pending'));
+        $previousStatus = strtolower((string) ($previousStatus ?? 'pending'));
+
+        if ($requestedStatus === $previousStatus) {
+            return;
+        }
+
+        if ($previousStatus === 'confirm' && $requestedStatus !== 'confirm') {
+            throw ValidationException::withMessages([
+                'call_status' => 'Confirmed call status cannot be changed back.',
+            ]);
+        }
     }
 
     private function isCoreDetailsLocked(Order $order): bool
