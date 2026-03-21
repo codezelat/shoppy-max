@@ -1,22 +1,20 @@
 # Shoppy Max — Full Gap Analysis & Development Roadmap
 
 > **Prepared:** 2026-03-21  
-> **Purpose:** Identify every gap in the current codebase — runtime bugs, stub/placeholder implementations, missing features, orphaned files, and tech-debt — so that development priorities can be set clearly.
+> **Purpose:** Identify every remaining gap in the current codebase — stub/placeholder implementations, missing features, orphaned files, and tech-debt — so that development priorities can be set clearly.
 
 ---
 
 ## Table of Contents
 
 1. [System Overview](#1-system-overview)
-2. [Critical Runtime Bugs](#2-critical-runtime-bugs)
-3. [Stub & Placeholder Implementations](#3-stub--placeholder-implementations)
-4. [Missing Features — No Backend or Frontend Exists](#4-missing-features--no-backend-or-frontend-exists)
-5. [Incomplete Features — Backend Exists, Frontend is a Stub](#5-incomplete-features--backend-exists-frontend-is-a-stub)
-6. [Incomplete Features — Frontend Exists, Backend is Broken or Weak](#6-incomplete-features--frontend-exists-backend-is-broken-or-weak)
-7. [Potentially Orphaned / Legacy Files](#7-potentially-orphaned--legacy-files)
-8. [Tech Debt & Code Quality Issues](#8-tech-debt--code-quality-issues)
-9. [Feature Completeness Matrix](#9-feature-completeness-matrix)
-10. [Recommended Action Plan](#10-recommended-action-plan)
+2. [Stub & Placeholder Implementations](#2-stub--placeholder-implementations)
+3. [Missing Features — No Backend or Frontend Exists](#3-missing-features--no-backend-or-frontend-exists)
+4. [Incomplete Features — Backend Exists, Frontend is a Stub](#4-incomplete-features--backend-exists-frontend-is-a-stub)
+5. [Potentially Orphaned / Legacy Files](#5-potentially-orphaned--legacy-files)
+6. [Tech Debt & Code Quality Issues](#6-tech-debt--code-quality-issues)
+7. [Feature Completeness Matrix](#7-feature-completeness-matrix)
+8. [Recommended Action Plan](#8-recommended-action-plan)
 
 ---
 
@@ -33,7 +31,7 @@ Shoppy Max is a **Laravel 12** B2B/B2C order and inventory management platform w
 | Reseller & Direct-Reseller Management | ✅ Substantially complete |
 | Packing Workflow (scanner UI) | ✅ Core complete, batch stub |
 | Product Management (variants, barcodes, import) | ✅ Substantially complete |
-| Reports | ⚠️ Some reports broken |
+| Reports | ⚠️ P&L COGS inaccurate; other reports functional |
 | Dashboard | ❌ Completely empty (placeholders) |
 | User Activity Logs | ❌ Not implemented |
 | Return / RMA Workflow | ❌ Not implemented |
@@ -45,122 +43,13 @@ Shoppy Max is a **Laravel 12** B2B/B2C order and inventory management platform w
 
 ---
 
-## 2. Critical Runtime Bugs
-
-These will throw **PHP/Laravel exceptions** when the page or action is visited.
-
----
-
-### 2.1 `ReportController::packetCount()` — Undefined Relationship
-
-**File:** `app/Http/Controllers/ReportController.php` — line 137  
-**Route:** `GET /reports/packet-count`
-
-```php
-$packers = User::withCount(['packedOrders' => function($q){
-     $q->where('status', 'confirm');
-}])->get();
-```
-
-**Problem:** The `packedOrders` relationship **does not exist** on the `User` model. The `User` model currently has no Eloquent relationships defined at all (no `orders()`, no `packedOrders()`).
-
-**Fix required:**
-1. Add a `packedOrders()` relationship to `app/Models/User.php`:
-   ```php
-   public function packedOrders()
-   {
-       return $this->hasMany(Order::class, 'packed_by');
-   }
-   ```
-2. Also add a general `orders()` relationship (used by `userSales()` below):
-   ```php
-   public function orders()
-   {
-       return $this->hasMany(Order::class, 'user_id');
-   }
-   ```
-
----
-
-### 2.2 `ReportController::userSales()` — Undefined Relationship
-
-**File:** `app/Http/Controllers/ReportController.php` — lines 155–163  
-**Route:** `GET /reports/user-sales`
-
-```php
-$userSales = User::withSum(['orders' => function($q) {
-    $q->where('status', 'confirm');
-}], 'total_amount')
-->withCount(['orders' => function($q) {
-    $q->where('status', 'confirm');
-}])
-->get();
-```
-
-**Problem:** Same root cause — `orders` relationship is not defined on `User`.
-
-**Fix:** Add `orders()` to User model (see 2.1).
-
----
-
-### 2.3 `StockService::deductStock()` — References Non-Existent Fields
-
-**File:** `app/Services/StockService.php` — lines 18–64
-
-```php
-$product->quantity -= $quantity;   // Product has no 'quantity' attribute
-$product->save();
-
-$batches = PurchaseItem::where('product_id', $product->id)
-    ->where('remaining_quantity', '>', 0)   // PurchaseItem has no 'remaining_quantity'
-    ->whereHas('purchase', function($q) {
-        $q->where('status', 'verified');
-    })
-    ...
-
-$batchCost = $batch->purchasing_price;  // PurchaseItem has no 'purchasing_price'
-```
-
-**Problems:**
-- `Product::$quantity` does not exist; stock is tracked per `ProductVariant::$quantity`
-- `PurchaseItem::$remaining_quantity` does not exist; the field is `purchase_price` and there is no FIFO remainder field
-- `PurchaseItem::$purchasing_price` does not exist; the column is `purchase_price`
-- `StockService` is **not imported or called anywhere** in the current application — see §7.1
-
-**Fix:** Either:
-- Delete the service (it has been superseded by `InventoryUnitService`), or
-- Rewrite it to reference the correct model fields if FIFO cost is still needed for reporting
-
----
-
-### 2.4 `ReportController::stockReport()` — Assumes Non-Existent Relationship & Column
-
-**File:** `app/Http/Controllers/ReportController.php` — lines 118–131  
-**Route:** `GET /reports/stock`
-
-```php
-$products = Product::with(['purchaseItems' => function($q) {
-    $q->where('remaining_quantity', '>', 0);
-}])->get();
-```
-
-**Problems:**
-- `Product` has no `purchaseItems()` relationship defined
-- `remaining_quantity` does not exist on `PurchaseItem` (same issue as 2.3)
-
-**Fix:** Either:
-- Add a `purchaseItems()` relationship to `Product` model and use actual column names, or
-- Rewrite the stock report to use `InventoryUnit` and `PurchaseItem` correctly (e.g., count units with `status = 'available'` grouped by variant and purchase)
-
----
-
-## 3. Stub & Placeholder Implementations
+## 2. Stub & Placeholder Implementations
 
 These exist in code with comments explicitly marking them as incomplete.
 
 ---
 
-### 3.1 `DashboardController::index()` — All Stats Hardcoded to Zero
+### 2.1 `DashboardController::index()` — All Stats Hardcoded to Zero
 
 **File:** `app/Http/Controllers/DashboardController.php`
 
@@ -196,7 +85,7 @@ $stats = [
 
 ---
 
-### 3.2 `UserLogController::index()` — Empty Stub
+### 2.2 `UserLogController::index()` — Empty Stub
 
 **File:** `app/Http/Controllers/UserLogController.php`
 
@@ -217,7 +106,7 @@ public function index()
 
 ---
 
-### 3.3 `PackingController::createBatch()` — Returns "Coming Soon"
+### 2.3 `PackingController::createBatch()` — Returns "Coming Soon"
 
 **File:** `app/Http/Controllers/PackingController.php` — lines 221–225
 
@@ -237,7 +126,7 @@ public function createBatch(Request $request)
 
 ---
 
-### 3.4 `AttributeController::update()` — Cannot Modify Attribute Values
+### 2.4 `AttributeController::update()` — Cannot Modify Attribute Values
 
 **File:** `app/Http/Controllers/AttributeController.php` — lines 48–57
 
@@ -262,7 +151,7 @@ public function update(Request $request, Attribute $attribute)
 
 ---
 
-### 3.5 `CategoryController::store()` — Image Field Passthrough Without Upload
+### 2.5 `CategoryController::store()` — Image Field Passthrough Without Upload
 
 **File:** `app/Http/Controllers/CategoryController.php` — lines 41–46
 
@@ -281,13 +170,13 @@ Category::create($input);
 
 ---
 
-## 4. Missing Features — No Backend or Frontend Exists
+## 3. Missing Features — No Backend or Frontend Exists
 
 These features have **zero implementation** in any layer.
 
 ---
 
-### 4.1 Return / RMA Workflow
+### 3.1 Return / RMA Workflow
 
 **What exists:** The `delivery_status` column supports a `returned` value, and `OrderController` sets this status and applies a `reseller_return_fee`. The inventory unit service calls `releaseOrderUnits()` on return.
 
@@ -307,7 +196,7 @@ These features have **zero implementation** in any layer.
 
 ---
 
-### 4.2 User Activity / Audit Log System
+### 3.2 User Activity / Audit Log System
 
 **What exists:** `OrderLog` model records order-level events. `InventoryUnitEvent` records unit-level state transitions. There is no system-wide user activity log.
 
@@ -325,7 +214,7 @@ These features have **zero implementation** in any layer.
 
 ---
 
-### 4.3 Guest Shop Cart & Checkout
+### 3.3 Guest Shop Cart & Checkout
 
 **What exists:** `GET /shop` renders `GuestProductController::index()` — a fully-functional product browsing page with search, filter, and sorting.
 
@@ -339,7 +228,7 @@ These features have **zero implementation** in any layer.
 
 ---
 
-### 4.4 Product–Attribute Assignment on Products
+### 3.4 Product–Attribute Assignment on Products
 
 **What exists:**
 - `Attribute` and `AttributeValue` models are implemented
@@ -361,7 +250,7 @@ These features have **zero implementation** in any layer.
 
 ---
 
-### 4.5 API Layer
+### 3.5 API Layer
 
 **What exists:** `routes/api.php` has two endpoints:
 ```
@@ -383,20 +272,20 @@ GET  /api/cities     (getCitiesByDistrict)
 
 ---
 
-## 5. Incomplete Features — Backend Exists, Frontend is a Stub
+## 4. Incomplete Features — Backend Exists, Frontend is a Stub
 
 ---
 
-### 5.1 Dashboard Metrics
+### 4.1 Dashboard Metrics
 
 **Backend:** `DashboardController` passes a `$stats` array to the view (though it is all zeros currently).  
 **Frontend:** `dashboard.blade.php` never renders `$stats`. It shows only a welcome message.
 
-**Fix:** Once the controller stats are real (§3.1), add a stats-card grid to the view using the `x-stats-card` component that already exists in `resources/views/components/stats-card.blade.php`.
+**Fix:** Once the controller stats are real (§2.1), add a stats-card grid to the view using the `x-stats-card` component that already exists in `resources/views/components/stats-card.blade.php`.
 
 ---
 
-### 5.2 Profit & Loss Report — COGS May Be Inaccurate
+### 4.2 Profit & Loss Report — COGS May Be Inaccurate
 
 **File:** `app/Http/Controllers/ReportController.php` — `profitLoss()`
 
@@ -410,38 +299,11 @@ The report calculates COGS from `order_items.cost_price`. That field (`cost_pric
 
 ---
 
-### 5.3 Stock Report — Relationship & Column Missing
-
-**Route:** `GET /reports/stock`  
-Already documented in §2.4 as a runtime bug. The view exists (`resources/views/reports/stock.blade.php`) but will never render successfully.
+## 5. Potentially Orphaned / Legacy Files
 
 ---
 
-## 6. Incomplete Features — Frontend Exists, Backend is Broken or Weak
-
----
-
-### 6.1 Packet Count Report
-
-**Route:** `GET /reports/packet-count`  
-**View:** `resources/views/reports/packet_count.blade.php` — view exists  
-**Bug:** Already documented in §2.1. Will throw an error.
-
----
-
-### 6.2 User Sales Report
-
-**Route:** `GET /reports/user-sales`  
-**View:** `resources/views/reports/user_sales.blade.php` — view exists  
-**Bug:** Already documented in §2.2. Will throw an error.
-
----
-
-## 7. Potentially Orphaned / Legacy Files
-
----
-
-### 7.1 `app/Services/StockService.php` — Effectively Dead Code
+### 5.1 `app/Services/StockService.php` — Effectively Dead Code
 
 **Status:** The file exists and implements FIFO stock deduction. However:
 - It is **not imported or instantiated anywhere** in the application (confirmed by a full codebase search)
@@ -452,7 +314,7 @@ Already documented in §2.4 as a runtime bug. The view exists (`resources/views/
 
 ---
 
-### 7.2 `Product::$barcode_data` — Noted as Legacy
+### 5.2 `Product::$barcode_data` — Noted as Legacy
 
 **File:** `app/Models/Product.php` — fillable list includes `barcode_data`
 
@@ -467,19 +329,19 @@ Barcode generation now uses the variant SKU via `BarcodeGeneratorPNG`. The `barc
 
 ---
 
-### 7.3 `routes/auth.php` — Standard Laravel Auth Routes
+### 5.3 `routes/auth.php` — Open Registration
 
 These are the standard Breeze auth routes (login, register, password reset, email verification). They are fully functional. However, **registration** (`GET/POST /register`) is included and allows anyone to create an account. If the application is internal-staff-only, registration should be disabled or admin-gated.
 
 ---
 
-### 7.4 `resources/views/guest/` — Shop With No Checkout
+### 5.4 `resources/views/guest/` — Shop With No Checkout
 
 The guest product listing at `/shop` is a polished, functional browse-only page. Without a cart or checkout, it serves only as a public catalog. If this is intentional, fine — but if it is meant to eventually support orders, plan for the guest checkout flow.
 
 ---
 
-### 7.5 Multiple Redundant "Standardize Status" Migrations
+### 5.5 Multiple Redundant "Standardize Status" Migrations
 
 The following migrations exist only to backfill/normalize data that was inconsistent from earlier versions:
 
@@ -496,37 +358,11 @@ These are necessary history but represent a period of significant schema churn. 
 
 ---
 
-## 8. Tech Debt & Code Quality Issues
+## 6. Tech Debt & Code Quality Issues
 
 ---
 
-### 8.1 User Model Has No Order-Related Relationships
-
-`app/Models/User.php` defines no Eloquent relationships. The `Order` model has several `belongsTo(User::class, 'packed_by')` etc., but the reverse is never defined. Any `withCount`, `withSum`, or eager loading via `User::with('orders')` will silently fail or throw.
-
-**Missing relationships to add:**
-```php
-public function orders() { return $this->hasMany(Order::class, 'user_id'); }
-public function packedOrders() { return $this->hasMany(Order::class, 'packed_by'); }
-public function dispatchedOrders() { return $this->hasMany(Order::class, 'dispatched_by'); }
-public function deliveredOrders() { return $this->hasMany(Order::class, 'delivered_by'); }
-```
-
----
-
-### 8.2 Product Model Has No PurchaseItems Relationship
-
-`app/Models/Product.php` has no `purchaseItems()` relationship. The `ReportController::stockReport()` method calls `Product::with('purchaseItems')` which will fail. Add:
-```php
-public function purchaseItems()
-{
-    return $this->hasMany(PurchaseItem::class);
-}
-```
-
----
-
-### 8.3 Large Controllers
+### 6.1 Large Controllers
 
 | Controller | Approximate Lines |
 |-----------|------------------|
@@ -538,7 +374,7 @@ These are above typical size limits but are not a critical problem. Consider ext
 
 ---
 
-### 8.4 Default Credentials in Production Seeder
+### 6.2 Default Credentials in Production Seeder
 
 **File:** `database/seeders/RolesAndPermissionsSeeder.php`
 
@@ -548,7 +384,7 @@ Creates a super-admin user with a known password. If this seeder runs on product
 
 ---
 
-### 8.5 No Formal Middleware for Role-Based Access Control
+### 6.3 No Formal Middleware for Role-Based Access Control
 
 Routes are protected with `auth` middleware but there is no per-route role or permission gate. Admin routes (`/admin/...`) are accessible to any authenticated user. The `@can` Blade directive is used on the dashboard, but there are no `middleware('can:...')` or `middleware('role:...')` guards on routes.
 
@@ -556,17 +392,17 @@ Routes are protected with `auth` middleware but there is no per-route role or pe
 
 ---
 
-### 8.6 `payment_data` vs `payments_data` Field Inconsistency
+### 6.4 `payments_data` JSON Has No Validation Schema
 
-Both `orders` and `purchases` store payment entries as JSON. The field names are:
+Both `orders` and `purchases` store payment entries as JSON:
 - `orders.payments_data`
 - `purchases.payments_data`
 
-This is consistent. However, the field is cast as `array` and allows any structure. There is no validation schema for the payment entries JSON. If the structure drifts, views that iterate over `payments_data` will silently produce nothing.
+The field is cast as `array` and allows any structure. There is no validation schema for the payment entries JSON. If the structure drifts, views that iterate over `payments_data` will silently produce nothing.
 
 ---
 
-## 9. Feature Completeness Matrix
+## 7. Feature Completeness Matrix
 
 | Module | Controller | Routes | Views | Tests | Overall |
 |--------|-----------|--------|-------|-------|---------|
@@ -612,10 +448,10 @@ This is consistent. However, the field is cast as `array` and allows any structu
 | **Cities** | ✅ Complete | ✅ Complete | ✅ Complete | ❌ None | ✅ |
 | **Reports (Province Sales)** | ✅ Complete | ✅ Complete | ✅ Complete | ❌ None | ✅ |
 | **Reports (Profit & Loss)** | ⚠️ COGS inaccurate | ✅ Complete | ✅ Complete | ❌ None | ⚠️ |
-| **Reports (Stock)** | ❌ Runtime bug | ✅ Complete | ✅ Exists | ❌ None | ❌ |
-| **Reports (Packet Count)** | ❌ Runtime bug | ✅ Complete | ✅ Exists | ❌ None | ❌ |
+| **Reports (Stock)** | ✅ Complete | ✅ Complete | ✅ Complete | ❌ None | ✅ |
+| **Reports (Packet Count)** | ✅ Complete | ✅ Complete | ✅ Complete | ❌ None | ✅ |
 | **Reports (Product Sales)** | ✅ Complete | ✅ Complete | ✅ Complete | ❌ None | ✅ |
-| **Reports (User Sales)** | ❌ Runtime bug | ✅ Complete | ✅ Exists | ❌ None | ❌ |
+| **Reports (User Sales)** | ✅ Complete | ✅ Complete | ✅ Complete | ❌ None | ✅ |
 | **Reports (Summary)** | ✅ Complete | ✅ Complete | ✅ Complete | ❌ None | ✅ |
 | **Inventory Units** | ✅ Complete | (console only) | N/A | ❌ None | ✅ |
 | **Guest Shop (Browse)** | ✅ Complete | ✅ Complete | ✅ Complete | ❌ None | ✅ |
@@ -624,68 +460,57 @@ This is consistent. However, the field is cast as `array` and allows any structu
 
 ---
 
-## 10. Recommended Action Plan
+## 8. Recommended Action Plan
 
 Items are ordered by **impact and urgency**.
 
 ---
 
-### Priority 1 — Fix Runtime Bugs (Breaks Existing UI)
+### Priority 1 — Implement Core Missing Features
 
 | # | Task | File(s) | Effort |
 |---|------|---------|--------|
-| 1a | Add `packedOrders()` and `orders()` relationships to `User` model | `app/Models/User.php` | ~30 min |
-| 1b | Add `purchaseItems()` relationship to `Product` model | `app/Models/Product.php` | ~10 min |
-| 1c | Fix `ReportController::stockReport()` to use correct columns & relationships | `app/Http/Controllers/ReportController.php` | ~2 hrs |
-| 1d | Fix `ReportController::packetCount()` and `userSales()` (blocked on 1a) | `app/Http/Controllers/ReportController.php` | ~30 min |
+| 1a | Implement real dashboard stats in `DashboardController` | `DashboardController.php`, `dashboard.blade.php` | ~3 hrs |
+| 1b | Implement User Activity Log (logging + controller + view) | New migration, `UserLogController.php`, `user-logs/index.blade.php` | ~1 day |
+| 1c | Implement Return / RMA workflow (route + controller method + view) | `OrderController.php`, new route, new view | ~1–2 days |
+| 1d | Fix COGS snapshot at order creation time | `OrderController::store()` and `update()` | ~4 hrs |
 
 ---
 
-### Priority 2 — Implement Core Missing Features
+### Priority 2 — Complete Partial Implementations
 
 | # | Task | File(s) | Effort |
 |---|------|---------|--------|
-| 2a | Implement real dashboard stats in `DashboardController` | `DashboardController.php`, `dashboard.blade.php` | ~3 hrs |
-| 2b | Implement User Activity Log (logging + controller + view) | New migration, `UserLogController.php`, `user-logs/index.blade.php` | ~1 day |
-| 2c | Implement Return / RMA workflow (route + controller method + view) | `OrderController.php`, new route, new view | ~1–2 days |
-| 2d | Fix COGS snapshot at order creation time | `OrderController::store()` and `update()` | ~4 hrs |
+| 2a | Fix `AttributeController::update()` to allow value add/remove | `AttributeController.php`, `attributes/edit.blade.php` | ~2 hrs |
+| 2b | Implement image upload for Categories, Products, Variants | `CategoryController.php`, `ProductController.php` | ~4 hrs |
+| 2c | Implement Product → Attribute assignment on product create/edit | `ProductController.php`, product form views | ~4 hrs |
+| 2d | Either remove or rewrite `StockService` | `StockService.php` | ~2 hrs |
 
 ---
 
-### Priority 3 — Complete Partial Implementations
+### Priority 3 — Clean Up & Security
 
 | # | Task | File(s) | Effort |
 |---|------|---------|--------|
-| 3a | Fix `AttributeController::update()` to allow value add/remove | `AttributeController.php`, `attributes/edit.blade.php` | ~2 hrs |
-| 3b | Implement image upload for Categories, Products, Variants | `CategoryController.php`, `ProductController.php` | ~4 hrs |
-| 3c | Implement Product → Attribute assignment on product create/edit | `ProductController.php`, product form views | ~4 hrs |
-| 3d | Either remove or rewrite `StockService` | `StockService.php` | ~2 hrs |
+| 3a | Add route-level role/permission middleware to admin and sensitive routes | `routes/web.php` | ~2 hrs |
+| 3b | Remove `barcode_data` from `Product::$fillable`, deprecate column | `Product.php`, new migration | ~30 min |
+| 3c | Gate registration to admin-only or disable public registration | `routes/auth.php`, `RegisteredUserController.php` | ~1 hr |
+| 3d | Gate default seeder credentials behind environment check | `RolesAndPermissionsSeeder.php` | ~30 min |
+| 3e | Remove or document `PackingController::createBatch()` | `PackingController.php` | ~15 min |
 
 ---
 
-### Priority 4 — Clean Up & Security
-
-| # | Task | File(s) | Effort |
-|---|------|---------|--------|
-| 4a | Add route-level role/permission middleware to admin and sensitive routes | `routes/web.php` | ~2 hrs |
-| 4b | Remove `barcode_data` from `Product::$fillable`, deprecate column | `Product.php`, new migration | ~30 min |
-| 4c | Gate registration to admin-only or disable public registration | `routes/auth.php`, `RegisteredUserController.php` | ~1 hr |
-| 4d | Gate default seeder credentials behind environment check | `RolesAndPermissionsSeeder.php` | ~30 min |
-| 4e | Remove or document `PackingController::createBatch()` | `PackingController.php` | ~15 min |
-
----
-
-### Priority 5 — Future Features (Backlog)
+### Priority 4 — Future Features (Backlog)
 
 | # | Task | Notes |
 |---|------|-------|
-| 5a | Guest shop cart & checkout | Requires design decision: B2C or catalog-only? |
-| 5b | Batch packing workflow | Depends on operational need |
-| 5c | REST API expansion | Requires scope decision and auth strategy |
-| 5d | Automated test coverage | No meaningful tests exist; start with service layer |
-| 5e | Operational expense (OpEx) tracking in P&L | Currently only COGS and courier costs |
-| 5f | Inventory cycle count / reconciliation UI | Console commands exist, no web UI |
+| 4a | Guest shop cart & checkout | Requires design decision: B2C or catalog-only? |
+| 4b | Batch packing workflow | Depends on operational need |
+| 4c | REST API expansion | Requires scope decision and auth strategy |
+| 4d | Automated test coverage | No meaningful tests exist; start with service layer |
+| 4e | Operational expense (OpEx) tracking in P&L | Currently only COGS and courier costs |
+| 4f | Inventory cycle count / reconciliation UI | Console commands exist, no web UI |
 
 ---
 
-*This document was generated through full codebase analysis on 2026-03-21. Review and update it as features are completed.*
+*This document was generated through full codebase analysis on 2026-03-21. Fixed items have been removed — see the PR history for issues resolved in this session.*
