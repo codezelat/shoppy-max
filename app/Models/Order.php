@@ -23,6 +23,8 @@ class Order extends Model
         'delivery_status',
         'waybill_printed_at',
         'waybill_printed_by',
+        'waybill_excel_exported_at',
+        'waybill_excel_exported_by',
         'picked_at',
         'picked_by',
         'packed_at',
@@ -72,6 +74,7 @@ class Order extends Model
         'delivery_fee' => 'decimal:2',
         'reseller_return_fee_applied' => 'decimal:2',
         'waybill_printed_at' => 'datetime',
+        'waybill_excel_exported_at' => 'datetime',
         'picked_at' => 'datetime',
         'packed_at' => 'datetime',
         'dispatched_at' => 'datetime',
@@ -103,6 +106,11 @@ class Order extends Model
     public function picker()
     {
         return $this->belongsTo(User::class, 'picked_by');
+    }
+
+    public function waybillExcelExporter()
+    {
+        return $this->belongsTo(User::class, 'waybill_excel_exported_by');
     }
 
     public function customer()

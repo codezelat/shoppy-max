@@ -1032,6 +1032,11 @@ class DemoSystemSeeder extends Seeder
             ],
         ];
 
+        $seededWaybillExcelExportedOrders = [
+            'DEMO-ORD-0001',
+            'DEMO-ORD-0006',
+        ];
+
         $orderMap = [];
 
         foreach ($rows as $row) {
@@ -1184,6 +1189,12 @@ class DemoSystemSeeder extends Seeder
                 ? $timelineBase->copy()->addHours(2)
                 : null;
             $order->waybill_printed_by = filled($order->waybill_number)
+                ? $creator->id
+                : null;
+            $order->waybill_excel_exported_at = in_array($row['order_number'], $seededWaybillExcelExportedOrders, true)
+                ? $timelineBase->copy()->addHours(3)
+                : null;
+            $order->waybill_excel_exported_by = $order->waybill_excel_exported_at
                 ? $creator->id
                 : null;
             $order->picked_at = in_array($order->delivery_status, ['picked_from_rack', 'packed', 'dispatched', 'delivered', 'returned'], true)

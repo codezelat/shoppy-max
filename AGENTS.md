@@ -23,7 +23,7 @@ Shoppy Max is a Laravel 12 operations platform for:
 - product and variant management
 - purchase intake with moderation and GRN scanning
 - unit-level inventory traceability
-- order intake, call flow, waybill generation, plus packing and return flows that exist in part but should still be treated as work-in-progress operational areas
+- order intake, call flow, waybill generation, waybill Excel export, plus packing and return flows that exist in part but should still be treated as work-in-progress operational areas
 - reseller/direct-reseller balances and payments
 - courier settlement and bank-account tracking
 - reporting and print/PDF exports
@@ -182,6 +182,8 @@ Rules:
   limited fields remain editable
 - online payment and discount workflows affect status/payment rules; preserve the controller logic
   instead of duplicating it elsewhere
+- waybill Excel export is courier-specific and uses only orders that already have printed waybill IDs
+- newly exported rows are marked downloaded, but downloaded rows can still be explicitly included later
 
 ### Resellers and Direct Resellers
 
@@ -426,6 +428,7 @@ Check:
 - create/edit/view/print/PDF
 - call list
 - waybill queue and print
+- waybill Excel export queue
 - packing flow
   - packing pages exist and now scan allocated unit codes, persist scan progress on inventory units, and only allow completion when all required units are scanned
   - packing is still a work-in-progress operational area; do not describe it as fully hardened or fully browser-QA-proven without a dedicated end-to-end verification pass

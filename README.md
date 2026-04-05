@@ -32,7 +32,7 @@ This system manages:
 - Contacts: customers, suppliers, resellers, direct resellers, cities
 - Product catalog: categories, sub-categories, units, products, variants, pricing
 - Inventory movement: purchases, GRN intake, unit-level stock tracking, and orders
-- Orders: create/edit/view/print/PDF, call list, waybill queue, plus packing and return flows that exist in part but should still be treated as work-in-progress operational areas
+- Orders: create/edit/view/print/PDF, call list, waybill queue, waybill Excel export queue, plus packing and return flows that exist in part but should still be treated as work-in-progress operational areas
 - Finance flows: reseller targets/payments/dues, courier payments, bank accounts
 - Reports: province sales, profit/loss, stock, packet count, product sales, user sales
 
@@ -73,6 +73,8 @@ Authentication is provided by Laravel Breeze, and permissions are handled by Spa
   - queue based on `call_status = confirm`
   - print generates waybill numbers
   - printed orders leave the pending waybill queue
+  - printed orders enter a courier-specific Excel export queue
+  - Excel export defaults to not-yet-downloaded rows and can optionally include already-downloaded rows
 - Courier receive and courier payment reconciliation
 - Reseller commission/penalty logic (reseller-only, not direct reseller)
 - PDF/print/export support across modules
@@ -351,6 +353,14 @@ Printing waybill:
 - assigns waybill number
 - updates delivery status to `waybill_printed`
 - stamps `waybill_printed_at`
+
+Waybill Excel export:
+
+- is grouped by courier
+- includes orders with saved printed waybill IDs
+- defaults to pending-download rows only
+- can include previously downloaded rows with the explicit filter
+- marks newly exported rows as downloaded without blocking later re-export
 
 ## Imports, Exports, and Documents
 
