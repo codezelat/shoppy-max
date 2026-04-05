@@ -43,9 +43,9 @@
                     <input type="text" name="search" value="{{ request('search') }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" placeholder="Search Order #, Phone...">
                 </div>
 
-                <!-- Order Status Filter -->
+                <!-- Call Status Filter -->
                 <div>
-                        <select name="call_status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" aria-label="Order Status">
+                        <select name="call_status" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" aria-label="Call Status">
                         <option value="" {{ request('call_status', '') === '' ? 'selected' : '' }}>Pending + Hold (Default)</option>
                         <option value="pending" {{ request('call_status') == 'pending' ? 'selected' : '' }}>Pending</option>
                         <option value="confirm" {{ request('call_status') == 'confirm' ? 'selected' : '' }}>Confirm</option>
@@ -84,6 +84,7 @@
                         <th scope="col" class="px-6 py-3 whitespace-nowrap">Paid Amount</th>
                         <th scope="col" class="px-6 py-3 whitespace-nowrap">Balance</th>
                         <th scope="col" class="px-6 py-3 min-w-[170px]">Order Status</th>
+                        <th scope="col" class="px-6 py-3 min-w-[170px]">Call Status</th>
                         <th scope="col" class="px-6 py-3 text-center">Action</th>
                     </tr>
                 </thead>
@@ -95,6 +96,7 @@
                         <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors" x-data="{ 
                             updating: false, 
                             isManualLocked: {{ $manualEditLocked ? 'true' : 'false' }},
+                            currentOrderStatus: '{{ $order->status }}',
                             currentStatus: '{{ $order->call_status }}',
                             get isConfirmedLocked() {
                                 return String(this.currentStatus || '').toLowerCase() === 'confirm';
@@ -113,96 +115,56 @@
                                     },
                                     body: JSON.stringify({ call_status: newStatus })
                                 })
-                                .then(response => response.json())
-                                .then(data => {
-                                    this.updating = false;
-                                    if(data.success) {
-                                        this.currentStatus = data.call_status;
-                                        // Optional: Show toast
-                                    } else {
-                                        alert(data.message || 'Failed to update status');
-                                    }
-                                })
-                                .catch(() => {
-                                    this.updating = false;
-                                    alert('Error updating status');
-                                });
-                            },
-                            async cancelOrder() {
-                                if (this.isManualLocked) return;
-                                const orderNumber = {{ \Illuminate\Support\Js::from($order->order_number) }};
-                                const confirmText = `Cancel ${orderNumber}? This will cancel the order and set call and delivery statuses to Cancel.`;
-
-                                if (typeof Swal !== 'undefined') {
-                                    const result = await Swal.fire({
-                                        title: 'Cancel Order',
-                                        text: confirmText,
-                                        icon: 'warning',
-                                        showCancelButton: true,
-                                        confirmButtonColor: '#dc2626',
-                                        cancelButtonColor: '#6b7280',
-                                        confirmButtonText: 'Yes, Cancel Order',
-                                        cancelButtonText: 'Keep Order',
-                                    });
-
-                                    if (!result.isConfirmed) {
-                                        return;
-                                    }
-                                } else if (!confirm(confirmText)) {
-                                    return;
-                                }
-
-                                this.updating = true;
-                                fetch('{{ route('orders.status.update', $order->id) }}', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                                    },
-                                    body: JSON.stringify({ status: 'cancel' })
-                                })
                                 .then(async (response) => {
                                     const data = await response.json().catch(() => ({}));
                                     this.updating = false;
+                                    if(response.ok && data.success) {
+                                        this.currentOrderStatus = data.status;
+                                        this.currentStatus = data.call_status;
 
-                                    if (!response.ok || !data.success) {
-                                        const message = data?.message || 'Failed to cancel order.';
+                                        if (typeof Swal !== 'undefined') {
+                                            const statusLabel = String(newStatus || '').toLowerCase() === 'hold'
+                                                ? 'Order On Hold'
+                                                : 'Order Confirmed';
+                                            const statusMessage = String(newStatus || '').toLowerCase() === 'hold'
+                                                ? 'The order moved to hold status.'
+                                                : 'The order moved to confirmed status.';
+                                            await Swal.fire({
+                                                icon: 'success',
+                                                title: statusLabel,
+                                                text: statusMessage,
+                                                timer: 900,
+                                                showConfirmButton: false,
+                                            });
+                                        }
+
+                                        window.location.reload();
+                                    } else {
+                                        const message = data.message || 'Failed to update status.';
                                         if (typeof Swal !== 'undefined') {
                                             await Swal.fire({
                                                 icon: 'error',
-                                                title: 'Cancel Failed',
+                                                title: 'Update Failed',
                                                 text: message,
                                             });
                                         } else {
                                             alert(message);
                                         }
-                                        return;
                                     }
-
-                                    if (typeof Swal !== 'undefined') {
-                                        await Swal.fire({
-                                            icon: 'success',
-                                            title: 'Order Cancelled',
-                                            text: `${orderNumber} was cancelled successfully.`,
-                                            timer: 1200,
-                                            showConfirmButton: false,
-                                        });
-                                    }
-                                    window.location.reload();
                                 })
-                                .catch(() => {
+                                .catch(async () => {
                                     this.updating = false;
                                     if (typeof Swal !== 'undefined') {
-                                        Swal.fire({
+                                        await Swal.fire({
                                             icon: 'error',
-                                            title: 'Cancel Failed',
-                                            text: 'An unexpected error occurred while cancelling the order.',
+                                            title: 'Update Failed',
+                                            text: 'An unexpected error occurred while updating the order status.',
                                         });
                                     } else {
-                                        alert('An unexpected error occurred while cancelling the order.');
+                                        alert('An unexpected error occurred while updating the order status.');
                                     }
                                 });
-                            }
+                            },
                         }">
                             @php
                                 $mobile = $order->customer->mobile ?? $order->customer_phone ?? '-';
@@ -246,46 +208,62 @@
                                 LKR {{ number_format($balanceAmount, 2) }}
                             </td>
                             <td class="px-6 py-4 min-w-[170px]">
-                                <div class="relative">
-                                    <select @change="updateStatus($event.target.value)" 
-                                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm font-medium rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full min-w-[150px] px-3 py-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                                            :disabled="updating || isManualLocked || isConfirmedLocked"
-                                            :class="{'opacity-50 pointer-events-none': updating || isManualLocked || isConfirmedLocked, 'bg-green-50 text-green-800 border-green-300': currentStatus === 'confirm', 'bg-orange-50 text-orange-800 border-orange-300': currentStatus === 'hold'}"
-                                    >
-                                        <option value="pending" :selected="currentStatus === 'pending'">Pending</option>
-                                        <option value="confirm" :selected="currentStatus === 'confirm'">Confirm</option>
-                                        <option value="hold" :selected="currentStatus === 'hold'">Hold</option>
-                                    </select>
-                                    <div x-show="updating" class="absolute inset-y-0 right-0 flex items-center pr-8 pointer-events-none">
-                                        <svg class="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                    </div>
-                                </div>
+                                <span
+                                    class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                                    :class="{
+                                        'border-yellow-300 bg-yellow-100 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300': currentOrderStatus === 'pending',
+                                        'border-orange-300 bg-orange-100 text-orange-800 dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-300': currentOrderStatus === 'hold',
+                                        'border-green-300 bg-green-100 text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300': currentOrderStatus === 'confirm',
+                                        'border-red-300 bg-red-100 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300': currentOrderStatus === 'cancel'
+                                    }"
+                                    x-text="formatStatus(currentOrderStatus)"
+                                ></span>
+                            </td>
+                            <td class="px-6 py-4 min-w-[170px]">
+                                <span
+                                    class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                                    :class="{
+                                        'border-yellow-300 bg-yellow-100 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300': currentStatus === 'pending',
+                                        'border-orange-300 bg-orange-100 text-orange-800 dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-300': currentStatus === 'hold',
+                                        'border-green-300 bg-green-100 text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300': currentStatus === 'confirm',
+                                        'border-red-300 bg-red-100 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300': currentStatus === 'cancel'
+                                    }"
+                                    x-text="formatStatus(currentStatus)"
+                                ></span>
                             </td>
                             <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center space-x-3">
-                                    <button @click="viewOrder({{ json_encode($order) }})" class="text-green-600 hover:text-green-800" title="Quick View">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                                    </button>
-                                    @if(!$manualEditLocked)
-                                        <button type="button" @click="cancelOrder()" :disabled="updating" class="text-red-600 hover:text-red-800 disabled:opacity-40 disabled:cursor-not-allowed" title="Cancel Order">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <template x-if="!isManualLocked && !isConfirmedLocked">
+                                        <button type="button" @click="updateStatus('confirm')" :disabled="updating" class="text-blue-600 hover:text-blue-800 disabled:opacity-40 disabled:cursor-not-allowed" title="Approve Order">
+                                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                        </button>
+                                    </template>
+                                    <template x-if="!isManualLocked && currentStatus === 'pending'">
+                                        <button type="button" @click="updateStatus('hold')" :disabled="updating" class="text-amber-600 hover:text-amber-800 disabled:opacity-40 disabled:cursor-not-allowed" title="Mark Hold">
+                                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                             </svg>
                                         </button>
-                                    @else
-                                        <span class="text-gray-400 dark:text-gray-500" title="Cancel is locked for this order">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5 9 6.343 9 8s1.343 3 3 3Zm0 0v2m-6 6h12a2 2 0 002-2v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2Z"></path></svg>
+                                    </template>
+                                    <template x-if="updating">
+                                        <span class="text-blue-600 dark:text-blue-400" title="Updating">
+                                            <svg class="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
                                         </span>
-                                    @endif
+                                    </template>
+                                    <button @click="viewOrder({{ json_encode($order) }})" class="text-green-600 hover:text-green-800" title="Quick View">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                            <td colspan="10" class="px-6 py-8 text-center text-gray-500">
+                            <td colspan="11" class="px-6 py-8 text-center text-gray-500">
                                 No orders found.
                             </td>
                         </tr>
@@ -349,7 +327,7 @@
                                 <span class="font-medium dark:text-white" x-text="formatStatus(selectedOrder?.delivery_status)"></span>
                              </div>
                              <div class="flex justify-between text-sm mb-1">
-                                <span class="text-gray-500">Order Status:</span>
+                                <span class="text-gray-500">Call Status:</span>
                                 <span class="font-medium dark:text-white" x-text="formatStatus(selectedOrder?.call_status)"></span>
                              </div>
                         </div>
