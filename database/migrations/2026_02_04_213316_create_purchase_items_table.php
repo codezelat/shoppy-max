@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('purchase_items')) {
+            return;
+        }
+
         Schema::create('purchase_items', function (Blueprint $table) {
             $table->id();
             // The FK is added in a later migration because the paired purchases

@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('courier_payments')) {
+            return;
+        }
+
         Schema::create('courier_payments', function (Blueprint $table) {
             $table->id();
             // The FK is added in a later migration because the paired couriers

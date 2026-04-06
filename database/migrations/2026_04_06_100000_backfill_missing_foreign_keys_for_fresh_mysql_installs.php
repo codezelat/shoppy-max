@@ -20,6 +20,13 @@ return new class extends Migration
         );
 
         $this->addForeignKeyIfMissing(
+            table: 'courier_payments',
+            column: 'user_id',
+            referencedTable: 'users',
+            onDelete: 'set null',
+        );
+
+        $this->addForeignKeyIfMissing(
             table: 'purchase_items',
             column: 'purchase_id',
             referencedTable: 'purchases',
@@ -33,6 +40,7 @@ return new class extends Migration
     public function down(): void
     {
         $this->dropForeignKeyIfExists('courier_payments', 'courier_id');
+        $this->dropForeignKeyIfExists('courier_payments', 'user_id');
         $this->dropForeignKeyIfExists('purchase_items', 'purchase_id');
     }
 
