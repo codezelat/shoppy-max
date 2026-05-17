@@ -66,6 +66,8 @@ class PurchaseDateLockTest extends TestCase
 
         $response->assertRedirect(route('purchases.success', $purchase));
         $this->assertSame('2026-05-18', $purchase->purchase_date->format('Y-m-d'));
+        $this->assertSame('2026-05-18 10:00:00', $purchase->created_at->format('Y-m-d H:i:s'));
+        $this->assertSame('Asia/Colombo', $purchase->created_at->timezoneName);
     }
 
     private function purchaseDependencies(): array

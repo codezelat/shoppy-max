@@ -508,6 +508,8 @@ If a page is operationally dense, prefer:
 - do not edit `.env` for permanent behavior changes
 - do not commit secrets, auth dumps, or private keys
 - do not modify `server_utils/` utilities unless explicitly required
+- keep operational timestamps in the configured app timezone (`APP_TIMEZONE`, default
+  `Asia/Colombo`) and make seeded/demo audit times match their business event dates
 - do not bypass service-layer business rules for inventory or courier settlement
 - do not add direct SQL shortcuts for order/purchase status changes if controllers/services already
   coordinate side effects

@@ -27,7 +27,9 @@ use App\Models\Supplier;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\InventoryUnitService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -1050,6 +1052,7 @@ class DemoSystemSeeder extends Seeder
             }
 
             $order = Order::query()->firstOrNew(['order_number' => $row['order_number']]);
+            $orderCreatedAt = $this->localDateTime($row['order_date'], 8, 30);
             $order->order_number = $row['order_number'];
             $order->order_date = $row['order_date'];
             $order->order_type = $row['order_type'];
@@ -1080,7 +1083,7 @@ class DemoSystemSeeder extends Seeder
             $order->customer_city = $city->city_name;
             $order->customer_district = $city->district;
             $order->customer_province = $city->province;
-            $order->save();
+            $this->saveModelWithTimestamps($order, $orderCreatedAt, $orderCreatedAt);
 
             OrderItem::query()->where('order_id', $order->id)->delete();
 
@@ -1110,7 +1113,7 @@ class DemoSystemSeeder extends Seeder
                     $totalCommission += ($unitPrice - $basePrice) * $qty;
                 }
 
-                OrderItem::create([
+                $orderItem = OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $variant->product_id,
                     'product_variant_id' => $variant->id,
@@ -1123,6 +1126,7 @@ class DemoSystemSeeder extends Seeder
                     'total_price' => $lineTotal,
                     'subtotal' => $lineTotal,
                 ]);
+                $this->saveModelWithTimestamps($orderItem, $orderCreatedAt, $orderCreatedAt);
 
                 // Keep stock impact realistic for active orders only.
                 if ($order->status !== 'cancel') {
@@ -1183,58 +1187,72 @@ class DemoSystemSeeder extends Seeder
             )
                 ? 'paid'
                 : 'pending';
-            $timelineBase = now()->subDay();
+            $timelineBase = $this->localDateTime($row['order_date'], 9, 30);
             $order->waybill_printed_at = filled($order->waybill_number)
-                ? $timelineBase->copy()->addHours(2)
+                ? $this->demoEventAt($timelineBase, 2)
                 : null;
             $order->waybill_printed_by = filled($order->waybill_number)
                 ? $creator->id
                 : null;
             $order->waybill_excel_exported_at = in_array($row['order_number'], $seededWaybillExcelExportedOrders, true)
-                ? $timelineBase->copy()->addHours(3)
+                ? $this->demoEventAt($timelineBase, 3)
                 : null;
             $order->waybill_excel_exported_by = $order->waybill_excel_exported_at
                 ? $creator->id
                 : null;
             $order->picked_at = in_array($order->delivery_status, ['picked_from_rack', 'packed', 'dispatched', 'delivered', 'returned'], true)
-                ? $timelineBase->copy()->addHours(4)
+                ? $this->demoEventAt($timelineBase, 4)
                 : null;
             $order->picked_by = $order->picked_at ? $creator->id : null;
             $order->packed_at = in_array($order->delivery_status, ['packed', 'dispatched', 'delivered', 'returned'], true)
-                ? $timelineBase->copy()->addHours(6)
+                ? $this->demoEventAt($timelineBase, 6)
                 : null;
             $order->packed_by = $order->packed_at ? $creator->id : null;
             $order->dispatched_at = $order->delivery_status === 'dispatched' || $order->delivery_status === 'delivered'
-                ? $timelineBase->copy()->addHours(8)
+                ? $this->demoEventAt($timelineBase, 8)
                 : null;
             $order->dispatched_by = $order->dispatched_at ? $creator->id : null;
             $order->cancelled_at = $order->status === 'cancel' || $order->delivery_status === 'cancel'
-                ? $timelineBase->copy()->addHours(3)
+                ? $this->demoEventAt($timelineBase, 3)
                 : null;
             $order->cancelled_by = $order->cancelled_at ? $creator->id : null;
             $order->delivered_at = $order->delivery_status === 'delivered'
-                ? $timelineBase->copy()->addHours(12)
+                ? $this->demoEventAt($timelineBase, 12)
                 : null;
             $order->delivered_by = $order->delivered_at ? $creator->id : null;
             $order->returned_at = $order->delivery_status === 'returned'
-                ? $timelineBase->copy()->addHours(14)
+                ? $this->demoEventAt($timelineBase, 14)
                 : null;
             $order->returned_by = $order->returned_at ? $creator->id : null;
-            $order->save();
+            $orderUpdatedAt = $this->latestTimestamp([
+                $orderCreatedAt,
+                $order->waybill_printed_at,
+                $order->waybill_excel_exported_at,
+                $order->picked_at,
+                $order->packed_at,
+                $order->dispatched_at,
+                $order->cancelled_at,
+                $order->delivered_at,
+                $order->returned_at,
+            ]);
+            $this->saveModelWithTimestamps($order, $orderCreatedAt, $orderUpdatedAt);
 
             OrderLog::query()->where('order_id', $order->id)->delete();
-            OrderLog::create([
+            $createdLog = OrderLog::create([
                 'order_id' => $order->id,
                 'user_id' => $creator->id,
                 'action' => 'created',
                 'description' => 'Seeded demo order.',
             ]);
-            OrderLog::create([
+            $this->saveModelWithTimestamps($createdLog, $orderCreatedAt, $orderCreatedAt);
+
+            $statusLog = OrderLog::create([
                 'order_id' => $order->id,
                 'user_id' => $creator->id,
                 'action' => 'status_updated',
                 'description' => 'Seeded status set to '.$order->status.'.',
             ]);
+            $this->saveModelWithTimestamps($statusLog, $orderUpdatedAt, $orderUpdatedAt);
 
             $orderMap[$row['order_number']] = $order->fresh();
         }
@@ -1276,6 +1294,7 @@ class DemoSystemSeeder extends Seeder
             if (! $courier) {
                 continue;
             }
+            $paymentCreatedAt = $this->localDateTime($row['payment_date'], 11, 0);
 
             $payment = CourierPayment::updateOrCreate(
                 ['reference_number' => $row['reference_number']],
@@ -1289,27 +1308,32 @@ class DemoSystemSeeder extends Seeder
                     'bank_account_id' => $bankAccount?->id,
                 ]
             );
+            $this->saveModelWithTimestamps($payment, $paymentCreatedAt, $paymentCreatedAt);
 
             $paymentMap[$row['reference_number']] = $payment;
         }
 
         if (isset($orders['DEMO-ORD-0001'], $paymentMap['CP-DEMO-0001'])) {
             $order = $orders['DEMO-ORD-0001'];
+            $orderCreatedAt = $order->created_at ?? $this->localDateTime($order->order_date->format('Y-m-d'), 8, 30);
+            $orderUpdatedAt = $this->latestTimestamp([$order->updated_at, $paymentMap['CP-DEMO-0001']->created_at]);
             $order->courier_payment_id = $paymentMap['CP-DEMO-0001']->id;
             $order->payment_status = 'paid';
-            $order->save();
+            $this->saveModelWithTimestamps($order, $orderCreatedAt, $orderUpdatedAt);
         }
 
         if (isset($orders['DEMO-ORD-0006'], $paymentMap['CP-DEMO-0002'])) {
             $order = $orders['DEMO-ORD-0006'];
             $payment = $paymentMap['CP-DEMO-0002'];
+            $orderCreatedAt = $order->created_at ?? $this->localDateTime($order->order_date->format('Y-m-d'), 8, 30);
+            $orderUpdatedAt = $this->latestTimestamp([$order->updated_at, $payment->created_at]);
 
             $order->courier_payment_id = $payment->id;
             $order->payment_status = 'paid';
-            $order->save();
+            $this->saveModelWithTimestamps($order, $orderCreatedAt, $orderUpdatedAt);
 
             $payment->amount = round((float) $order->total_amount - (float) $order->courier_cost, 2);
-            $payment->save();
+            $this->saveModelWithTimestamps($payment, $payment->created_at, $payment->created_at);
         }
     }
 
@@ -1331,6 +1355,7 @@ class DemoSystemSeeder extends Seeder
                 continue;
             }
 
+            $allocatedAt = $order->waybill_printed_at ?? $order->created_at ?? $timestamp;
             $rows[] = [
                 'courier_id' => $order->courier_id,
                 'code' => $waybillNumber,
@@ -1340,9 +1365,9 @@ class DemoSystemSeeder extends Seeder
                 'range_start' => (int) $order->id,
                 'range_end' => (int) $order->id,
                 'order_id' => $order->id,
-                'allocated_at' => $order->waybill_printed_at ?? $order->created_at ?? $timestamp,
-                'created_at' => $timestamp,
-                'updated_at' => $timestamp,
+                'allocated_at' => $allocatedAt,
+                'created_at' => $order->created_at ?? $timestamp,
+                'updated_at' => $allocatedAt,
             ];
 
             $existingCodes[$waybillNumber] = true;
@@ -1414,7 +1439,7 @@ class DemoSystemSeeder extends Seeder
                 continue;
             }
 
-            ResellerPayment::updateOrCreate(
+            $payment = ResellerPayment::updateOrCreate(
                 ['reference_id' => $row['reference_id']],
                 [
                     'reseller_id' => $reseller->id,
@@ -1424,6 +1449,8 @@ class DemoSystemSeeder extends Seeder
                     'payment_date' => $row['payment_date'],
                 ]
             );
+            $paymentCreatedAt = $this->localDateTime($row['payment_date'], 11, 30);
+            $this->saveModelWithTimestamps($payment, $paymentCreatedAt, $paymentCreatedAt);
         }
     }
 
@@ -1495,6 +1522,13 @@ class DemoSystemSeeder extends Seeder
             }
 
             $purchase = Purchase::query()->firstOrNew(['purchase_number' => $row['purchase_number']]);
+            $purchaseCreatedAt = $this->localDateTime($row['purchase_date'], 8, 30);
+            $purchaseUpdatedAt = $this->latestTimestamp([
+                $purchaseCreatedAt,
+                $row['checked_at'] ?? null,
+                $row['verified_at'] ?? null,
+                $row['completed_at'] ?? null,
+            ]);
             $existingItems = $purchase->exists
                 ? PurchaseItem::query()->where('purchase_id', $purchase->id)->get()
                 : collect();
@@ -1539,7 +1573,7 @@ class DemoSystemSeeder extends Seeder
             $purchase->payment_reference = $row['payment_reference'];
             $purchase->payment_account = $row['payment_account'];
             $purchase->payment_note = $row['payment_note'];
-            $purchase->save();
+            $this->saveModelWithTimestamps($purchase, $purchaseCreatedAt, $purchaseUpdatedAt);
 
             PurchaseItem::query()->where('purchase_id', $purchase->id)->delete();
 
@@ -1568,7 +1602,8 @@ class DemoSystemSeeder extends Seeder
                     $purchaseItemData['stock_variant_id'] = $variant->id;
                 }
 
-                PurchaseItem::create($purchaseItemData);
+                $purchaseItem = PurchaseItem::create($purchaseItemData);
+                $this->saveModelWithTimestamps($purchaseItem, $purchaseCreatedAt, $purchaseUpdatedAt);
 
                 if (($row['status'] ?? 'pending') === 'complete') {
                     $variant->increment('quantity', (int) $itemRow['quantity']);
@@ -1592,10 +1627,11 @@ class DemoSystemSeeder extends Seeder
                     'amount' => round($paid, 2),
                     'reference' => $row['payment_reference'],
                     'account' => $row['payment_account'],
+                    'date' => $purchaseCreatedAt->toDateString(),
                     'note' => $row['payment_note'],
                 ],
             ];
-            $purchase->save();
+            $this->saveModelWithTimestamps($purchase, $purchaseCreatedAt, $purchaseUpdatedAt);
 
             $supplier->due_amount = round(
                 (float) Purchase::query()->where('supplier_id', $supplier->id)->sum('net_total')
@@ -1622,6 +1658,43 @@ class DemoSystemSeeder extends Seeder
             $reseller->due_amount = round($orderTotal - $paidTotal, 2);
             $reseller->save();
         }
+    }
+
+    private function localDateTime(string|\DateTimeInterface $date, int $hour, int $minute): Carbon
+    {
+        return $this->notFuture(Carbon::parse($date, config('app.timezone'))->setTime($hour, $minute));
+    }
+
+    private function demoEventAt(Carbon $base, int $hoursAfterBase): Carbon
+    {
+        return $this->notFuture($base->copy()->addHours($hoursAfterBase));
+    }
+
+    private function notFuture(Carbon $timestamp): Carbon
+    {
+        $now = now();
+
+        return $timestamp->greaterThan($now) ? $now->copy() : $timestamp;
+    }
+
+    private function latestTimestamp(array $timestamps): Carbon
+    {
+        return collect($timestamps)
+            ->filter()
+            ->map(fn ($timestamp) => $timestamp instanceof Carbon
+                ? $timestamp->copy()
+                : Carbon::parse($timestamp, config('app.timezone')))
+            ->sortBy(fn (Carbon $timestamp) => $timestamp->getTimestamp())
+            ->last();
+    }
+
+    private function saveModelWithTimestamps(Model $model, Carbon $createdAt, Carbon $updatedAt): void
+    {
+        $model->created_at = $createdAt;
+        $model->updated_at = $updatedAt;
+        $model->timestamps = false;
+        $model->save();
+        $model->timestamps = true;
     }
 
     private function seedAttributes(): void
