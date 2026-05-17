@@ -16,7 +16,7 @@
                             <svg class="w-3 h-3 text-gray-400 mx-1 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
                             </svg>
-                            <a href="{{ route('direct-reseller-payments.index') }}" class="ms-1 text-sm font-medium text-gray-700 hover:text-blue-600 md:ms-2 dark:text-gray-400 dark:hover:text-white">Direct User Payments</a>
+                            <a href="{{ route('direct-reseller-payments.index') }}" class="ms-1 text-sm font-medium text-gray-700 hover:text-blue-600 md:ms-2 dark:text-gray-400 dark:hover:text-white">User Payments</a>
                         </div>
                     </li>
                     <li aria-current="page">
@@ -29,7 +29,7 @@
                     </li>
                 </ol>
             </nav>
-            <h2 class="mt-4 text-2xl font-bold text-gray-900 dark:text-white">Add New Direct Payment</h2>
+            <h2 class="mt-4 text-2xl font-bold text-gray-900 dark:text-white">Add New Payment</h2>
         </div>
 
         <form method="POST" action="{{ route('direct-reseller-payments.store') }}" x-data="paymentForm()">
@@ -38,7 +38,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Left Column (2/3) -->
                 <div class="lg:col-span-2 space-y-6">
-                    <x-form-section title="Payment Details" description="Enter payment information to update direct reseller balance.">
+                    <x-form-section title="Payment Details" description="Enter payment information to update reseller balance.">
                         <div class="space-y-6">
                             <!-- Reseller Select (Searchable) -->
                             <div class="relative" x-data="searchableSelect({
@@ -46,14 +46,14 @@
                                 selected: '{{ old('reseller_id') }}',
                                 name: 'reseller_id'
                             })" x-on:selected-reseller.window="updateDue($event.detail)">
-                                <label for="reseller_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Direct Reseller <span class="text-red-500">*</span></label>
+                                <label for="reseller_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Reseller <span class="text-red-500">*</span></label>
                                 
                                 <input type="hidden" name="reseller_id" :value="selected">
                                 
                                 <div class="relative" @click.away="open = false">
                                     <div @click="open = !open" 
                                          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 cursor-pointer flex justify-between items-center">
-                                        <span x-text="selectedText() || 'Select Direct Reseller'"></span>
+                                        <span x-text="selectedText() || 'Select Reseller'"></span>
                                         <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
 
@@ -126,7 +126,7 @@
                             </div>
                         </div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                             The direct reseller due amount will be automatically updated upon saving.
+                             The reseller due amount will be automatically updated upon saving.
                         </p>
                     </x-form-section>
 

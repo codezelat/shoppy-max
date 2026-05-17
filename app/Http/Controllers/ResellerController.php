@@ -40,14 +40,14 @@ class ResellerController extends Controller
             $resellers = $query->get();
 
             if ($request->input('export') === 'excel') {
-                return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\ResellersExport($resellers), 'resellers.xlsx');
+                return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\ResellersExport($resellers), 'direct_resellers.xlsx');
             }
 
             if ($request->input('export') === 'pdf') {
-                $reportTitle = 'Reseller List';
+                $reportTitle = 'Direct Reseller List';
                 $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.resellers_pdf', compact('resellers', 'reportTitle'));
                 $pdf->setPaper('a4', 'landscape');
-                return $pdf->stream('resellers.pdf');
+                return $pdf->stream('direct_resellers.pdf');
             }
         }
 
@@ -104,7 +104,7 @@ class ResellerController extends Controller
         $reseller = Reseller::create($data);
         $reseller->couriers()->sync($courierIds);
 
-        return redirect()->route('resellers.index')->with('success', 'Reseller created successfully.');
+        return redirect()->route('resellers.index')->with('success', 'Direct reseller created successfully.');
     }
 
     /**
@@ -164,7 +164,7 @@ class ResellerController extends Controller
         $reseller->update($data);
         $reseller->couriers()->sync($courierIds);
 
-        return redirect()->route('resellers.index')->with('success', 'Reseller updated successfully.');
+        return redirect()->route('resellers.index')->with('success', 'Direct reseller updated successfully.');
     }
 
     /**
@@ -176,7 +176,7 @@ class ResellerController extends Controller
 
         $reseller->delete();
 
-        return redirect()->route('resellers.index')->with('success', 'Reseller deleted successfully.');
+        return redirect()->route('resellers.index')->with('success', 'Direct reseller deleted successfully.');
     }
 
     private function ensureRegularReseller(Reseller $reseller): void

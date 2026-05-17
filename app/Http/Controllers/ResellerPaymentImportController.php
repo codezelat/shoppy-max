@@ -19,7 +19,7 @@ class ResellerPaymentImportController extends Controller
 
     public function downloadTemplate()
     {
-        return Excel::download(new ResellerPaymentTemplateExport, 'reseller_payment_template_' . date('Y-m-d') . '.xlsx');
+        return Excel::download(new ResellerPaymentTemplateExport, 'direct_reseller_payment_template_' . date('Y-m-d') . '.xlsx');
     }
 
     public function preview(Request $request)
@@ -59,7 +59,7 @@ class ResellerPaymentImportController extends Controller
             $errors = [];
 
             if (!$reseller) {
-                $errors[] = "Invalid Reseller ID: $resellerId";
+                $errors[] = "Invalid Direct Reseller ID: $resellerId";
             }
             if (!in_array($method, ['cash', 'bank', 'other'])) {
                 $errors[] = "Invalid Method: $method (Use cash, bank, or other)";

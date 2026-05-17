@@ -256,7 +256,7 @@
                             <strong>{{ $order->reseller->business_name ?: $order->reseller->name }}</strong><br>
                             Contact: {{ $order->reseller->name }}<br>
                             Mobile: {{ $order->reseller->mobile }}<br>
-                            Account: {{ $order->reseller->reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller' }}<br>
+                            Account: {{ $order->reseller->reseller_type === 'direct_reseller' ? 'Reseller' : 'Direct Reseller' }}<br>
                             Delivery Status: {{ $deliveryLabels[$deliveryStatus] ?? 'Pending' }}
                         </div>
                     @else

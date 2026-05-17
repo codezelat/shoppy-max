@@ -21,8 +21,8 @@ class ResellerPaymentTemplateExport implements FromCollection, WithHeadings, Wit
     public function headings(): array
     {
         return [
-            'Reseller ID (Do Not Change)',
-            'Reseller Name',
+            'Direct Reseller ID (Do Not Change)',
+            'Direct Reseller Name',
             'Current Due',
             'Payment Amount',
             'Payment Method (cash/bank/other)',

@@ -67,8 +67,8 @@ class ResellerTargetController extends Controller
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'ref_id' => 'nullable|string|max:255',
         ], [
-            'reseller_id.required' => 'Please select a reseller.',
-            'reseller_id.exists' => 'Targets can only be assigned to regular resellers.',
+            'reseller_id.required' => 'Please select a direct reseller.',
+            'reseller_id.exists' => 'Targets can only be assigned to direct resellers.',
         ]);
 
         ResellerTarget::create($validated);
@@ -110,8 +110,8 @@ class ResellerTargetController extends Controller
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'ref_id' => 'nullable|string|max:255',
         ], [
-            'reseller_id.required' => 'Please select a reseller.',
-            'reseller_id.exists' => 'Targets can only be assigned to regular resellers.',
+            'reseller_id.required' => 'Please select a direct reseller.',
+            'reseller_id.exists' => 'Targets can only be assigned to direct resellers.',
         ]);
 
         $resellerTarget->update($validated);

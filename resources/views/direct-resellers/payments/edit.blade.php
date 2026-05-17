@@ -16,7 +16,7 @@
                             <svg class="w-3 h-3 text-gray-400 mx-1 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
                             </svg>
-                            <a href="{{ route('direct-reseller-payments.index') }}" class="ms-1 text-sm font-medium text-gray-700 hover:text-blue-600 md:ms-2 dark:text-gray-400 dark:hover:text-white">Direct User Payments</a>
+                            <a href="{{ route('direct-reseller-payments.index') }}" class="ms-1 text-sm font-medium text-gray-700 hover:text-blue-600 md:ms-2 dark:text-gray-400 dark:hover:text-white">User Payments</a>
                         </div>
                     </li>
                     <li aria-current="page">
@@ -49,14 +49,14 @@
                                 selected: '{{ old('reseller_id', $resellerPayment->reseller_id) }}',
                                 name: 'reseller_id'
                             })" x-on:selected-reseller.window="updateDue($event.detail)">
-                                <label for="reseller_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Direct Reseller <span class="text-red-500">*</span></label>
+                                <label for="reseller_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Reseller <span class="text-red-500">*</span></label>
                                 
                                 <input type="hidden" name="reseller_id" :value="selected">
                                 
                                 <div class="relative" @click.away="open = false">
                                     <div @click="open = !open" 
                                          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 cursor-pointer flex justify-between items-center">
-                                        <span x-text="selectedText() || 'Select Direct Reseller'"></span>
+                                        <span x-text="selectedText() || 'Select Reseller'"></span>
                                         <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
 
@@ -75,7 +75,7 @@
                                         <div x-show="filteredOptions.length === 0" class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">No results found</div>
                                     </div>
                                 </div>
-                                <p class="text-xs text-yellow-600 mt-1">Warning: Changing the direct reseller will affect balances of both parties.</p>
+                                <p class="text-xs text-yellow-600 mt-1">Warning: Changing the reseller will affect balances of both parties.</p>
                                 @error('reseller_id') <p class="mt-2 text-sm text-red-600 dark:text-red-500">{{ $message }}</p> @enderror
                             </div>
 
@@ -130,7 +130,7 @@
                             </div>
                         </div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                             The direct reseller due amount will be adjusted by the difference.
+                             The reseller due amount will be adjusted by the difference.
                         </p>
                     </x-form-section>
 

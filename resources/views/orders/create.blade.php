@@ -99,7 +99,7 @@
                                                 <li @click="selectReseller(reseller)" class="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600 last:border-0">
                                                     <div class="flex items-center justify-between gap-2">
                                                         <div class="font-semibold" x-text="reseller.business_name || reseller.name"></div>
-                                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="reseller.type_label || (reseller.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
+                                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="reseller.type_label || (reseller.reseller_type === 'direct_reseller' ? 'Reseller' : 'Direct Reseller')"></span>
                                                     </div>
                                                     <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                                         <span x-show="reseller.business_name">Contact: </span>
@@ -118,7 +118,7 @@
                                     <div>
                                         <div class="text-sm font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2">
                                             <span x-text="selectedReseller?.business_name || selectedReseller?.name"></span>
-                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="selectedReseller?.type_label || (selectedReseller?.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
+                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="selectedReseller?.type_label || (selectedReseller?.reseller_type === 'direct_reseller' ? 'Reseller' : 'Direct Reseller')"></span>
                                         </div>
                                         <div class="text-xs text-blue-600 dark:text-blue-400">
                                             <span x-show="selectedReseller?.business_name">Contact: </span>

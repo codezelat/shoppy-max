@@ -102,7 +102,7 @@
 
         <div class="invoice-details">
             <div class="col">
-                <strong>Paid To (Direct):</strong><br>
+                <strong>Paid To:</strong><br>
                 {{ $payment->reseller->name }}<br>
                 {{ $payment->reseller->business_name }}<br>
                 {{ $payment->reseller->address }}<br>

@@ -16,7 +16,7 @@
                             <svg class="w-3 h-3 text-gray-400 mx-1 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
                             </svg>
-                            <a href="{{ route('reseller-targets.index') }}" class="ms-1 text-sm font-medium text-gray-700 hover:text-blue-600 md:ms-2 dark:text-gray-400 dark:hover:text-white">Reseller Targets</a>
+                            <a href="{{ route('reseller-targets.index') }}" class="ms-1 text-sm font-medium text-gray-700 hover:text-blue-600 md:ms-2 dark:text-gray-400 dark:hover:text-white">Direct Reseller Targets</a>
                         </div>
                     </li>
                     <li aria-current="page">
@@ -46,7 +46,7 @@
                                 selected: '{{ old('reseller_id') }}',
                                 name: 'reseller_id'
                             })">
-                                <label for="reseller_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Reseller <span class="text-red-500">*</span></label>
+                                <label for="reseller_id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Direct Reseller <span class="text-red-500">*</span></label>
                                 <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">Only regular resellers are available here. Direct resellers are excluded.</p>
                                 
                                 <input type="hidden" name="reseller_id" :value="selected">
@@ -54,7 +54,7 @@
                                 <div class="relative" @click.away="open = false">
                                     <div @click="open = !open" 
                                          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 cursor-pointer flex justify-between items-center">
-                                        <span x-text="selectedText() || 'Select Reseller'"></span>
+                                        <span x-text="selectedText() || 'Select Direct Reseller'"></span>
                                         <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
 

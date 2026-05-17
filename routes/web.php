@@ -34,9 +34,12 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 Route::middleware('auth')->group(function () {
     Route::resource('customers', \App\Http\Controllers\CustomerController::class);
     Route::resource('suppliers', \App\Http\Controllers\SupplierController::class);
-    Route::resource('resellers', \App\Http\Controllers\ResellerController::class);
-    Route::resource('direct-resellers', \App\Http\Controllers\DirectResellerController::class)
-        ->parameters(['direct-resellers' => 'directReseller']);
+    Route::resource('direct-resellers', \App\Http\Controllers\ResellerController::class)
+        ->names('resellers')
+        ->parameters(['direct-resellers' => 'reseller']);
+    Route::resource('resellers', \App\Http\Controllers\DirectResellerController::class)
+        ->names('direct-resellers')
+        ->parameters(['resellers' => 'directReseller']);
     Route::resource('cities', \App\Http\Controllers\CityController::class);
     Route::get('user-logs', [\App\Http\Controllers\UserLogController::class, 'index'])->name('user-logs.index');
 });
@@ -116,31 +119,37 @@ Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function (
 });
 
 // Reseller Targets
-Route::middleware(['auth'])->resource('reseller-targets', \App\Http\Controllers\ResellerTargetController::class);
-Route::middleware(['auth'])->get('reseller-payments/import', [\App\Http\Controllers\ResellerPaymentImportController::class, 'show'])->name('reseller-payments.import.show');
-Route::middleware(['auth'])->post('reseller-payments/import/preview', [\App\Http\Controllers\ResellerPaymentImportController::class, 'preview'])->name('reseller-payments.import.preview');
-Route::middleware(['auth'])->post('reseller-payments/import/store', [\App\Http\Controllers\ResellerPaymentImportController::class, 'store'])->name('reseller-payments.import.store');
-Route::middleware(['auth'])->get('reseller-payments/template', [\App\Http\Controllers\ResellerPaymentImportController::class, 'downloadTemplate'])->name('reseller-payments.import.template');
+Route::middleware(['auth'])->resource('direct-reseller-targets', \App\Http\Controllers\ResellerTargetController::class)
+    ->names('reseller-targets')
+    ->parameters(['direct-reseller-targets' => 'reseller_target']);
+Route::middleware(['auth'])->get('direct-reseller-payments/import', [\App\Http\Controllers\ResellerPaymentImportController::class, 'show'])->name('reseller-payments.import.show');
+Route::middleware(['auth'])->post('direct-reseller-payments/import/preview', [\App\Http\Controllers\ResellerPaymentImportController::class, 'preview'])->name('reseller-payments.import.preview');
+Route::middleware(['auth'])->post('direct-reseller-payments/import/store', [\App\Http\Controllers\ResellerPaymentImportController::class, 'store'])->name('reseller-payments.import.store');
+Route::middleware(['auth'])->get('direct-reseller-payments/template', [\App\Http\Controllers\ResellerPaymentImportController::class, 'downloadTemplate'])->name('reseller-payments.import.template');
 
-Route::middleware(['auth'])->resource('reseller-payments', \App\Http\Controllers\ResellerPaymentController::class)->except(['destroy']);
-Route::middleware(['auth'])->post('reseller-payments/{reseller_payment}/cancel', [\App\Http\Controllers\ResellerPaymentController::class, 'cancel'])->name('reseller-payments.cancel');
-Route::middleware(['auth'])->get('reseller-payments/{reseller_payment}/download', [\App\Http\Controllers\ResellerPaymentController::class, 'downloadInvoice'])->name('reseller-payments.download');
-Route::middleware(['auth'])->get('reseller-payments-bulk', [\App\Http\Controllers\ResellerPaymentController::class, 'downloadBulkInvoices'])->name('reseller-payments.download-bulk');
-Route::middleware(['auth'])->get('reseller-dues', [\App\Http\Controllers\ResellerDuesController::class, 'index'])->name('reseller-dues.index');
-Route::middleware(['auth'])->get('reseller-dues/{id}', [\App\Http\Controllers\ResellerDuesController::class, 'show'])->name('reseller-dues.show');
-
-Route::middleware(['auth'])->get('direct-reseller-payments/import', [\App\Http\Controllers\DirectResellerPaymentImportController::class, 'show'])->name('direct-reseller-payments.import.show');
-Route::middleware(['auth'])->post('direct-reseller-payments/import/preview', [\App\Http\Controllers\DirectResellerPaymentImportController::class, 'preview'])->name('direct-reseller-payments.import.preview');
-Route::middleware(['auth'])->post('direct-reseller-payments/import/store', [\App\Http\Controllers\DirectResellerPaymentImportController::class, 'store'])->name('direct-reseller-payments.import.store');
-Route::middleware(['auth'])->get('direct-reseller-payments/template', [\App\Http\Controllers\DirectResellerPaymentImportController::class, 'downloadTemplate'])->name('direct-reseller-payments.import.template');
-Route::middleware(['auth'])->resource('direct-reseller-payments', \App\Http\Controllers\DirectResellerPaymentController::class)
+Route::middleware(['auth'])->resource('direct-reseller-payments', \App\Http\Controllers\ResellerPaymentController::class)
+    ->names('reseller-payments')
     ->parameters(['direct-reseller-payments' => 'reseller_payment'])
     ->except(['destroy']);
-Route::middleware(['auth'])->post('direct-reseller-payments/{reseller_payment}/cancel', [\App\Http\Controllers\DirectResellerPaymentController::class, 'cancel'])->name('direct-reseller-payments.cancel');
-Route::middleware(['auth'])->get('direct-reseller-payments/{reseller_payment}/download', [\App\Http\Controllers\DirectResellerPaymentController::class, 'downloadInvoice'])->name('direct-reseller-payments.download');
-Route::middleware(['auth'])->get('direct-reseller-payments-bulk', [\App\Http\Controllers\DirectResellerPaymentController::class, 'downloadBulkInvoices'])->name('direct-reseller-payments.download-bulk');
-Route::middleware(['auth'])->get('direct-reseller-dues', [\App\Http\Controllers\DirectResellerDuesController::class, 'index'])->name('direct-reseller-dues.index');
-Route::middleware(['auth'])->get('direct-reseller-dues/{id}', [\App\Http\Controllers\DirectResellerDuesController::class, 'show'])->name('direct-reseller-dues.show');
+Route::middleware(['auth'])->post('direct-reseller-payments/{reseller_payment}/cancel', [\App\Http\Controllers\ResellerPaymentController::class, 'cancel'])->name('reseller-payments.cancel');
+Route::middleware(['auth'])->get('direct-reseller-payments/{reseller_payment}/download', [\App\Http\Controllers\ResellerPaymentController::class, 'downloadInvoice'])->name('reseller-payments.download');
+Route::middleware(['auth'])->get('direct-reseller-payments-bulk', [\App\Http\Controllers\ResellerPaymentController::class, 'downloadBulkInvoices'])->name('reseller-payments.download-bulk');
+Route::middleware(['auth'])->get('direct-reseller-dues', [\App\Http\Controllers\ResellerDuesController::class, 'index'])->name('reseller-dues.index');
+Route::middleware(['auth'])->get('direct-reseller-dues/{id}', [\App\Http\Controllers\ResellerDuesController::class, 'show'])->name('reseller-dues.show');
+
+Route::middleware(['auth'])->get('reseller-payments/import', [\App\Http\Controllers\DirectResellerPaymentImportController::class, 'show'])->name('direct-reseller-payments.import.show');
+Route::middleware(['auth'])->post('reseller-payments/import/preview', [\App\Http\Controllers\DirectResellerPaymentImportController::class, 'preview'])->name('direct-reseller-payments.import.preview');
+Route::middleware(['auth'])->post('reseller-payments/import/store', [\App\Http\Controllers\DirectResellerPaymentImportController::class, 'store'])->name('direct-reseller-payments.import.store');
+Route::middleware(['auth'])->get('reseller-payments/template', [\App\Http\Controllers\DirectResellerPaymentImportController::class, 'downloadTemplate'])->name('direct-reseller-payments.import.template');
+Route::middleware(['auth'])->resource('reseller-payments', \App\Http\Controllers\DirectResellerPaymentController::class)
+    ->names('direct-reseller-payments')
+    ->parameters(['reseller-payments' => 'reseller_payment'])
+    ->except(['destroy']);
+Route::middleware(['auth'])->post('reseller-payments/{reseller_payment}/cancel', [\App\Http\Controllers\DirectResellerPaymentController::class, 'cancel'])->name('direct-reseller-payments.cancel');
+Route::middleware(['auth'])->get('reseller-payments/{reseller_payment}/download', [\App\Http\Controllers\DirectResellerPaymentController::class, 'downloadInvoice'])->name('direct-reseller-payments.download');
+Route::middleware(['auth'])->get('reseller-payments-bulk', [\App\Http\Controllers\DirectResellerPaymentController::class, 'downloadBulkInvoices'])->name('direct-reseller-payments.download-bulk');
+Route::middleware(['auth'])->get('reseller-dues', [\App\Http\Controllers\DirectResellerDuesController::class, 'index'])->name('direct-reseller-dues.index');
+Route::middleware(['auth'])->get('reseller-dues/{id}', [\App\Http\Controllers\DirectResellerDuesController::class, 'show'])->name('direct-reseller-dues.show');
 
 // Courier Management Routes
 Route::middleware(['auth'])->group(function () {

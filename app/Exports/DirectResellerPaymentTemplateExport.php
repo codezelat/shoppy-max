@@ -21,8 +21,8 @@ class DirectResellerPaymentTemplateExport implements FromCollection, WithHeading
     public function headings(): array
     {
         return [
-            'Direct Reseller ID (Do Not Change)',
-            'Direct Reseller Name',
+            'Reseller ID (Do Not Change)',
+            'Reseller Name',
             'Current Due',
             'Payment Amount',
             'Payment Method (cash/bank/other)',

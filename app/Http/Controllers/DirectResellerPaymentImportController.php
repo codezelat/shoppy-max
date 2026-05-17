@@ -21,7 +21,7 @@ class DirectResellerPaymentImportController extends Controller
 
     public function downloadTemplate()
     {
-        return Excel::download(new DirectResellerPaymentTemplateExport, 'direct_reseller_payment_template_' . date('Y-m-d') . '.xlsx');
+        return Excel::download(new DirectResellerPaymentTemplateExport, 'reseller_payment_template_' . date('Y-m-d') . '.xlsx');
     }
 
     public function preview(Request $request)

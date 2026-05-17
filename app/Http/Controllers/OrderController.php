@@ -240,7 +240,7 @@ class OrderController extends Controller
                     'display_name' => $reseller->business_name ?: $reseller->name,
                     'mobile' => $reseller->mobile,
                     'reseller_type' => $reseller->reseller_type,
-                    'type_label' => $reseller->reseller_type === Reseller::TYPE_DIRECT_RESELLER ? 'Direct Reseller' : 'Reseller',
+                    'type_label' => $reseller->reseller_type === Reseller::TYPE_DIRECT_RESELLER ? 'Reseller' : 'Direct Reseller',
                 ];
             });
 
