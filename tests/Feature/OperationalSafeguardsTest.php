@@ -417,6 +417,101 @@ class OperationalSafeguardsTest extends TestCase
         $this->assertNull($waybill->allocated_at);
     }
 
+    public function test_orders_index_exposes_cancel_action_only_before_waybill_printing(): void
+    {
+        $user = User::factory()->create();
+
+        Order::forceCreate([
+            'order_number' => 'ORD-20260518-0400',
+            'order_date' => now()->toDateString(),
+            'status' => 'pending',
+            'call_status' => 'pending',
+            'delivery_status' => 'pending',
+            'payment_method' => 'COD',
+            'payment_status' => 'pending',
+            'total_amount' => 1000,
+        ]);
+        Order::forceCreate([
+            'order_number' => 'ORD-20260518-0401',
+            'order_date' => now()->toDateString(),
+            'status' => 'confirm',
+            'call_status' => 'confirm',
+            'delivery_status' => 'waybill_printed',
+            'waybill_number' => 'WB-CANCEL-BLOCKED',
+            'waybill_printed_at' => now(),
+            'payment_method' => 'COD',
+            'payment_status' => 'pending',
+            'total_amount' => 1000,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('orders.index', ['view' => 'active']));
+
+        $response->assertOk();
+        $response->assertSee('title="Cancel Order"', false);
+        $response->assertSee('title="Cancel is only available before waybill printing"', false);
+    }
+
+    public function test_waybill_printed_order_cannot_be_cancelled_from_status_endpoint(): void
+    {
+        $user = User::factory()->create();
+        $order = Order::forceCreate([
+            'order_number' => 'ORD-20260518-0402',
+            'order_date' => now()->toDateString(),
+            'status' => 'confirm',
+            'call_status' => 'confirm',
+            'delivery_status' => 'waybill_printed',
+            'waybill_number' => 'WB-CANCEL-LOCK',
+            'waybill_printed_at' => now(),
+            'payment_method' => 'COD',
+            'payment_status' => 'pending',
+            'total_amount' => 1000,
+        ]);
+
+        $response = $this->actingAs($user)->postJson(route('orders.status.update', $order), [
+            'status' => 'cancel',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('success', false);
+
+        $order->refresh();
+        $this->assertSame('confirm', $order->status);
+        $this->assertSame('confirm', $order->call_status);
+        $this->assertSame('waybill_printed', $order->delivery_status);
+        $this->assertNull($order->cancelled_at);
+    }
+
+    public function test_delivered_orders_only_show_download_and_view_actions_on_index(): void
+    {
+        $user = User::factory()->create();
+
+        Order::forceCreate([
+            'order_number' => 'ORD-20260518-0403',
+            'order_date' => now()->toDateString(),
+            'status' => 'confirm',
+            'call_status' => 'confirm',
+            'delivery_status' => 'delivered',
+            'waybill_number' => 'WB-DELIVERED-ACTION',
+            'waybill_printed_at' => now()->subHour(),
+            'delivered_at' => now(),
+            'payment_method' => 'COD',
+            'payment_status' => 'paid',
+            'total_amount' => 1000,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('orders.index', ['view' => 'active']));
+
+        $response->assertOk();
+        $response->assertSee('ORD-20260518-0403');
+        $response->assertSee('title="Download PDF"', false);
+        $response->assertSee('title="View Details"', false);
+        $response->assertDontSee('title="Reprint Waybill"', false);
+        $response->assertDontSee('title="Update Payment"', false);
+        $response->assertDontSee('title="Cancel is only available before waybill printing"', false);
+        $response->assertDontSee('title="Manual edit, payment update, and delete are locked for this order"', false);
+        $response->assertSee('waybillEligibleOrderIds: []', false);
+    }
+
     public function test_waybill_excel_failure_does_not_mark_orders_exported(): void
     {
         $user = User::factory()->create();

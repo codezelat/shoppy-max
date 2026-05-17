@@ -32,9 +32,14 @@
         class="p-6 overflow-hidden bg-white rounded-md shadow-md dark:bg-gray-800"
         x-data="orderManager({
             visibleOrderIds: @js($orders->pluck('id')->values()->all()),
-            waybillEligibleOrderIds: @js($orders->filter(fn ($order) => filled($order->waybill_number))->pluck('id')->values()->all()),
+            waybillEligibleOrderIds: @js($orders
+                ->filter(fn ($order) => filled($order->waybill_number) && strtolower((string) ($order->delivery_status ?? '')) !== 'delivered')
+                ->pluck('id')
+                ->values()
+                ->all()),
             bulkPdfUrl: @js(route('orders.bulk-pdf')),
             bulkReprintWaybillUrl: @js(route('orders.waybill.reprint-bulk')),
+            statusUpdateUrlTemplate: @js(route('orders.status.update', ['id' => '__ORDER__'])),
             csrf: @js(csrf_token()),
             reprintWaybillUrlTemplate: @js(route('orders.waybill.reprint', ['order' => '__ORDER__'])),
         })"
@@ -307,12 +312,66 @@
                                 @php
                                     $manualEditLocked = (bool) ($order->manual_edit_locked ?? false);
                                     $canPaymentEdit = (bool) ($order->can_payment_edit ?? false);
+                                    $canCancelOrder = $viewMode === 'active'
+                                        && !$manualEditLocked
+                                        && !in_array(strtolower((string) ($order->status ?? '')), ['cancel'], true)
+                                        && !in_array(strtolower((string) ($order->call_status ?? '')), ['cancel'], true)
+                                        && !in_array(strtolower((string) ($order->delivery_status ?? '')), ['cancel'], true);
+                                    $isFullyDelivered = strtolower((string) ($order->delivery_status ?? '')) === 'delivered';
                                 @endphp
                                 <div class="flex items-center justify-center space-x-2">
                                     <a href="{{ route('orders.pdf', $order) }}" target="_blank" class="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg dark:text-indigo-400 dark:hover:bg-gray-700 transition-colors" title="Download PDF">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                     </a>
-                                    @if(filled($order->waybill_number))
+                                    <a href="{{ route('orders.show', $order) }}" class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-400 dark:hover:bg-gray-700 transition-colors" title="View Details">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                    </a>
+                                    @if(!$isFullyDelivered)
+                                        @if(!$manualEditLocked || $canPaymentEdit)
+                                            <a href="{{ route('orders.edit', $order) }}" class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg dark:text-blue-400 dark:hover:bg-gray-700 transition-colors" title="{{ $manualEditLocked ? 'Update Payment' : 'Edit' }}">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                            </a>
+                                            @if($viewMode === 'active')
+                                                @if($canCancelOrder)
+                                                    <button
+                                                        type="button"
+                                                        @click="cancelOrder({{ $order->id }}, @js($order->order_number))"
+                                                        class="p-2 text-rose-600 hover:bg-rose-100 rounded-lg dark:text-rose-400 dark:hover:bg-gray-700 transition-colors"
+                                                        title="Cancel Order"
+                                                    >
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 10l4 4m0-4l-4 4m11-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                        </svg>
+                                                    </button>
+                                                @else
+                                                    <button
+                                                        type="button"
+                                                        disabled
+                                                        class="p-2 text-gray-400 rounded-lg cursor-not-allowed dark:text-gray-500"
+                                                        title="Cancel is only available before waybill printing"
+                                                    >
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 10l4 4m0-4l-4 4m11-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                        </svg>
+                                                    </button>
+                                                @endif
+                                            @endif
+                                            @if(!$manualEditLocked)
+                                                <form action="{{ route('orders.destroy', $order) }}" method="POST" class="inline-block" data-confirm-message="Are you sure you want to delete this order? This will restore stock.">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="p-2 text-red-600 hover:bg-red-100 rounded-lg dark:text-red-400 dark:hover:bg-gray-700 transition-colors" title="Delete">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        @else
+                                            <span class="p-2 text-gray-400 dark:text-gray-500" title="Manual edit, payment update, and delete are locked for this order">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5 9 6.343 9 8s1.343 3 3 3Zm0 0v2m-6 6h12a2 2 0 002-2v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2Z"></path></svg>
+                                            </span>
+                                        @endif
+                                    @endif
+                                    @if(!$isFullyDelivered && filled($order->waybill_number))
                                         <button
                                             type="button"
                                             @click="openReprintWaybillModal({{ $order->id }}, @js($order->order_number))"
@@ -323,27 +382,6 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9V4a1 1 0 011-1h10a1 1 0 011 1v5M6 13H5a2 2 0 00-2 2v3h4m13-5h1a2 2 0 012 2v3h-4m-9 0h8a1 1 0 001-1v-5H9v5a1 1 0 001 1zm0 0v2m8-2v2"></path>
                                             </svg>
                                         </button>
-                                    @endif
-                                    <a href="{{ route('orders.show', $order) }}" class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-400 dark:hover:bg-gray-700 transition-colors" title="View Details">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                                    </a>
-                                    @if(!$manualEditLocked || $canPaymentEdit)
-                                        <a href="{{ route('orders.edit', $order) }}" class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg dark:text-blue-400 dark:hover:bg-gray-700 transition-colors" title="{{ $manualEditLocked ? 'Update Payment' : 'Edit' }}">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                                        </a>
-                                        @if(!$manualEditLocked)
-                                            <form action="{{ route('orders.destroy', $order) }}" method="POST" class="inline-block" data-confirm-message="Are you sure you want to delete this order? This will restore stock.">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="p-2 text-red-600 hover:bg-red-100 rounded-lg dark:text-red-400 dark:hover:bg-gray-700 transition-colors" title="Delete">
-                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                                </button>
-                                            </form>
-                                        @endif
-                                    @else
-                                        <span class="p-2 text-gray-400 dark:text-gray-500" title="Manual edit, payment update, and delete are locked for this order">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5 9 6.343 9 8s1.343 3 3 3Zm0 0v2m-6 6h12a2 2 0 002-2v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2Z"></path></svg>
-                                        </span>
                                     @endif
                                 </div>
                             </td>
@@ -380,7 +418,7 @@
                         orders selected
                         <template x-if="selectedReprintableWaybillCount() > 0">
                             <span class="text-gray-500 dark:text-gray-400">
-                                • <span x-text="selectedReprintableWaybillCount()"></span> with saved waybills
+                                • <span x-text="selectedReprintableWaybillCount()"></span> reprintable waybills
                             </span>
                         </template>
                     </div>
@@ -402,8 +440,8 @@
                         <button
                             type="button"
                             @click="openBulkReprintWaybillModal()"
-                            x-bind:disabled="selectedReprintableWaybillCount() === 0"
-                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 focus:ring-4 focus:ring-amber-300 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-amber-600 dark:hover:bg-amber-700 dark:focus:ring-amber-800"
+                            x-show="selectedReprintableWaybillCount() > 0"
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 focus:ring-4 focus:ring-amber-300 dark:bg-amber-600 dark:hover:bg-amber-700 dark:focus:ring-amber-800"
                         >
                             Reprint Waybills
                         </button>
@@ -424,6 +462,7 @@
                 waybillEligibleOrderIds: (config.waybillEligibleOrderIds || []).map(id => String(id)),
                 bulkPdfUrl: config.bulkPdfUrl || '',
                 bulkReprintWaybillUrl: config.bulkReprintWaybillUrl || '',
+                statusUpdateUrlTemplate: config.statusUpdateUrlTemplate || '',
                 csrf: config.csrf || '',
                 reprintWaybillModalOpen: false,
                 bulkReprintWaybillModalOpen: false,
@@ -554,6 +593,72 @@
                     document.body.appendChild(form);
                     form.submit();
                     form.remove();
+                },
+                async cancelOrder(orderId, orderNumber) {
+                    if (!this.statusUpdateUrlTemplate || !orderId) {
+                        return;
+                    }
+
+                    const message = `Cancel order ${orderNumber || orderId}? This will move it to Cancelled Orders and release allocated stock.`;
+                    let confirmed = false;
+
+                    if (typeof window.Swal !== 'undefined') {
+                        const result = await window.Swal.fire({
+                            title: 'Cancel order?',
+                            text: message,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#dc2626',
+                            cancelButtonColor: '#6b7280',
+                            confirmButtonText: 'Yes, cancel order',
+                        });
+                        confirmed = result.isConfirmed;
+                    } else {
+                        confirmed = window.confirm(message);
+                    }
+
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(this.statusUpdateUrlTemplate.replace('__ORDER__', String(orderId)), {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': this.csrf,
+                            },
+                            body: JSON.stringify({ status: 'cancel' }),
+                        });
+                        const data = await response.json();
+
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || 'Unable to cancel order.');
+                        }
+
+                        if (typeof window.Swal !== 'undefined') {
+                            await window.Swal.fire({
+                                title: 'Order cancelled',
+                                text: 'The order was moved to Cancelled Orders.',
+                                icon: 'success',
+                                confirmButtonColor: '#2563eb',
+                            });
+                        }
+
+                        window.location.reload();
+                    } catch (error) {
+                        if (typeof window.Swal !== 'undefined') {
+                            await window.Swal.fire({
+                                title: 'Cancel failed',
+                                text: error.message || 'Unable to cancel order.',
+                                icon: 'error',
+                                confirmButtonColor: '#dc2626',
+                            });
+                        } else {
+                            window.alert(error.message || 'Unable to cancel order.');
+                        }
+                    }
                 },
             }
         }
