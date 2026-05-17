@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BankAccount;
 use App\Models\Courier;
 use App\Models\CourierPayment;
 use App\Models\Order;
@@ -10,14 +11,14 @@ use App\Support\CourierSettlement;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class CourierPaymentController extends Controller
 {
     public function __construct(
         private readonly CourierPaymentOrderService $courierPaymentOrders
-    ) {
-    }
+    ) {}
 
     /**
      * Display a listing of courier payments.
@@ -59,7 +60,7 @@ class CourierPaymentController extends Controller
         }
 
         $payments = $query->latest('payment_date')->latest('id')->paginate(20)->withQueryString();
-        
+
         return view('courier-payments.index', compact('payments'));
     }
 
@@ -68,15 +69,18 @@ class CourierPaymentController extends Controller
      */
     public function edit(Request $request, CourierPayment $courierPayment)
     {
-        $courierPayment->load(['courier', 'orders' => function ($query) {
+        $courierPayment->load(['courier', 'bankAccount', 'orders' => function ($query) {
             $query->latest('id');
         }]);
 
         $couriers = Courier::where('is_active', true)->orderBy('name')->get();
+        $bankAccounts = BankAccount::where('is_active', true)
+            ->orderBy('name')
+            ->get();
         $oldOrderIds = $this->normalizeRequestedOrderIds((array) $request->old('order_ids', []));
         $oldCourierCosts = (array) $request->old('courier_costs', []);
 
-        if (!empty($oldOrderIds)) {
+        if (! empty($oldOrderIds)) {
             $linkedOrders = Order::query()
                 ->whereIn('id', $oldOrderIds)
                 ->get()
@@ -94,7 +98,7 @@ class CourierPaymentController extends Controller
                 ->values();
         }
 
-        return view('courier-payments.edit', compact('courierPayment', 'couriers', 'linkedOrders'));
+        return view('courier-payments.edit', compact('courierPayment', 'couriers', 'bankAccounts', 'linkedOrders'));
     }
 
     /**
@@ -105,7 +109,11 @@ class CourierPaymentController extends Controller
         $validated = $request->validate([
             'courier_id' => 'required|exists:couriers,id',
             'amount' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|string',
+            'bank_account_id' => [
+                'required',
+                'integer',
+                Rule::exists('bank_accounts', 'id')->where(fn ($query) => $query->where('is_active', true)),
+            ],
             'reference_number' => 'nullable|string|max:255',
             'payment_note' => 'nullable|string',
             'order_ids' => 'required|array|min:1',
@@ -126,6 +134,16 @@ class CourierPaymentController extends Controller
         }
 
         DB::transaction(function () use ($request, $validated, $courierPayment) {
+            $selectedAccount = BankAccount::where('is_active', true)
+                ->lockForUpdate()
+                ->find($validated['bank_account_id']);
+
+            if (! $selectedAccount) {
+                throw ValidationException::withMessages([
+                    'bank_account_id' => 'Select an active payment account.',
+                ]);
+            }
+
             $orderIds = $this->normalizeRequestedOrderIds($validated['order_ids']);
 
             $currentOrders = $courierPayment->orders()
@@ -184,7 +202,8 @@ class CourierPaymentController extends Controller
             $courierPayment->update([
                 'courier_id' => $validated['courier_id'],
                 'amount' => $computedAmount,
-                'payment_method' => $validated['payment_method'] ?? $courierPayment->payment_method,
+                'payment_method' => $selectedAccount->display_label,
+                'bank_account_id' => $selectedAccount->id,
                 'reference_number' => $validated['reference_number'] ?? null,
                 'payment_note' => $validated['payment_note'] ?? null,
             ]);
@@ -275,7 +294,7 @@ class CourierPaymentController extends Controller
 
     private function resolveRealChargeFromRequest(Request $request, Order $order): float
     {
-        $rawValue = $request->input('courier_costs.' . $order->id);
+        $rawValue = $request->input('courier_costs.'.$order->id);
         if ($rawValue === null || $rawValue === '') {
             return CourierSettlement::defaultRealDeliveryCharge($order);
         }
@@ -287,9 +306,8 @@ class CourierPaymentController extends Controller
     {
         if ($realCharge > (float) ($order->total_amount ?? 0)) {
             throw ValidationException::withMessages([
-                'courier_costs.' . $order->id => 'Real delivery charge cannot exceed the order amount.',
+                'courier_costs.'.$order->id => 'Real delivery charge cannot exceed the order amount.',
             ]);
         }
     }
-
 }

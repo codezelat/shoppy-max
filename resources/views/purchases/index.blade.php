@@ -192,7 +192,7 @@
                                         </span>
                                     @endif
                                     @if(!$structureLocked)
-                                        <form action="{{ route('purchases.destroy', $purchase) }}" method="POST" class="inline" onsubmit="return confirm('Delete this purchase?');">
+                                        <form action="{{ route('purchases.destroy', $purchase) }}" method="POST" class="inline" data-confirm-message="Delete this purchase?">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="rounded-lg p-2 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-gray-700" title="Delete">

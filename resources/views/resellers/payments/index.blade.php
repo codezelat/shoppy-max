@@ -178,7 +178,7 @@
                                 <a href="{{ route('reseller-payments.edit', $payment->id) }}" class="p-2 text-yellow-600 hover:bg-yellow-100 rounded-lg dark:text-yellow-400 dark:hover:bg-gray-700 transition-colors" title="Edit">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                 </a>
-                                <form action="{{ route('reseller-payments.cancel', $payment->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to cancel this payment? This will reverse the amount from the reseller due.');">
+                                <form action="{{ route('reseller-payments.cancel', $payment->id) }}" method="POST" data-confirm-message="Are you sure you want to cancel this payment? This will reverse the amount from the reseller due.">
                                     @csrf
                                     <button type="submit" class="p-2 text-red-600 hover:bg-red-100 rounded-lg dark:text-red-400 dark:hover:bg-gray-700 transition-colors" title="Cancel Payment">
                                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>

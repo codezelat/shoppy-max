@@ -3,6 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Category;
+use App\Models\City;
+use App\Models\Courier;
+use App\Models\CourierWaybill;
+use App\Models\InventoryUnit;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -14,7 +18,10 @@ use App\Models\User;
 use Database\Seeders\DemoSystemSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
+use Maatwebsite\Excel\Facades\Excel;
+use RuntimeException;
 use Tests\TestCase;
 
 class OperationalSafeguardsTest extends TestCase
@@ -186,6 +193,155 @@ class OperationalSafeguardsTest extends TestCase
         $this->assertEquals(400.0, (float) $newReseller->fresh()->due_amount);
     }
 
+    public function test_reseller_due_is_synced_when_reseller_order_is_created(): void
+    {
+        $user = User::factory()->create();
+        $city = City::create(['city_name' => 'Colombo', 'district' => 'Colombo', 'province' => 'Western', 'postal_code' => '00100']);
+        $reseller = $this->makeReseller('Regular Order Reseller');
+        [, $variant] = $this->makeProductWithVariant('SKU-ORDER-CREATE');
+        $variant->update(['quantity' => 2]);
+        $this->makeAvailableInventoryUnits($variant, 2, 'CREATE');
+
+        $this->actingAs($user)->postJson(route('orders.store'), [
+            'order_type' => 'reseller',
+            'reseller_id' => $reseller->id,
+            'customer' => [
+                'name' => 'Order Customer',
+                'mobile' => '0771234567',
+                'address' => '123 Main Street',
+                'city_id' => $city->id,
+            ],
+            'items' => [
+                [
+                    'id' => $variant->id,
+                    'quantity' => 2,
+                    'selling_price' => 150,
+                ],
+            ],
+            'payment_method' => 'COD',
+            'discount_type' => 'fixed',
+            'discount_value' => 0,
+        ])->assertOk();
+
+        $this->assertEquals(300.0, (float) $reseller->fresh()->due_amount);
+    }
+
+    public function test_reseller_due_is_synced_when_order_moves_between_resellers_on_update(): void
+    {
+        $user = User::factory()->create();
+        $city = City::create(['city_name' => 'Kandy', 'district' => 'Kandy', 'province' => 'Central', 'postal_code' => '20000']);
+        $oldReseller = $this->makeReseller('Old Order Reseller', '0712000001', 100);
+        $newReseller = $this->makeReseller('New Order Reseller', '0712000002');
+        [, $variant] = $this->makeProductWithVariant('SKU-ORDER-UPDATE');
+        $variant->update(['quantity' => 2]);
+        $this->makeAvailableInventoryUnits($variant, 2, 'UPDATE');
+
+        $order = $this->makeResellerOrder($oldReseller, 100, 'ORD-20260518-0200');
+        $item = OrderItem::create([
+            'order_id' => $order->id,
+            'product_variant_id' => $variant->id,
+            'product_name' => 'Old Item',
+            'sku' => $variant->sku,
+            'quantity' => 1,
+            'unit_price' => 100,
+            'base_price' => 80,
+            'total_price' => 100,
+            'subtotal' => 100,
+        ]);
+        InventoryUnit::where('product_variant_id', $variant->id)->first()->update([
+            'order_id' => $order->id,
+            'order_item_id' => $item->id,
+            'status' => InventoryUnit::STATUS_ALLOCATED,
+            'allocated_at' => now(),
+        ]);
+
+        $this->actingAs($user)->putJson(route('orders.update', $order), [
+            'order_type' => 'reseller',
+            'reseller_id' => $newReseller->id,
+            'customer' => [
+                'name' => 'Updated Customer',
+                'mobile' => '0777654321',
+                'address' => '456 Main Street',
+                'city_id' => $city->id,
+            ],
+            'items' => [
+                [
+                    'id' => $variant->id,
+                    'quantity' => 2,
+                    'selling_price' => 150,
+                ],
+            ],
+            'payment_method' => 'COD',
+            'discount_type' => 'fixed',
+            'discount_value' => 0,
+            'delivery_status' => 'pending',
+        ])->assertOk();
+
+        $this->assertEquals(0.0, (float) $oldReseller->fresh()->due_amount);
+        $this->assertEquals(300.0, (float) $newReseller->fresh()->due_amount);
+    }
+
+    public function test_reseller_due_is_synced_when_order_is_cancelled_or_deleted(): void
+    {
+        $user = User::factory()->create();
+        $reseller = $this->makeReseller('Lifecycle Reseller', '0713000001', 450);
+        $cancelledOrder = $this->makeResellerOrder($reseller, 200, 'ORD-20260518-0300');
+        $deletedOrder = $this->makeResellerOrder($reseller, 250, 'ORD-20260518-0301');
+
+        $this->actingAs($user)->postJson(route('orders.status.update', $cancelledOrder), [
+            'status' => 'cancel',
+        ])->assertOk();
+
+        $this->assertEquals(250.0, (float) $reseller->fresh()->due_amount);
+
+        $this->actingAs($user)->delete(route('orders.destroy', $deletedOrder))
+            ->assertRedirect(route('orders.index'));
+
+        $this->assertEquals(0.0, (float) $reseller->fresh()->due_amount);
+    }
+
+    public function test_direct_reseller_order_due_does_not_use_regular_return_fee_penalty(): void
+    {
+        $user = User::factory()->create();
+        $city = City::create(['city_name' => 'Galle', 'district' => 'Galle', 'province' => 'Southern', 'postal_code' => '80000']);
+        $directReseller = $this->makeReseller(
+            'Direct Order Reseller',
+            '0714000001',
+            0,
+            25,
+            Reseller::TYPE_DIRECT_RESELLER
+        );
+        [, $variant] = $this->makeProductWithVariant('SKU-DIRECT-CREATE');
+        $variant->update(['quantity' => 1]);
+        $this->makeAvailableInventoryUnits($variant, 1, 'DIRECT');
+
+        $this->actingAs($user)->postJson(route('orders.store'), [
+            'order_type' => 'reseller',
+            'reseller_id' => $directReseller->id,
+            'customer' => [
+                'name' => 'Direct Customer',
+                'mobile' => '0771112223',
+                'address' => '789 Main Street',
+                'city_id' => $city->id,
+            ],
+            'items' => [
+                [
+                    'id' => $variant->id,
+                    'quantity' => 1,
+                    'selling_price' => 150,
+                ],
+            ],
+            'payment_method' => 'COD',
+            'discount_type' => 'fixed',
+            'discount_value' => 0,
+        ])->assertOk();
+
+        $directReseller->refresh();
+        $order = Order::where('reseller_id', $directReseller->id)->firstOrFail();
+        $this->assertEquals(150.0, (float) $directReseller->due_amount);
+        $this->assertEquals(0.0, (float) $order->reseller_return_fee_applied);
+    }
+
     public function test_demo_seeder_does_not_reset_existing_admin_password(): void
     {
         $this->seed(RolesAndPermissionsSeeder::class);
@@ -196,6 +352,96 @@ class OperationalSafeguardsTest extends TestCase
         $this->seed(DemoSystemSeeder::class);
 
         $this->assertTrue(Hash::check('changed-password', $admin->fresh()->password));
+    }
+
+    public function test_waybill_print_failure_does_not_mark_order_printed_or_consume_waybill(): void
+    {
+        $user = User::factory()->create();
+        $courier = Courier::create(['name' => 'Test Courier', 'is_active' => true]);
+        $order = Order::forceCreate([
+            'order_number' => 'ORD-20260518-0101',
+            'order_date' => now()->toDateString(),
+            'courier_id' => $courier->id,
+            'status' => 'confirm',
+            'call_status' => 'confirm',
+            'delivery_status' => 'pending',
+            'payment_method' => 'COD',
+            'payment_status' => 'pending',
+            'total_amount' => 1000,
+        ]);
+        $waybill = CourierWaybill::create([
+            'courier_id' => $courier->id,
+            'code' => 'WB-FAIL-001',
+            'sequence_number' => 1,
+            'range_start' => 1,
+            'range_end' => 1,
+        ]);
+
+        $this->app->bind(\App\Services\WaybillPdfService::class, fn () => new class extends \App\Services\WaybillPdfService
+        {
+            public function download(Collection $orders, string $paperSize, string $filePrefix, $generatedAt): \Illuminate\Http\Response
+            {
+                throw new RuntimeException('PDF generation failed');
+            }
+        });
+
+        try {
+            $this->withoutExceptionHandling();
+            $this->actingAs($user)->post(route('orders.waybill.print'), [
+                'courier_id' => $courier->id,
+                'paper_size' => 'a4',
+                'order_ids' => [$order->id],
+            ]);
+            $this->fail('Expected PDF generation to fail.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('PDF generation failed', $exception->getMessage());
+        }
+
+        $order->refresh();
+        $waybill->refresh();
+
+        $this->assertNull($order->waybill_number);
+        $this->assertSame('pending', $order->delivery_status);
+        $this->assertNull($order->waybill_printed_at);
+        $this->assertNull($order->waybill_printed_by);
+        $this->assertNull($waybill->order_id);
+        $this->assertNull($waybill->allocated_at);
+    }
+
+    public function test_waybill_excel_failure_does_not_mark_orders_exported(): void
+    {
+        $user = User::factory()->create();
+        $courier = Courier::create(['name' => 'Export Courier', 'is_active' => true]);
+        $order = Order::forceCreate([
+            'order_number' => 'ORD-20260518-0102',
+            'order_date' => now()->toDateString(),
+            'courier_id' => $courier->id,
+            'status' => 'confirm',
+            'call_status' => 'confirm',
+            'delivery_status' => 'waybill_printed',
+            'waybill_number' => 'WB-XLSX-001',
+            'waybill_printed_at' => now(),
+            'payment_method' => 'COD',
+            'payment_status' => 'pending',
+            'total_amount' => 1000,
+        ]);
+
+        Excel::shouldReceive('download')
+            ->once()
+            ->andThrow(new RuntimeException('Excel generation failed'));
+
+        try {
+            $this->withoutExceptionHandling();
+            $this->actingAs($user)->post(route('orders.waybill-excel.export', $courier));
+            $this->fail('Expected Excel generation to fail.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Excel generation failed', $exception->getMessage());
+        }
+
+        $order->refresh();
+
+        $this->assertNull($order->waybill_excel_exported_at);
+        $this->assertNull($order->waybill_excel_exported_by);
     }
 
     private function makeProductWithVariant(string $sku = 'SKU-001'): array
@@ -217,5 +463,52 @@ class OperationalSafeguardsTest extends TestCase
         ]);
 
         return [$product, $variant];
+    }
+
+    private function makeReseller(
+        string $name,
+        string $mobile = '0711234567',
+        float $dueAmount = 0,
+        float $returnFee = 0,
+        string $type = Reseller::TYPE_RESELLER
+    ): Reseller {
+        return Reseller::create([
+            'business_name' => $name,
+            'name' => $name,
+            'mobile' => $mobile,
+            'due_amount' => $dueAmount,
+            'return_fee' => $returnFee,
+            'reseller_type' => $type,
+        ]);
+    }
+
+    private function makeResellerOrder(Reseller $reseller, float $totalAmount, string $orderNumber): Order
+    {
+        return Order::forceCreate([
+            'order_number' => $orderNumber,
+            'order_date' => now()->toDateString(),
+            'order_type' => 'reseller',
+            'reseller_id' => $reseller->id,
+            'status' => 'pending',
+            'call_status' => 'pending',
+            'delivery_status' => 'pending',
+            'payment_method' => 'COD',
+            'payment_status' => 'pending',
+            'total_amount' => $totalAmount,
+        ]);
+    }
+
+    private function makeAvailableInventoryUnits(ProductVariant $variant, int $quantity, string $prefix): void
+    {
+        foreach (range(1, $quantity) as $number) {
+            InventoryUnit::create([
+                'product_variant_id' => $variant->id,
+                'unit_code' => "UNIT-{$prefix}-{$number}",
+                'status' => InventoryUnit::STATUS_AVAILABLE,
+                'sku_snapshot' => $variant->sku,
+                'available_at' => now(),
+                'last_event_at' => now(),
+            ]);
+        }
     }
 }

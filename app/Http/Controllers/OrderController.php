@@ -12,6 +12,7 @@ use App\Models\OrderLog;
 use App\Models\ProductVariant;
 use App\Models\Reseller;
 use App\Services\InventoryUnitService;
+use App\Services\ResellerDueService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
@@ -498,6 +499,7 @@ class OrderController extends Controller
             $this->syncOrderInventoryState($order, Auth::id());
             $this->syncOrderCommission($order);
             $this->syncResellerReturnFeePenalty($order);
+            $this->syncOrderResellerDues($order);
 
             // 5. Log Action
             $this->logAction($order->id, 'created', 'Order created successfully.');
@@ -796,6 +798,7 @@ class OrderController extends Controller
                 $order->save();
                 $this->syncOrderCommission($order);
                 $this->syncResellerReturnFeePenalty($order);
+                $this->syncOrderResellerDues($order);
 
                 DB::commit();
 
@@ -876,6 +879,8 @@ class OrderController extends Controller
 
         DB::beginTransaction();
         try {
+            $previousResellerId = $order->reseller_id ? (int) $order->reseller_id : null;
+
             $selectedCity = City::findOrFail($validated['customer']['city_id']);
 
             $this->inventoryUnits()->releaseOrderUnits($order, 'released_for_order_update', Auth::id());
@@ -1002,6 +1007,7 @@ class OrderController extends Controller
             $this->syncOrderInventoryState($order, Auth::id());
             $this->syncOrderCommission($order);
             $this->syncResellerReturnFeePenalty($order);
+            $this->syncOrderResellerDues($order, $previousResellerId);
 
             DB::commit();
 
@@ -1034,12 +1040,18 @@ class OrderController extends Controller
 
         DB::beginTransaction();
         try {
+            $affectedResellerIds = [
+                $order->reseller_id ? (int) $order->reseller_id : null,
+                $order->return_fee_reseller_id ? (int) $order->return_fee_reseller_id : null,
+            ];
+
             $this->releaseResellerReturnFeePenalty($order);
 
             $this->inventoryUnits()->releaseOrderUnits($order, 'released_on_order_delete', Auth::id());
 
             // Delete Order (Cascades items)
             $order->delete();
+            $this->resellerDues()->syncMany($affectedResellerIds);
 
             DB::commit();
 
@@ -1166,6 +1178,7 @@ class OrderController extends Controller
             $this->syncOrderInventoryState($order, Auth::id());
             $this->syncOrderCommission($order);
             $this->syncResellerReturnFeePenalty($order);
+            $this->syncOrderResellerDues($order);
 
             DB::commit();
 
@@ -2062,5 +2075,19 @@ class OrderController extends Controller
     private function inventoryUnits(): InventoryUnitService
     {
         return app(InventoryUnitService::class);
+    }
+
+    private function resellerDues(): ResellerDueService
+    {
+        return app(ResellerDueService::class);
+    }
+
+    private function syncOrderResellerDues(Order $order, ?int $previousResellerId = null): void
+    {
+        $this->resellerDues()->syncMany([
+            $previousResellerId,
+            $order->reseller_id ? (int) $order->reseller_id : null,
+            $order->return_fee_reseller_id ? (int) $order->return_fee_reseller_id : null,
+        ]);
     }
 }

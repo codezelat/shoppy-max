@@ -92,8 +92,11 @@ class WaybillExcelExportController extends Controller
 
         $timestamp = now();
         $pendingExportIds = $orders
-            ->filter(fn (Order $order) => !$order->waybill_excel_exported_at)
+            ->filter(fn (Order $order) => ! $order->waybill_excel_exported_at)
             ->pluck('id');
+        $filename = 'waybill_excel_export_'.str($courier->name)->slug('_').'_'.$timestamp->format('Ymd_His').'.xlsx';
+
+        $download = Excel::download(new WaybillExcelExport($orders), $filename);
 
         if ($pendingExportIds->isNotEmpty()) {
             Order::query()
@@ -105,9 +108,7 @@ class WaybillExcelExportController extends Controller
                 ]);
         }
 
-        $filename = 'waybill_excel_export_' . str($courier->name)->slug('_') . '_' . $timestamp->format('Ymd_His') . '.xlsx';
-
-        return Excel::download(new WaybillExcelExport($orders), $filename);
+        return $download;
     }
 
     private function buildFilteredOrdersQuery(Request $request, Courier $courier): Builder
@@ -117,7 +118,7 @@ class WaybillExcelExportController extends Controller
 
         $this->applyPrintedWaybillConstraints($query);
 
-        if (!$request->boolean('show_downloaded')) {
+        if (! $request->boolean('show_downloaded')) {
             $query->whereNull('waybill_excel_exported_at');
         }
 

@@ -2,20 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\WaybillPdfService;
-use App\Models\Order;
 use App\Models\Courier;
 use App\Models\CourierWaybill;
-use Illuminate\Support\Collection;
+use App\Models\Order;
+use App\Services\WaybillPdfService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class WaybillController extends Controller
 {
-    public function __construct(private WaybillPdfService $waybillPdfService)
-    {
-    }
+    public function __construct(private WaybillPdfService $waybillPdfService) {}
 
     /**
      * Show Waybill Print Selection - List of Couriers
@@ -37,7 +35,7 @@ class WaybillController extends Controller
 
         return view('orders.waybill.index', compact('couriers'));
     }
-    
+
     /**
      * Show orders for a specific courier
      */
@@ -136,12 +134,14 @@ class WaybillController extends Controller
         $paperSize = (string) $validated['paper_size'];
 
         try {
-            $orders = $this->allocateWaybills($courierId, $orderIds);
+            return DB::transaction(function () use ($courierId, $orderIds, $paperSize) {
+                $orders = $this->allocateWaybills($courierId, $orderIds);
+
+                return $this->streamWaybillPdf($orders, $paperSize);
+            });
         } catch (ValidationException $e) {
             return back()->with('error', collect($e->errors())->flatten()->first() ?: 'Unable to print waybills.');
         }
-
-        return $this->streamWaybillPdf($orders, $paperSize);
     }
 
     /**
@@ -219,67 +219,65 @@ class WaybillController extends Controller
 
     private function allocateWaybills(int $courierId, Collection $orderIds): Collection
     {
-        return DB::transaction(function () use ($courierId, $orderIds) {
-            $ordersQuery = Order::query()
-                ->where('courier_id', $courierId)
-                ->whereIn('id', $orderIds)
-                ->with([
-                    'items',
-                    'city',
-                    'customer',
-                    'courier',
-                ])
-                ->lockForUpdate();
+        $ordersQuery = Order::query()
+            ->where('courier_id', $courierId)
+            ->whereIn('id', $orderIds)
+            ->with([
+                'items',
+                'city',
+                'customer',
+                'courier',
+            ])
+            ->lockForUpdate();
 
-            $this->applyPrintableOrderConstraints($ordersQuery);
+        $this->applyPrintableOrderConstraints($ordersQuery);
 
-            $orders = $ordersQuery->get()
-                ->sortBy(fn (Order $order) => $orderIds->search($order->id))
-                ->values();
+        $orders = $ordersQuery->get()
+            ->sortBy(fn (Order $order) => $orderIds->search($order->id))
+            ->values();
 
-            if ($orders->count() !== $orderIds->count()) {
-                throw ValidationException::withMessages([
-                    'order_ids' => 'Only call-confirmed orders with pending delivery and no waybill numbers can be printed.',
-                ]);
+        if ($orders->count() !== $orderIds->count()) {
+            throw ValidationException::withMessages([
+                'order_ids' => 'Only call-confirmed orders with pending delivery and no waybill numbers can be printed.',
+            ]);
+        }
+
+        $availableWaybills = CourierWaybill::query()
+            ->where('courier_id', $courierId)
+            ->available()
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->limit($orderIds->count())
+            ->get()
+            ->values();
+
+        if ($availableWaybills->count() < $orderIds->count()) {
+            throw ValidationException::withMessages([
+                'order_ids' => 'Not enough available waybill IDs for this courier. Add more waybill IDs before printing.',
+            ]);
+        }
+
+        $timestamp = now();
+
+        foreach ($orders as $index => $order) {
+            $waybill = $availableWaybills[$index];
+
+            $order->waybill_number = $waybill->code;
+            $order->delivery_status = 'waybill_printed';
+            if (! $order->waybill_printed_at) {
+                $order->waybill_printed_at = $timestamp;
             }
-
-            $availableWaybills = CourierWaybill::query()
-                ->where('courier_id', $courierId)
-                ->available()
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->limit($orderIds->count())
-                ->get()
-                ->values();
-
-            if ($availableWaybills->count() < $orderIds->count()) {
-                throw ValidationException::withMessages([
-                    'order_ids' => 'Not enough available waybill IDs for this courier. Add more waybill IDs before printing.',
-                ]);
+            if (! $order->waybill_printed_by && auth()->check()) {
+                $order->waybill_printed_by = auth()->id();
             }
+            $order->save();
 
-            $timestamp = now();
+            $waybill->order_id = $order->id;
+            $waybill->allocated_at = $timestamp;
+            $waybill->save();
+        }
 
-            foreach ($orders as $index => $order) {
-                $waybill = $availableWaybills[$index];
-
-                $order->waybill_number = $waybill->code;
-                $order->delivery_status = 'waybill_printed';
-                if (! $order->waybill_printed_at) {
-                    $order->waybill_printed_at = $timestamp;
-                }
-                if (! $order->waybill_printed_by && auth()->check()) {
-                    $order->waybill_printed_by = auth()->id();
-                }
-                $order->save();
-
-                $waybill->order_id = $order->id;
-                $waybill->allocated_at = $timestamp;
-                $waybill->save();
-            }
-
-            return $orders;
-        });
+        return $orders;
     }
 
     private function streamWaybillPdf(Collection $orders, string $paperSize, string $filePrefix = 'waybills')

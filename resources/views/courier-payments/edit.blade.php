@@ -107,18 +107,23 @@
                     </div>
 
                     <div class="xl:col-span-3">
-                        <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Payment Method</label>
-                        <select name="payment_method" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                            <option value="">Select Method</option>
-                            <option value="Cash" {{ old('payment_method', $courierPayment->payment_method) == 'Cash' ? 'selected' : '' }}>Cash</option>
-                            <option value="Bank Transfer" {{ old('payment_method', $courierPayment->payment_method) == 'Bank Transfer' ? 'selected' : '' }}>Bank Transfer</option>
-                            <option value="Cheque" {{ old('payment_method', $courierPayment->payment_method) == 'Cheque' ? 'selected' : '' }}>Cheque</option>
-                            <option value="Card" {{ old('payment_method', $courierPayment->payment_method) == 'Card' ? 'selected' : '' }}>Card</option>
-                            @if(!in_array(old('payment_method', $courierPayment->payment_method), ['', 'Cash', 'Bank Transfer', 'Cheque', 'Card'], true))
-                                <option value="{{ old('payment_method', $courierPayment->payment_method) }}" selected>{{ old('payment_method', $courierPayment->payment_method) }}</option>
-                            @endif
+                        <div class="mb-2 flex items-center justify-between gap-2">
+                            <label for="bank_account_id" class="block text-sm font-medium text-gray-900 dark:text-white">Payment Account <span class="text-red-500">*</span></label>
+                            <a href="{{ route('bank-accounts.create') }}" class="text-xs font-medium text-primary-700 hover:underline dark:text-primary-400">Add Account</a>
+                        </div>
+                        <select name="bank_account_id" id="bank_account_id" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required>
+                            <option value="">Select payment account</option>
+                            @foreach($bankAccounts as $account)
+                                <option value="{{ $account->id }}" {{ (int) old('bank_account_id', $courierPayment->bank_account_id) === (int) $account->id ? 'selected' : '' }}>
+                                    {{ $account->display_label }}
+                                </option>
+                            @endforeach
                         </select>
-                        @error('payment_method')
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">The payment method is saved from the selected account label.</p>
+                        @if($bankAccounts->isEmpty())
+                            <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">No active accounts found. Please add one before updating payment.</p>
+                        @endif
+                        @error('bank_account_id')
                             <p class="mt-2 text-sm text-red-600 dark:text-red-500">{{ $message }}</p>
                         @enderror
                     </div>

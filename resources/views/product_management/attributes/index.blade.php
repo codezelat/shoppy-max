@@ -56,7 +56,7 @@
                                         <td class="px-6 py-4 text-right">
                                             <div class="flex items-center justify-end space-x-2">
                                                 <a href="{{ route('attributes.edit', $attribute) }}" class="font-medium text-blue-600 dark:text-blue-500 hover:underline">Edit</a>
-                                                <form action="{{ route('attributes.destroy', $attribute) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure?');">
+                                                <form action="{{ route('attributes.destroy', $attribute) }}" method="POST" class="inline-block" data-confirm-message="Are you sure?">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="font-medium text-red-600 dark:text-red-500 hover:underline">Delete</button>

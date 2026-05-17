@@ -86,7 +86,7 @@
 
                         <div class="flex items-center justify-between gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
                             @if (!in_array($role->name, ['super admin', 'admin', 'user']))
-                                <form action="{{ route('admin.roles.destroy', $role) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this role?');">
+                                <form action="{{ route('admin.roles.destroy', $role) }}" method="POST" data-confirm-message="Are you sure you want to delete this role?">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-red-600 dark:hover:bg-red-700 focus:outline-none dark:focus:ring-red-800">
