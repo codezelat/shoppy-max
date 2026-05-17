@@ -616,7 +616,7 @@
             return {
                 isSubmitting: false,
                 isEditLocked: !(
-                    String(initialOrder.call_status || 'pending').toLowerCase() === 'pending'
+                    ['pending', 'hold'].includes(String(initialOrder.call_status || 'pending').toLowerCase())
                     && String(initialOrder.delivery_status || 'pending').toLowerCase() === 'pending'
                 ),
                 canAdjustLockedPayments: @json($canAdjustLockedPayments),

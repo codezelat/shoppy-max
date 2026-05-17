@@ -54,6 +54,119 @@ class OperationalSafeguardsTest extends TestCase
         $this->assertSame('cancel', $order->delivery_status);
     }
 
+    public function test_hold_call_status_can_move_back_to_pending_before_waybill_printing(): void
+    {
+        $user = User::factory()->create();
+        $order = Order::forceCreate([
+            'order_number' => 'ORD-20260518-0003',
+            'order_date' => now()->toDateString(),
+            'status' => 'hold',
+            'call_status' => 'hold',
+            'delivery_status' => 'pending',
+            'payment_method' => 'COD',
+            'payment_status' => 'pending',
+            'total_amount' => 1000,
+        ]);
+
+        $response = $this->actingAs($user)->postJson(route('orders.status.update', $order), [
+            'call_status' => 'pending',
+        ]);
+
+        $response->assertOk()->assertJson([
+            'success' => true,
+            'call_status' => 'pending',
+            'status' => 'pending',
+            'delivery_status' => 'pending',
+        ]);
+
+        $order->refresh();
+        $this->assertSame('pending', $order->status);
+        $this->assertSame('pending', $order->call_status);
+        $this->assertSame('pending', $order->delivery_status);
+    }
+
+    public function test_call_list_shows_edit_action_for_pending_and_hold_orders(): void
+    {
+        $user = User::factory()->create();
+        $pendingOrder = Order::forceCreate([
+            'order_number' => 'ORD-20260518-0004',
+            'order_date' => now()->toDateString(),
+            'status' => 'pending',
+            'call_status' => 'pending',
+            'delivery_status' => 'pending',
+            'payment_method' => 'COD',
+            'payment_status' => 'pending',
+            'total_amount' => 1000,
+        ]);
+        $holdOrder = Order::forceCreate([
+            'order_number' => 'ORD-20260518-0005',
+            'order_date' => now()->toDateString(),
+            'status' => 'hold',
+            'call_status' => 'hold',
+            'delivery_status' => 'pending',
+            'payment_method' => 'COD',
+            'payment_status' => 'pending',
+            'total_amount' => 1000,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('orders.call-list'));
+
+        $response->assertOk();
+        $response->assertSee(route('orders.edit', $pendingOrder), false);
+        $response->assertSee(route('orders.edit', $holdOrder), false);
+        $response->assertSee('Edit', false);
+    }
+
+    public function test_hold_order_can_use_full_update_before_waybill_printing(): void
+    {
+        $user = User::factory()->create();
+        $city = City::create(['city_name' => 'Negombo', 'district' => 'Gampaha', 'province' => 'Western', 'postal_code' => '11500']);
+        $courier = $this->makeCourier('Hold Edit Courier');
+        [, $variant] = $this->makeProductWithVariant('SKU-HOLD-EDIT');
+        $variant->update(['quantity' => 1]);
+        $this->makeAvailableInventoryUnits($variant, 1, 'HOLD-EDIT');
+        $order = Order::forceCreate([
+            'order_number' => 'ORD-20260518-0006',
+            'order_date' => now()->toDateString(),
+            'order_type' => 'direct',
+            'status' => 'hold',
+            'call_status' => 'hold',
+            'delivery_status' => 'pending',
+            'payment_method' => 'COD',
+            'payment_status' => 'pending',
+            'total_amount' => 1000,
+        ]);
+
+        $response = $this->actingAs($user)->putJson(route('orders.update', $order), [
+            'order_type' => 'direct',
+            'customer' => [
+                'name' => 'Updated Hold Customer',
+                'mobile' => '0778889990',
+                'address' => 'Hold edit address',
+                'city_id' => $city->id,
+            ],
+            'items' => [
+                [
+                    'id' => $variant->id,
+                    'quantity' => 1,
+                    'selling_price' => 150,
+                ],
+            ],
+            'courier_id' => $courier->id,
+            'courier_charge' => 0,
+            'payment_method' => 'COD',
+            'discount_type' => 'fixed',
+            'discount_value' => 0,
+            'delivery_status' => 'pending',
+        ]);
+
+        $response->assertOk()->assertJson(['success' => true]);
+        $order->refresh();
+        $this->assertSame('Updated Hold Customer', $order->customer_name);
+        $this->assertSame($courier->id, $order->courier_id);
+        $this->assertSame('confirm', $order->call_status);
+    }
+
     public function test_product_with_live_stock_cannot_be_deleted(): void
     {
         $user = User::factory()->create();

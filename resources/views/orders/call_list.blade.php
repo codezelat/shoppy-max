@@ -85,7 +85,7 @@
                         <th scope="col" class="px-6 py-3 whitespace-nowrap">Balance</th>
                         <th scope="col" class="px-6 py-3 min-w-[170px]">Order Status</th>
                         <th scope="col" class="px-6 py-3 min-w-[170px]">Call Status</th>
-                        <th scope="col" class="px-6 py-3 text-center">Action</th>
+                        <th scope="col" class="px-6 py-3 text-right min-w-[340px]">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -123,12 +123,12 @@
                                         this.currentStatus = data.call_status;
 
                                         if (typeof Swal !== 'undefined') {
-                                            const statusLabel = String(newStatus || '').toLowerCase() === 'hold'
-                                                ? 'Order On Hold'
-                                                : 'Order Confirmed';
-                                            const statusMessage = String(newStatus || '').toLowerCase() === 'hold'
-                                                ? 'The order moved to hold status.'
-                                                : 'The order moved to confirmed status.';
+                                            const statusCopy = {
+                                                pending: ['Order Pending', 'The order moved back to pending call status.'],
+                                                hold: ['Order On Hold', 'The order moved to hold status.'],
+                                                confirm: ['Order Confirmed', 'The order moved to confirmed status.'],
+                                            };
+                                            const [statusLabel, statusMessage] = statusCopy[String(newStatus || '').toLowerCase()] || ['Status Updated', 'The order status was updated.'];
                                             await Swal.fire({
                                                 icon: 'success',
                                                 title: statusLabel,
@@ -231,31 +231,48 @@
                                     x-text="formatStatus(currentStatus)"
                                 ></span>
                             </td>
-                            <td class="px-6 py-4 text-center">
-                                <div class="flex items-center justify-center space-x-3">
+                            <td class="px-6 py-4 text-right min-w-[340px]">
+                                <div class="flex flex-nowrap items-center justify-end gap-2 whitespace-nowrap">
+                                    <template x-if="!isManualLocked && currentStatus === 'hold'">
+                                        <button type="button" @click="updateStatus('pending')" :disabled="updating" class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-yellow-300 bg-yellow-50 px-2.5 py-1.5 text-xs font-medium text-yellow-800 hover:bg-yellow-100 disabled:opacity-40 disabled:cursor-not-allowed dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 dark:hover:bg-yellow-900/50" title="Move Back To Pending">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                                            </svg>
+                                            <span>Pending</span>
+                                        </button>
+                                    </template>
                                     <template x-if="!isManualLocked && !isConfirmedLocked">
-                                        <button type="button" @click="updateStatus('confirm')" :disabled="updating" class="text-blue-600 hover:text-blue-800 disabled:opacity-40 disabled:cursor-not-allowed" title="Approve Order">
-                                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <button type="button" @click="updateStatus('confirm')" :disabled="updating" class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-800 hover:bg-green-100 disabled:opacity-40 disabled:cursor-not-allowed dark:border-green-700 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50" title="Approve Order">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                             </svg>
+                                            <span>Confirm</span>
                                         </button>
                                     </template>
                                     <template x-if="!isManualLocked && currentStatus === 'pending'">
-                                        <button type="button" @click="updateStatus('hold')" :disabled="updating" class="text-amber-600 hover:text-amber-800 disabled:opacity-40 disabled:cursor-not-allowed" title="Mark Hold">
-                                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        <button type="button" @click="updateStatus('hold')" :disabled="updating" class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-orange-300 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-800 hover:bg-orange-100 disabled:opacity-40 disabled:cursor-not-allowed dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:bg-orange-900/50" title="Mark Hold">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                             </svg>
+                                            <span>Hold</span>
                                         </button>
                                     </template>
                                     <template x-if="updating">
-                                        <span class="text-blue-600 dark:text-blue-400" title="Updating">
+                                        <span class="shrink-0 text-blue-600 dark:text-blue-400" title="Updating">
                                             <svg class="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
                                         </span>
                                     </template>
-                                    <button @click="viewOrder({{ json_encode($order) }})" class="text-green-600 hover:text-green-800" title="Quick View">
+                                    <template x-if="!isManualLocked && ['pending', 'hold'].includes(String(currentStatus || '').toLowerCase())">
+                                        <a href="{{ route('orders.edit', $order) }}" class="shrink-0 text-blue-600 hover:text-blue-800" title="Edit Order">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                            </svg>
+                                        </a>
+                                    </template>
+                                    <button @click="viewOrder({{ json_encode($order) }})" class="shrink-0 text-green-600 hover:text-green-800" title="Quick View">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                     </button>
                                 </div>

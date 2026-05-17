@@ -1401,7 +1401,7 @@ class OrderController extends Controller
             return true;
         }
 
-        return $callStatus !== 'pending' || $deliveryStatus !== 'pending';
+        return ! in_array($callStatus, ['pending', 'hold'], true) || $deliveryStatus !== 'pending';
     }
 
     private function isManualOrderLockedAfterWaybill(Order $order): bool
