@@ -987,12 +987,12 @@ class DemoSystemSeeder extends Seeder
                 'waybill_number' => 'PRM-240002',
                 'courier_charge' => 450.00,
                 'courier_cost' => 0.00,
-                'sales_note' => 'COD order with partial direct deposit after dispatch',
+                'sales_note' => 'COD order with partial recorded payment after dispatch',
                 'payments' => [
                     [
                         'amount' => 1000.00,
                         'date' => now()->toDateString(),
-                        'note' => 'Seeded partial cash deposit',
+                        'note' => 'Seeded partial recorded payment',
                     ],
                 ],
                 'items' => [
@@ -1007,7 +1007,7 @@ class DemoSystemSeeder extends Seeder
                 'status' => 'confirm',
                 'call_status' => 'confirm',
                 'delivery_status' => 'dispatched',
-                'payment_method' => 'Cash Deposit',
+                'payment_method' => 'Online Payment',
                 'discount_type' => 'fixed',
                 'discount_value' => 0.00,
                 'discount_amount' => 0.00,
@@ -1018,12 +1018,12 @@ class DemoSystemSeeder extends Seeder
                 'waybill_number' => 'PRM-240003',
                 'courier_charge' => 450.00,
                 'courier_cost' => 0.00,
-                'sales_note' => 'Fully prepaid cash deposit order after dispatch',
+                'sales_note' => 'Fully prepaid online payment order after dispatch',
                 'payments' => [
                     [
                         'amount' => 2320.00,
                         'date' => now()->toDateString(),
-                        'note' => 'Seeded full cash deposit',
+                        'note' => 'Seeded full online payment',
                     ],
                 ],
                 'items' => [
@@ -1156,7 +1156,7 @@ class DemoSystemSeeder extends Seeder
                 ->values()
                 ->all();
             $usesRecordedPayments = ! empty($seededPayments)
-                || in_array((string) $order->payment_method, ['Online Payment', 'Cash Deposit'], true);
+                || in_array((string) $order->payment_method, ['Online Payment'], true);
 
             if ($usesRecordedPayments) {
                 $paymentsData = $seededPayments;

@@ -448,17 +448,18 @@
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Courier</label>
-                                        <select x-model="form.courier_id" @change="onCourierChange()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Courier <span class="text-red-500">*</span></label>
+                                        <select x-model="form.courier_id" @change="onCourierChange()" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
                                             <option value="">Select Courier</option>
                                             @foreach($couriers as $courier)
                                                 <option value="{{ $courier->id }}">{{ $courier->name }}</option>
                                             @endforeach
                                         </select>
+                                        <p x-show="!form.courier_id" class="mt-1 text-xs text-red-500">Select a courier to continue.</p>
                                     </div>
                                     <div>
-                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Delivery Charge</label>
-                                        <select x-model="form.courier_charge" :disabled="!form.courier_id || selectedCourierRates.length === 0" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 disabled:bg-gray-100 disabled:text-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400">
+                                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Delivery Charge <span class="text-red-500">*</span></label>
+                                        <select x-model="form.courier_charge" :disabled="!form.courier_id || selectedCourierRates.length === 0" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 disabled:bg-gray-100 disabled:text-gray-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400">
                                             <option value="" x-text="!form.courier_id ? 'Select courier first' : (selectedCourierRates.length === 0 ? 'No configured charges' : 'Select delivery charge')"></option>
                                             <template x-for="rate in selectedCourierRates" :key="`create-rate-${form.courier_id}-${rate}`">
                                                 <option :value="rate" x-text="`LKR ${rate}`"></option>
@@ -489,7 +490,6 @@
                                         <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Payment Method</label>
                                         <select x-model="form.payment_method" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
                                             <option value="COD">Cash on Delivery (COD)</option>
-                                            <option value="Cash Deposit">Cash Deposit</option>
                                             <option value="Online Payment">Online Payment</option>
                                         </select>
                                     </div>
@@ -924,15 +924,11 @@
 
                 usesRecordedPayments(paymentMethod = null) {
                     const method = String(paymentMethod ?? this.form.payment_method ?? '').trim();
-                    return ['Cash Deposit', 'Online Payment'].includes(method);
+                    return ['Online Payment'].includes(method);
                 },
 
                 recordedPaymentMethodLabel(paymentMethod = null) {
                     const method = String(paymentMethod ?? this.form.payment_method ?? '').trim();
-
-                    if (method === 'Cash Deposit') {
-                        return 'cash deposit';
-                    }
 
                     if (method === 'Online Payment') {
                         return 'online payment';
@@ -1331,7 +1327,7 @@
 
                 get crudCallStatusHelperText() {
                     if (this.isCrudCallStatusPending) {
-                        return 'Call status is fixed to Pending here because the order has a discount or uses Cash Deposit / Online Payment.';
+                        return 'Call status is fixed to Pending here because the order has a discount or uses Online Payment.';
                     }
 
                     return 'Call status is fixed to Confirm here for COD orders without a discount.';
@@ -1359,21 +1355,21 @@
                         this.notify('warning', 'Please select a reseller.');
                         return;
                     }
-                    if (this.form.courier_id) {
-                        const rates = this.selectedCourierRates;
-                        if (rates.length === 0) {
-                            this.notify('warning', 'Selected courier has no configured delivery charges.');
-                            return;
-                        }
-                        const selectedCharge = this.normalizeRate(this.form.courier_charge);
-                        if (!selectedCharge || !rates.includes(selectedCharge)) {
-                            this.notify('warning', 'Select a delivery charge from the selected courier charge list.');
-                            return;
-                        }
-                        this.form.courier_charge = selectedCharge;
-                    } else {
-                        this.form.courier_charge = 0;
+                    if (!this.form.courier_id) {
+                        this.notify('warning', 'Please select a courier.');
+                        return;
                     }
+                    const rates = this.selectedCourierRates;
+                    if (rates.length === 0) {
+                        this.notify('warning', 'Selected courier has no configured delivery charges.');
+                        return;
+                    }
+                    const selectedCharge = this.normalizeRate(this.form.courier_charge);
+                    if (!selectedCharge || !rates.includes(selectedCharge)) {
+                        this.notify('warning', 'Select a delivery charge from the selected courier charge list.');
+                        return;
+                    }
+                    this.form.courier_charge = selectedCharge;
 
                     this.form.items.forEach((item) => {
                         this.normalizeItemQuantity(item, true);

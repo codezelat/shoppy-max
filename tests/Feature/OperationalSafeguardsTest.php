@@ -197,6 +197,7 @@ class OperationalSafeguardsTest extends TestCase
     {
         $user = User::factory()->create();
         $city = City::create(['city_name' => 'Colombo', 'district' => 'Colombo', 'province' => 'Western', 'postal_code' => '00100']);
+        $courier = $this->makeCourier('Order Create Courier');
         $reseller = $this->makeReseller('Regular Order Reseller');
         [, $variant] = $this->makeProductWithVariant('SKU-ORDER-CREATE');
         $variant->update(['quantity' => 2]);
@@ -218,6 +219,8 @@ class OperationalSafeguardsTest extends TestCase
                     'selling_price' => 150,
                 ],
             ],
+            'courier_id' => $courier->id,
+            'courier_charge' => 0,
             'payment_method' => 'COD',
             'discount_type' => 'fixed',
             'discount_value' => 0,
@@ -230,6 +233,7 @@ class OperationalSafeguardsTest extends TestCase
     {
         $user = User::factory()->create();
         $city = City::create(['city_name' => 'Kandy', 'district' => 'Kandy', 'province' => 'Central', 'postal_code' => '20000']);
+        $courier = $this->makeCourier('Order Update Courier');
         $oldReseller = $this->makeReseller('Old Order Reseller', '0712000001', 100);
         $newReseller = $this->makeReseller('New Order Reseller', '0712000002');
         [, $variant] = $this->makeProductWithVariant('SKU-ORDER-UPDATE');
@@ -271,6 +275,8 @@ class OperationalSafeguardsTest extends TestCase
                     'selling_price' => 150,
                 ],
             ],
+            'courier_id' => $courier->id,
+            'courier_charge' => 0,
             'payment_method' => 'COD',
             'discount_type' => 'fixed',
             'discount_value' => 0,
@@ -304,6 +310,7 @@ class OperationalSafeguardsTest extends TestCase
     {
         $user = User::factory()->create();
         $city = City::create(['city_name' => 'Galle', 'district' => 'Galle', 'province' => 'Southern', 'postal_code' => '80000']);
+        $courier = $this->makeCourier('Direct Reseller Order Courier');
         $directReseller = $this->makeReseller(
             'Direct Order Reseller',
             '0714000001',
@@ -331,6 +338,8 @@ class OperationalSafeguardsTest extends TestCase
                     'selling_price' => 150,
                 ],
             ],
+            'courier_id' => $courier->id,
+            'courier_charge' => 0,
             'payment_method' => 'COD',
             'discount_type' => 'fixed',
             'discount_value' => 0,
@@ -495,6 +504,15 @@ class OperationalSafeguardsTest extends TestCase
             'payment_method' => 'COD',
             'payment_status' => 'pending',
             'total_amount' => $totalAmount,
+        ]);
+    }
+
+    private function makeCourier(string $name): Courier
+    {
+        return Courier::create([
+            'name' => $name,
+            'rates' => [0],
+            'is_active' => true,
         ]);
     }
 

@@ -30,12 +30,10 @@ class OrderController extends Controller
 
     private const PAYMENT_METHODS = [
         'COD',
-        'Cash Deposit',
         'Online Payment',
     ];
 
     private const RECORDED_PAYMENT_METHODS = [
-        'Cash Deposit',
         'Online Payment',
     ];
 
@@ -340,8 +338,8 @@ class OrderController extends Controller
             'items.*.selling_price' => 'required|numeric|min:0',
 
             // Fulfillment & Address
-            'courier_id' => 'nullable|exists:couriers,id',
-            'courier_charge' => 'nullable|numeric|min:0',
+            'courier_id' => 'required|exists:couriers,id',
+            'courier_charge' => 'required|numeric|min:0',
             'discount_type' => 'nullable|in:fixed,percentage',
             'discount_value' => 'nullable|numeric|min:0',
             'discount_amount' => 'nullable|numeric|min:0',
@@ -364,11 +362,7 @@ class OrderController extends Controller
             $validated['courier_charge'] ?? null
         );
 
-        if (empty($validated['courier_id'])) {
-            $validated['courier_charge'] = 0;
-        } else {
-            $validated['courier_charge'] = (float) $this->normalizeRateForComparison($validated['courier_charge']);
-        }
+        $validated['courier_charge'] = (float) $this->normalizeRateForComparison($validated['courier_charge']);
         $discountInput = $this->normalizeOrderDiscountInput($validated);
         $validated['discount_type'] = $discountInput['discount_type'];
         $validated['discount_value'] = $discountInput['discount_value'];
@@ -402,8 +396,8 @@ class OrderController extends Controller
             $order->customer_address = $customer->address;
 
             // New Fields
-            $order->courier_id = $validated['courier_id'] ?? null;
-            $order->courier_charge = $validated['courier_charge'] ?? 0;
+            $order->courier_id = $validated['courier_id'];
+            $order->courier_charge = $validated['courier_charge'];
             $order->discount_type = $validated['discount_type'];
             $order->discount_value = $validated['discount_value'];
             $order->discount_amount = 0;
@@ -783,7 +777,7 @@ class OrderController extends Controller
                     && round((float) $paymentDetails['paid_amount'], 2) + 0.01 < round((float) $order->total_amount, 2)
                 ) {
                     throw ValidationException::withMessages([
-                        'payment_method' => 'Keep the order as COD for partial direct deposits. Change payment method only after the full amount is recorded.',
+                        'payment_method' => 'Keep the order as COD for partial recorded payments. Change payment method only after the full amount is recorded.',
                     ]);
                 }
 
@@ -846,8 +840,8 @@ class OrderController extends Controller
             'items.*.selling_price' => 'required|numeric|min:0',
 
             // Fulfillment & Address
-            'courier_id' => 'nullable|exists:couriers,id',
-            'courier_charge' => 'nullable|numeric|min:0',
+            'courier_id' => 'required|exists:couriers,id',
+            'courier_charge' => 'required|numeric|min:0',
             'discount_type' => 'nullable|in:fixed,percentage',
             'discount_value' => 'nullable|numeric|min:0',
             'discount_amount' => 'nullable|numeric|min:0',
@@ -870,11 +864,7 @@ class OrderController extends Controller
             $validated['courier_charge'] ?? null
         );
 
-        if (empty($validated['courier_id'])) {
-            $validated['courier_charge'] = 0;
-        } else {
-            $validated['courier_charge'] = (float) $this->normalizeRateForComparison($validated['courier_charge']);
-        }
+        $validated['courier_charge'] = (float) $this->normalizeRateForComparison($validated['courier_charge']);
         $discountInput = $this->normalizeOrderDiscountInput($validated);
         $validated['discount_type'] = $discountInput['discount_type'];
         $validated['discount_value'] = $discountInput['discount_value'];
@@ -909,8 +899,8 @@ class OrderController extends Controller
             $previousOrderStatus = (string) $order->status;
             $previousDeliveryStatus = (string) ($order->delivery_status ?? 'pending');
 
-            $order->courier_id = $validated['courier_id'] ?? null;
-            $order->courier_charge = $validated['courier_charge'] ?? 0;
+            $order->courier_id = $validated['courier_id'];
+            $order->courier_charge = $validated['courier_charge'];
             $order->discount_type = $validated['discount_type'];
             $order->discount_value = $validated['discount_value'];
             $order->discount_amount = 0;

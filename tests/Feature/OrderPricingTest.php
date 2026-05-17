@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\City;
+use App\Models\Courier;
 use App\Models\InventoryUnit;
 use App\Models\Order;
 use App\Models\Product;
@@ -21,9 +22,9 @@ class OrderPricingTest extends TestCase
     public function test_direct_order_uses_variant_selling_price_even_when_request_is_tampered(): void
     {
         $user = User::factory()->create();
-        [$city, $variant] = $this->orderDependencies();
+        [$city, $variant, $courier] = $this->orderDependencies();
 
-        $response = $this->actingAs($user)->postJson(route('orders.store'), $this->orderPayload($city, $variant, [
+        $response = $this->actingAs($user)->postJson(route('orders.store'), $this->orderPayload($city, $variant, $courier, [
             'order_type' => 'direct',
             'items' => [
                 [
@@ -49,10 +50,10 @@ class OrderPricingTest extends TestCase
     public function test_reseller_order_allows_price_at_or_above_limit_price(): void
     {
         $user = User::factory()->create();
-        [$city, $variant] = $this->orderDependencies();
+        [$city, $variant, $courier] = $this->orderDependencies();
         $reseller = $this->makeReseller();
 
-        $response = $this->actingAs($user)->postJson(route('orders.store'), $this->orderPayload($city, $variant, [
+        $response = $this->actingAs($user)->postJson(route('orders.store'), $this->orderPayload($city, $variant, $courier, [
             'order_type' => 'reseller',
             'reseller_id' => $reseller->id,
             'items' => [
@@ -78,10 +79,10 @@ class OrderPricingTest extends TestCase
     public function test_reseller_order_rejects_price_below_limit_price(): void
     {
         $user = User::factory()->create();
-        [$city, $variant] = $this->orderDependencies();
+        [$city, $variant, $courier] = $this->orderDependencies();
         $reseller = $this->makeReseller();
 
-        $response = $this->actingAs($user)->postJson(route('orders.store'), $this->orderPayload($city, $variant, [
+        $response = $this->actingAs($user)->postJson(route('orders.store'), $this->orderPayload($city, $variant, $courier, [
             'order_type' => 'reseller',
             'reseller_id' => $reseller->id,
             'items' => [
@@ -98,7 +99,73 @@ class OrderPricingTest extends TestCase
         $this->assertDatabaseCount('orders', 0);
     }
 
-    private function orderPayload(City $city, ProductVariant $variant, array $overrides = []): array
+    public function test_order_create_requires_courier_selection(): void
+    {
+        $user = User::factory()->create();
+        [$city, $variant, $courier] = $this->orderDependencies();
+
+        $response = $this->actingAs($user)->postJson(route('orders.store'), $this->orderPayload($city, $variant, $courier, [
+            'courier_id' => null,
+            'courier_charge' => null,
+        ]));
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['courier_id', 'courier_charge']);
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_order_update_requires_courier_selection_when_core_details_are_editable(): void
+    {
+        $user = User::factory()->create();
+        [$city, $variant, $courier] = $this->orderDependencies();
+
+        $createResponse = $this->actingAs($user)->postJson(route('orders.store'), $this->orderPayload($city, $variant, $courier, [
+            'discount_value' => 1,
+        ]));
+        $createResponse->assertOk()->assertJson(['success' => true]);
+
+        $order = Order::latest('id')->firstOrFail();
+
+        $response = $this->actingAs($user)->putJson(route('orders.update', $order), $this->orderPayload($city, $variant, $courier, [
+            'courier_id' => null,
+            'courier_charge' => null,
+            'discount_value' => 1,
+        ]));
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['courier_id', 'courier_charge']);
+        $this->assertSame($courier->id, $order->fresh()->courier_id);
+    }
+
+    public function test_removed_order_payment_method_is_not_allowed(): void
+    {
+        $user = User::factory()->create();
+        [$city, $variant, $courier] = $this->orderDependencies();
+        $removedPaymentMethod = 'Cash'.' '.'Deposit';
+
+        $response = $this->actingAs($user)->postJson(route('orders.store'), $this->orderPayload($city, $variant, $courier, [
+            'payment_method' => $removedPaymentMethod,
+        ]));
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['payment_method']);
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_order_create_form_does_not_render_removed_payment_method(): void
+    {
+        $user = User::factory()->create();
+        $this->orderDependencies();
+
+        $response = $this->actingAs($user)->get(route('orders.create'));
+
+        $response->assertOk();
+        $response->assertSee('Online Payment');
+        $response->assertSee('Select a courier to continue.', false);
+        $response->assertDontSee('Cash'.' '.'Deposit', false);
+    }
+
+    private function orderPayload(City $city, ProductVariant $variant, Courier $courier, array $overrides = []): array
     {
         return array_replace_recursive([
             'order_type' => 'direct',
@@ -118,7 +185,7 @@ class OrderPricingTest extends TestCase
                     'selling_price' => $variant->selling_price,
                 ],
             ],
-            'courier_id' => null,
+            'courier_id' => $courier->id,
             'courier_charge' => 0,
             'discount_type' => 'fixed',
             'discount_value' => 0,
@@ -135,6 +202,11 @@ class OrderPricingTest extends TestCase
             'postal_code' => '00100',
             'district' => 'Colombo',
             'province' => 'Western',
+        ]);
+        $courier = Courier::create([
+            'name' => 'Pricing Courier',
+            'rates' => [0],
+            'is_active' => true,
         ]);
         $category = Category::create(['name' => 'Pricing Category', 'code' => 'PRICE']);
         $unit = Unit::create(['name' => 'Piece', 'short_name' => 'pcs']);
@@ -165,7 +237,7 @@ class OrderPricingTest extends TestCase
             ]);
         }
 
-        return [$city, $variant];
+        return [$city, $variant, $courier];
     }
 
     private function makeReseller(): Reseller

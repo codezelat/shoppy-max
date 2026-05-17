@@ -124,7 +124,6 @@
                         <select name="payment_method" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
                         <option value="">All Payment Methods</option>
                         <option value="COD" {{ request('payment_method') == 'COD' ? 'selected' : '' }}>COD</option>
-                        <option value="Cash Deposit" {{ request('payment_method') == 'Cash Deposit' ? 'selected' : '' }}>Cash Deposit</option>
                         <option value="Online Payment" {{ request('payment_method') == 'Online Payment' ? 'selected' : '' }}>Online Payment</option>
                     </select>
                 </div>
@@ -255,7 +254,6 @@
                                     $paymentMethod = (string) ($order->payment_method ?? '');
                                     $paymentMethodColors = [
                                         'COD' => 'bg-blue-100 text-blue-800 border-blue-300',
-                                        'Cash Deposit' => 'bg-amber-100 text-amber-800 border-amber-300',
                                         'Online Payment' => 'bg-emerald-100 text-emerald-800 border-emerald-300',
                                     ];
                                 @endphp
