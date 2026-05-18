@@ -760,6 +760,11 @@ class InventoryUnitService
         $availableUnits = InventoryUnit::query()
             ->where('product_variant_id', $variant->id)
             ->where('status', InventoryUnit::STATUS_AVAILABLE)
+            ->orderByRaw(
+                'CASE WHEN store_type = ? THEN 0 WHEN store_type = ? THEN 1 ELSE 2 END',
+                [StoreRack::STORE_RETAIL, StoreRack::STORE_WAREHOUSE]
+            )
+            ->orderBy('store_rack_id')
             ->orderBy('id')
             ->lockForUpdate()
             ->limit($missing)

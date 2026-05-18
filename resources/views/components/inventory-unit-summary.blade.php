@@ -98,6 +98,11 @@
                                     <p class="text-xs text-gray-500 dark:text-gray-400">
                                         {{ $trackedUnit->purchase?->purchase_number ? 'Source: ' . $trackedUnit->purchase->purchase_number : 'Source: Legacy stock' }}
                                     </p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $trackedUnit->store_type ? \App\Models\StoreRack::storeLabel((string) $trackedUnit->store_type) : 'Store: Unassigned' }}
+                                        ·
+                                        {{ $trackedUnit->storeRack?->display_label ?? 'Rack: Unassigned' }}
+                                    </p>
                                 @endif
                             </div>
                         @endforeach

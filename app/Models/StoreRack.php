@@ -24,6 +24,10 @@ class StoreRack extends Model
         'row_key',
     ];
 
+    protected $appends = [
+        'display_label',
+    ];
+
     public static function normalizeStoreType(string $storeType): string
     {
         return strtolower(trim($storeType));

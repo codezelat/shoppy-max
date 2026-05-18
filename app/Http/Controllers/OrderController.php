@@ -610,6 +610,7 @@ class OrderController extends Controller
             'items.variant.unit',
             'items.variant.product',
             'items.inventoryUnits.purchase',
+            'items.inventoryUnits.storeRack',
             'customer',
             'reseller',
             'user',
@@ -632,7 +633,7 @@ class OrderController extends Controller
      */
     public function printView(Order $order)
     {
-        $order->load(['items.variant.unit', 'items.variant.product', 'items.inventoryUnits.purchase', 'customer', 'reseller', 'user', 'courier']);
+        $order->load(['items.variant.unit', 'items.variant.product', 'items.inventoryUnits.purchase', 'items.inventoryUnits.storeRack', 'customer', 'reseller', 'user', 'courier']);
 
         return view('orders.print', compact('order'));
     }
@@ -642,7 +643,7 @@ class OrderController extends Controller
      */
     public function downloadPdf(Order $order)
     {
-        $order->load(['items.variant.unit', 'items.variant.product', 'items.inventoryUnits.purchase', 'customer', 'reseller', 'user', 'courier']);
+        $order->load(['items.variant.unit', 'items.variant.product', 'items.inventoryUnits.purchase', 'items.inventoryUnits.storeRack', 'customer', 'reseller', 'user', 'courier']);
         $pdf = Pdf::loadView('orders.pdf', compact('order'))->setPaper('a4');
 
         return $pdf->download('invoice-'.$order->order_number.'.pdf');
@@ -663,7 +664,7 @@ class OrderController extends Controller
             ->unique()
             ->values();
 
-        $orders = Order::with(['items.variant.unit', 'items.inventoryUnits.purchase', 'customer', 'reseller', 'user', 'courier'])
+        $orders = Order::with(['items.variant.unit', 'items.inventoryUnits.purchase', 'items.inventoryUnits.storeRack', 'customer', 'reseller', 'user', 'courier'])
             ->whereIn('id', $requestedIds)
             ->get()
             ->sortBy(fn (Order $order) => $requestedIds->search($order->id))
@@ -1059,7 +1060,7 @@ class OrderController extends Controller
      */
     public function callList(Request $request)
     {
-        $query = Order::with(['customer', 'reseller', 'items.inventoryUnits.purchase', 'user', 'courier'])
+        $query = Order::with(['customer', 'reseller', 'items.inventoryUnits.purchase', 'items.inventoryUnits.storeRack', 'user', 'courier'])
             ->where('status', '!=', 'cancel');
 
         if ($request->filled('search')) {

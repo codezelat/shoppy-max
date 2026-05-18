@@ -463,7 +463,10 @@ Check:
 - waybill queue and print
 - waybill Excel export queue
 - packing flow
-  - packing pages exist and now scan allocated unit codes, persist scan progress on inventory units, and only allow completion when all required units are scanned
+  - `/orders/packing/ready` lists waybill-printed orders waiting to be picked
+  - `/orders/packing/picking` lists picked-from-rack orders that are currently being scanned
+  - `/orders/packing/packed` lists fully scanned packed orders ready for dispatch
+  - the per-order scanner accepts allocated unit labels or repeated SKU scans, persists scan progress on inventory units, and automatically moves the order to `packed` on the final required scan
   - packing is still a work-in-progress operational area; do not describe it as fully hardened or fully browser-QA-proven without a dedicated end-to-end verification pass
 - returns
   - backend logic for `returned` is implemented

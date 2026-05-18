@@ -380,6 +380,7 @@
                                                             <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40">
                                                                 <div class="font-mono text-[11px] text-gray-800 dark:text-gray-200" x-text="trackedUnit.unit_code"></div>
                                                                 <div class="text-[10px] text-gray-500 dark:text-gray-400" x-text="trackedUnit.purchase?.purchase_number ? `Source: ${trackedUnit.purchase.purchase_number}` : 'Source: Legacy stock'"></div>
+                                                                <div class="text-[10px] text-gray-500 dark:text-gray-400" x-text="unitLocation(trackedUnit)"></div>
                                                             </div>
                                                         </template>
                                                     </div>
@@ -526,6 +527,16 @@
                     const lastCode = list[list.length - 1]?.unit_code || firstCode;
 
                     return firstCode === lastCode ? firstCode : `${firstCode} to ${lastCode}`;
+                },
+                unitLocation(unit) {
+                    const labels = {
+                        retail: 'Retail Store',
+                        warehouse: 'Warehouse Store',
+                    };
+                    const storeLabel = labels[String(unit?.store_type || '').toLowerCase()] || 'Store: Unassigned';
+                    const rackLabel = unit?.store_rack?.display_label || 'Rack: Unassigned';
+
+                    return `${storeLabel} · ${rackLabel}`;
                 }
             }
         }

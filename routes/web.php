@@ -96,6 +96,9 @@ Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function (
 
     // Packing (must be before /{order} wildcard)
     Route::get('/packing', [\App\Http\Controllers\PackingController::class, 'index'])->name('packing.index');
+    Route::get('/packing/ready', [\App\Http\Controllers\PackingController::class, 'ready'])->name('packing.ready');
+    Route::get('/packing/picking', [\App\Http\Controllers\PackingController::class, 'picking'])->name('packing.picking');
+    Route::get('/packing/packed', [\App\Http\Controllers\PackingController::class, 'packed'])->name('packing.packed');
     Route::get('/packing/{id}/process', [\App\Http\Controllers\PackingController::class, 'process'])->name('packing.process');
     Route::post('/packing/{id}/scan', [\App\Http\Controllers\PackingController::class, 'scan'])->name('packing.scan');
     Route::post('/packing/{id}/mark-picked', [\App\Http\Controllers\PackingController::class, 'markPicked'])->name('packing.mark-picked');
