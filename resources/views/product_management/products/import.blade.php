@@ -46,7 +46,7 @@
                     <strong>SKU:</strong> SKU is auto-generated during import and enforced as unique.
                 </div>
                 <div class="mt-2 text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/20 p-2 rounded">
-                    <strong>Stock:</strong> Imported products always start with stock <strong>0</strong>. Stock is updated from purchases and order flows.
+                    <strong>Stock:</strong> Imported products always start with stock <strong>0</strong>. Stock is updated only through manual store placement and order flows.
                 </div>
             </div>
 

@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BankAccount;
+use App\Models\InventoryUnit;
+use App\Models\ProductVariant;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\Supplier;
-use App\Models\ProductVariant;
-use App\Models\BankAccount;
-use App\Models\InventoryUnit;
 use App\Services\InventoryUnitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,12 +48,12 @@ class PurchaseController extends Controller
         'grn' => [
             'statuses' => ['verified', 'complete'],
             'next_status' => 'complete',
-            'title' => 'GRN Checking',
-            'description' => 'Open the GRN detail view and scan each received barcode. Stock is added as units are scanned, and the purchase completes automatically when all units are confirmed.',
-            'switcher_label' => 'GRN Checking',
-            'action_label' => 'Open GRN',
+            'title' => 'Store Placement',
+            'description' => 'Verified purchases become stock only when quantities are manually added into retail or warehouse rack rows.',
+            'switcher_label' => 'Store Placement',
+            'action_label' => 'Add to Store',
             'completed_label' => 'Completed',
-            'success_message' => 'GRN completed successfully and stock was added to inventory.',
+            'success_message' => 'Purchase is ready for store placement.',
             'final_stage' => true,
         ],
     ];
@@ -74,10 +74,10 @@ class PurchaseController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('purchase_number', 'like', "%{$search}%")
-                  ->orWhereHas('supplier', function ($sq) use ($search) {
-                      $sq->where('name', 'like', "%{$search}%")
-                         ->orWhere('business_name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('supplier', function ($sq) use ($search) {
+                        $sq->where('name', 'like', "%{$search}%")
+                            ->orWhere('business_name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -118,11 +118,12 @@ class PurchaseController extends Controller
         $totalPurchases = Purchase::count();
         $totalSpent = Purchase::sum('net_total');
         // Calculate total due (net_total - paid_amount)
-        // Since we don't have a direct column, strict SQL or collection sum. 
+        // Since we don't have a direct column, strict SQL or collection sum.
         // SQL is better for performance.
         $totalDue = Purchase::query()->selectRaw('SUM(net_total - paid_amount) as due')->value('due') ?? 0;
 
         $purchases = $query->paginate(15);
+
         return view('purchases.index', compact('purchases', 'totalPurchases', 'totalSpent', 'totalDue'));
     }
 
@@ -143,105 +144,17 @@ class PurchaseController extends Controller
 
     public function showGrn(Purchase $purchase)
     {
-        if (!in_array((string) ($purchase->status ?? 'pending'), ['verified', 'complete'], true)) {
-            return redirect()
-                ->route('purchases.show', $purchase)
-                ->with('error', 'GRN checking is available only after purchase verification.');
-        }
-
-        $purchase->load([
-            'supplier',
-            'creator',
-            'checker',
-            'verifier',
-            'completer',
-            'inventoryUnits.purchase',
-            'items.variant.product',
-            'items.variant.unit',
-            'items.inventoryUnits.purchase',
-        ]);
-
-        return view('purchases.grn.show', compact('purchase'));
+        return redirect()
+            ->route('purchases.store-placement.index', 'retail')
+            ->with('info', 'Use manual store placement to add verified purchase quantities into stock.');
     }
 
     public function scanGrnUnit(Request $request, Purchase $purchase)
     {
-        if (($purchase->status ?? 'pending') === 'complete') {
-            return response()->json([
-                'success' => false,
-                'message' => 'This GRN is already complete.',
-            ], 422);
-        }
-
-        if (($purchase->status ?? 'pending') !== 'verified') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Scan is available only after purchase verification.',
-            ], 422);
-        }
-
-        $validated = $request->validate([
-            'unit_code' => 'required|string|max:100',
-        ]);
-
-        DB::beginTransaction();
-
-        try {
-            $scanResult = $this->inventoryUnits()->scanPendingUnitForPurchase(
-                $purchase,
-                (string) $validated['unit_code'],
-                $request->user()?->id
-            );
-
-            $purchase->refresh()->load([
-                'inventoryUnits',
-                'items.inventoryUnits',
-            ]);
-
-            $item = $scanResult['item'];
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => $scanResult['completed']
-                    ? 'All labels were scanned. GRN is now complete.'
-                    : 'Label scanned successfully.',
-                'purchase' => [
-                    'status' => (string) $purchase->status,
-                    'grn_progress_units_count' => $purchase->grnProgressUnitsCount(),
-                    'received_units_count' => $purchase->receivedUnitsCount(),
-                    'pending_units_count' => $purchase->pendingReceiptUnitsCount(),
-                    'total_units_count' => $purchase->totalTrackedUnitsCount(),
-                    'completed_at' => optional($purchase->completed_at)->format('d M Y h:i A'),
-                ],
-                'item' => [
-                    'id' => (int) $item->id,
-                    'scanned_count' => $item->scannedUnitCount(),
-                    'remaining_count' => $item->pendingUnitCount(),
-                ],
-                'unit' => [
-                    'code' => (string) $scanResult['unit']->unit_code,
-                    'product_name' => (string) $item->product_name,
-                    'variant_label' => $item->variant ? $this->buildVariantLabel($item->variant) : '',
-                ],
-                'completed' => (bool) $scanResult['completed'],
-            ]);
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'message' => collect($e->errors())->flatten()->first() ?: 'Unable to scan this barcode.',
-            ], 422);
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Unable to process the scanned barcode.',
-            ], 500);
-        }
+        return response()->json([
+            'success' => false,
+            'message' => 'GRN scanning is no longer used for stock intake. Add stock through retail or warehouse store placement.',
+        ], 422);
     }
 
     public function approveModerationStage(Request $request, Purchase $purchase)
@@ -249,17 +162,17 @@ class PurchaseController extends Controller
         $stage = (string) $request->input('stage');
         $config = self::MODERATION_STAGES[$stage] ?? null;
 
-        if (!$config) {
+        if (! $config) {
             return redirect()->route('purchases.index')->with('error', 'Invalid moderation stage.');
         }
 
         if ($stage === 'grn') {
             return redirect()
-                ->route('purchases.grn.show', $purchase)
-                ->with('info', 'Use the GRN scanner to complete this purchase.');
+                ->route('purchases.store-placement.index', 'retail')
+                ->with('info', 'Use retail or warehouse store placement to add this purchase into stock.');
         }
 
-        if (!in_array((string) $purchase->status, $config['statuses'], true)) {
+        if (! in_array((string) $purchase->status, $config['statuses'], true)) {
             return redirect()->route($this->moderationRouteName($stage))->with(
                 'error',
                 'This purchase is no longer available in the selected moderation queue.'
@@ -288,11 +201,6 @@ class PurchaseController extends Controller
                 'status' => $statusTransition['status'],
             ] + $statusTransition['audit'];
 
-            if ($statusTransition['status'] === 'complete' && is_null($purchase->stock_applied_at)) {
-                $this->applyPurchaseStock($purchase->items);
-                $updateData['stock_applied_at'] = now();
-            }
-
             $purchase->update($updateData);
 
             DB::commit();
@@ -312,7 +220,7 @@ class PurchaseController extends Controller
 
             return redirect()->route($this->moderationRouteName($stage))->with(
                 'error',
-                'Unable to approve purchase: ' . $e->getMessage()
+                'Unable to approve purchase: '.$e->getMessage()
             );
         }
     }
@@ -329,7 +237,8 @@ class PurchaseController extends Controller
             ->get();
 
         // Generate a suggested ID
-        $suggestedNumber = 'PUR-' . date('Ymd') . '-' . mt_rand(1000, 9999);
+        $suggestedNumber = 'PUR-'.date('Ymd').'-'.mt_rand(1000, 9999);
+
         return view('purchases.create', compact('suppliers', 'suggestedNumber', 'bankAccounts'));
     }
 
@@ -394,10 +303,11 @@ class PurchaseController extends Controller
             ]);
 
             foreach ($validated['items'] as $item) {
-                $this->createPurchaseItem($purchase, $item, false);
+                $this->createPurchaseItem($purchase, $item);
             }
 
             DB::commit();
+
             return redirect()->route('purchases.success', $purchase)->with('success', 'Purchase recorded successfully.');
 
         } catch (ValidationException $e) {
@@ -405,7 +315,8 @@ class PurchaseController extends Controller
             throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Error creating purchase: ' . $e->getMessage())->withInput();
+
+            return back()->with('error', 'Error creating purchase: '.$e->getMessage())->withInput();
         }
     }
 
@@ -415,6 +326,7 @@ class PurchaseController extends Controller
     public function show(Purchase $purchase)
     {
         $purchase->load(['items.variant.product', 'items.variant.unit', 'items.inventoryUnits', 'supplier', 'creator', 'checker', 'verifier', 'completer']);
+
         return view('purchases.show', compact('purchase'));
     }
 
@@ -431,12 +343,14 @@ class PurchaseController extends Controller
     public function pdf(Purchase $purchase)
     {
         $purchase->load(['items.variant.product', 'items.variant.unit', 'items.inventoryUnits', 'supplier', 'creator', 'checker', 'verifier', 'completer']);
+
         return view('purchases.pdf', compact('purchase'));
     }
 
     public function printBarcodes(Purchase $purchase)
     {
-        $units = $this->inventoryUnits()->purchaseUnits($purchase);
+        $purchase->loadMissing(['items.variant.product', 'items.variant.unit']);
+        $units = $this->purchaseBarcodeLabels($purchase);
 
         if ($units->isEmpty()) {
             return redirect()
@@ -447,14 +361,15 @@ class PurchaseController extends Controller
         $pdf = app('dompdf.wrapper');
         $pdf->loadView('purchases.barcode-pdf', compact('units'));
 
-        return $pdf->stream('purchase_' . $purchase->purchase_number . '_barcodes.pdf');
+        return $pdf->stream('purchase_'.$purchase->purchase_number.'_barcodes.pdf');
     }
 
     public function printItemBarcodes(Purchase $purchase, PurchaseItem $item)
     {
         abort_if((int) $item->purchase_id !== (int) $purchase->id, 404);
 
-        $units = $this->inventoryUnits()->purchaseItemUnits($item);
+        $item->loadMissing(['variant.product', 'variant.unit']);
+        $units = $this->purchaseItemBarcodeLabels($item);
 
         if ($units->isEmpty()) {
             return redirect()
@@ -467,7 +382,7 @@ class PurchaseController extends Controller
 
         $sku = $item->variant?->sku ?: 'labels';
 
-        return $pdf->stream('purchase_' . $purchase->purchase_number . '_' . $sku . '_barcodes.pdf');
+        return $pdf->stream('purchase_'.$purchase->purchase_number.'_'.$sku.'_barcodes.pdf');
     }
 
     /**
@@ -488,6 +403,7 @@ class PurchaseController extends Controller
             ->get();
 
         $purchase->load('items');
+
         return view('purchases.edit', compact('purchase', 'suppliers', 'bankAccounts'));
     }
 
@@ -506,8 +422,8 @@ class PurchaseController extends Controller
         $validated = $request->validate([
             'supplier_id' => 'required|exists:suppliers,id',
             'purchase_date' => 'required|date',
-            'purchase_number' => 'required|string|max:100|unique:purchases,purchase_number,' . $purchase->id,
-            'status' => 'required|in:' . implode(',', Purchase::STATUSES),
+            'purchase_number' => 'required|string|max:100|unique:purchases,purchase_number,'.$purchase->id,
+            'status' => 'required|in:'.implode(',', Purchase::STATUSES),
             'items' => 'required|array|min:1',
             'items.*.product_variant_id' => 'nullable|exists:product_variants,id',
             'items.*.product_id' => 'nullable|exists:products,id',
@@ -584,10 +500,11 @@ class PurchaseController extends Controller
             $purchase->items()->delete();
 
             foreach ($validated['items'] as $item) {
-                $this->createPurchaseItem($purchase, $item, false);
+                $this->createPurchaseItem($purchase, $item);
             }
 
             DB::commit();
+
             return redirect()->route('purchases.index')->with('success', 'Purchase updated successfully.');
 
         } catch (ValidationException $e) {
@@ -595,7 +512,8 @@ class PurchaseController extends Controller
             throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Error updating purchase: ' . $e->getMessage())->withInput();
+
+            return back()->with('error', 'Error updating purchase: '.$e->getMessage())->withInput();
         }
     }
 
@@ -664,7 +582,7 @@ class PurchaseController extends Controller
 
         return response()->json($variants
             ->map(function (ProductVariant $variant) use ($query) {
-                if (!$variant->product) {
+                if (! $variant->product) {
                     return null;
                 }
 
@@ -674,11 +592,11 @@ class PurchaseController extends Controller
                 $selectedLabel = $productName;
 
                 if ($variantLabel !== '') {
-                    $selectedLabel .= ' (' . $variantLabel . ')';
+                    $selectedLabel .= ' ('.$variantLabel.')';
                 }
 
-                if (!empty($variant->sku)) {
-                    $selectedLabel .= ' [' . $variant->sku . ']';
+                if (! empty($variant->sku)) {
+                    $selectedLabel .= ' ['.$variant->sku.']';
                 }
 
                 return [
@@ -689,7 +607,7 @@ class PurchaseController extends Controller
                     'product_name' => $productName,
                     'variant_label' => $variantLabel,
                     'variant_detail' => $variantDetail,
-                    'dropdown_label' => $variantLabel !== '' ? $productName . ' (' . $variantLabel . ')' : $productName,
+                    'dropdown_label' => $variantLabel !== '' ? $productName.' ('.$variantLabel.')' : $productName,
                     'selected_label' => $selectedLabel,
                     'display_name' => $selectedLabel,
                     'sku' => $variant->sku,
@@ -707,6 +625,7 @@ class PurchaseController extends Controller
             ->take(30)
             ->map(function (array $result) {
                 unset($result['search_rank']);
+
                 return $result;
             })
             ->values());
@@ -717,7 +636,7 @@ class PurchaseController extends Controller
      */
     public function destroy(Purchase $purchase)
     {
-        if ($this->purchaseStructureLocked($purchase) || !is_null($purchase->stock_applied_at)) {
+        if ($this->purchaseStructureLocked($purchase) || ! is_null($purchase->stock_applied_at)) {
             return back()->with(
                 'error',
                 $this->purchaseLockMessage($purchase)
@@ -736,6 +655,7 @@ class PurchaseController extends Controller
             $purchase->delete();
 
             DB::commit();
+
             return redirect()->route('purchases.index')->with('success', 'Purchase deleted successfully.');
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -746,7 +666,8 @@ class PurchaseController extends Controller
             );
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->route('purchases.index')->with('error', 'Error deleting purchase: ' . $e->getMessage());
+
+            return redirect()->route('purchases.index')->with('error', 'Error deleting purchase: '.$e->getMessage());
         }
     }
 
@@ -776,7 +697,7 @@ class PurchaseController extends Controller
                 $legacyAccount = trim((string) ($payment['account'] ?? ''));
                 $account = $selectedAccount?->display_label ?? $legacyAccount;
                 $note = trim((string) ($payment['note'] ?? ''));
-                $date = !empty($payment['date']) ? date('Y-m-d', strtotime((string) $payment['date'])) : now()->toDateString();
+                $date = ! empty($payment['date']) ? date('Y-m-d', strtotime((string) $payment['date'])) : now()->toDateString();
                 $method = in_array($method, self::PAYMENT_METHODS, true) ? $method : 'Cash';
 
                 return [
@@ -798,6 +719,7 @@ class PurchaseController extends Controller
         $subTotal = collect($items)->sum(function ($item) {
             $quantity = (float) ($item['quantity'] ?? 0);
             $price = (float) ($item['purchase_price'] ?? 0);
+
             return $quantity * $price;
         });
 
@@ -832,7 +754,35 @@ class PurchaseController extends Controller
         ]);
     }
 
-    private function createPurchaseItem(Purchase $purchase, array $itemData, bool $applyStock): void
+    private function purchaseBarcodeLabels(Purchase $purchase)
+    {
+        return $purchase->items
+            ->flatMap(fn (PurchaseItem $item) => $this->purchaseItemBarcodeLabels($item))
+            ->values();
+    }
+
+    private function purchaseItemBarcodeLabels(PurchaseItem $item)
+    {
+        $variant = $item->variant;
+        $quantity = max((int) ($item->quantity ?? 0), 0);
+
+        if (! $variant || $quantity < 1) {
+            return collect();
+        }
+
+        $label = (object) [
+            'unit_code' => (string) $variant->sku,
+            'status' => 'purchase_label',
+            'sku_snapshot' => (string) $variant->sku,
+            'product_name_snapshot' => $variant->product?->name ?? $item->product_name,
+            'variant_label_snapshot' => $this->buildVariantLabel($variant),
+            'productVariant' => $variant,
+        ];
+
+        return collect(range(1, $quantity))->map(fn () => clone $label);
+    }
+
+    private function createPurchaseItem(Purchase $purchase, array $itemData): void
     {
         $variant = $this->resolveVariantForPurchaseItem($itemData);
         $quantity = (int) ($itemData['quantity'] ?? 0);
@@ -842,7 +792,7 @@ class PurchaseController extends Controller
             $productName = $this->buildVariantDisplayName($variant);
         }
 
-        $purchaseItem = PurchaseItem::create([
+        PurchaseItem::create([
             'purchase_id' => $purchase->id,
             'product_id' => $variant->product_id,
             'stock_variant_id' => $variant->id,
@@ -851,12 +801,6 @@ class PurchaseController extends Controller
             'purchase_price' => $price,
             'total' => round($quantity * $price, 2),
         ]);
-
-        if ($applyStock) {
-            $this->inventoryUnits()->createAvailableUnitsForPurchaseItem($purchaseItem, auth()->id());
-        } else {
-            $this->inventoryUnits()->createPendingUnitsForPurchaseItem($purchaseItem, auth()->id());
-        }
     }
 
     private function resolveVariantForPurchaseItem(array $itemData): ProductVariant
@@ -867,7 +811,7 @@ class PurchaseController extends Controller
 
         if ($variantId) {
             $variant = ProductVariant::with(['product', 'unit'])->find($variantId);
-            if (!$variant || !$variant->product) {
+            if (! $variant || ! $variant->product) {
                 throw ValidationException::withMessages([
                     'items' => 'A selected purchase item variant is invalid.',
                 ]);
@@ -880,7 +824,7 @@ class PurchaseController extends Controller
             ? (int) $itemData['product_id']
             : null;
 
-        if (!$productId) {
+        if (! $productId) {
             throw ValidationException::withMessages([
                 'items' => 'Select a valid product variant for each purchase item.',
             ]);
@@ -913,10 +857,10 @@ class PurchaseController extends Controller
 
         $name = $productName;
         if ($unitLabel !== '') {
-            $name .= ' (' . $unitLabel . ')';
+            $name .= ' ('.$unitLabel.')';
         }
-        if (!empty($variant->sku)) {
-            $name .= ' [' . $variant->sku . ']';
+        if (! empty($variant->sku)) {
+            $name .= ' ['.$variant->sku.']';
         }
 
         return $name;
@@ -930,7 +874,7 @@ class PurchaseController extends Controller
         $unitBaseLabel = $unitShort !== '' ? $unitShort : $unitName;
 
         if ($unitValue !== '') {
-            return trim($unitValue . ($unitBaseLabel !== '' ? ' ' . $unitBaseLabel : ''));
+            return trim($unitValue.($unitBaseLabel !== '' ? ' '.$unitBaseLabel : ''));
         }
 
         return $unitBaseLabel;
@@ -956,7 +900,7 @@ class PurchaseController extends Controller
             return $compact;
         }
 
-        return $compact . ' • ' . $unitName;
+        return $compact.' • '.$unitName;
     }
 
     private function rankPurchaseSearchResult(string $query, string $productName, string $sku, string $variantLabel): int
@@ -992,10 +936,10 @@ class PurchaseController extends Controller
                 : null;
 
             $key = $variantId
-                ? 'variant:' . $variantId
-                : ($productId ? 'product:' . $productId : null);
+                ? 'variant:'.$variantId
+                : ($productId ? 'product:'.$productId : null);
 
-            if (!$key) {
+            if (! $key) {
                 continue;
             }
 
@@ -1074,7 +1018,7 @@ class PurchaseController extends Controller
     {
         $config = self::MODERATION_STAGES[$stage] ?? null;
 
-        abort_if(!$config, 404);
+        abort_if(! $config, 404);
 
         $query = Purchase::query()
             ->with(['supplier'])
@@ -1124,17 +1068,6 @@ class PurchaseController extends Controller
             'grn' => 'purchases.moderation.grn',
             default => 'purchases.index',
         };
-    }
-
-    private function applyPurchaseStock($items): void
-    {
-        $purchase = $items instanceof \Illuminate\Support\Collection
-            ? $items->first()?->purchase
-            : null;
-
-        if ($purchase) {
-            $this->inventoryUnits()->activatePendingUnitsForPurchase($purchase, auth()->id());
-        }
     }
 
     private function purchaseStructureLocked(Purchase $purchase): bool

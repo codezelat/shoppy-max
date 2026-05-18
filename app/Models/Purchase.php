@@ -143,6 +143,19 @@ class Purchase extends Model
         return ($this->status ?? 'pending') === 'complete' || $this->hasStartedReceiving();
     }
 
+    public function isFullyPlacedInStores(): bool
+    {
+        $items = $this->relationLoaded('items')
+            ? $this->items
+            : $this->items()->with('inventoryUnits')->get();
+
+        if ($items->isEmpty()) {
+            return false;
+        }
+
+        return $items->every(fn (PurchaseItem $item) => $item->remainingPlacementQuantity() === 0);
+    }
+
     public function getPaymentStatusAttribute(): string
     {
         $netTotal = (float) ($this->net_total ?? 0);

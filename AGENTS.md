@@ -21,7 +21,7 @@ is operator-facing.
 Shoppy Max is a Laravel 12 operations platform for:
 
 - product and variant management
-- purchase intake with moderation and GRN scanning
+- purchase intake with moderation and manual retail/warehouse store placement
 - unit-level inventory traceability
 - order intake, call flow, waybill generation, waybill Excel export, plus packing and return flows that exist in part but should still be treated as work-in-progress operational areas
 - reseller/direct-reseller balances and payments
@@ -70,7 +70,7 @@ These are not suggestions. Preserve them when changing code.
 - product names are unique case-insensitively
 - SKUs are generated and must remain unique
 - product/variant stock is not manually edited from product CRUD
-- stock comes from purchases and leaves through orders
+- stock comes from manual retail/warehouse store placement and leaves through orders
 - product list filters must work cleanly on both SQLite and MySQL
 
 Barcode behavior:
@@ -82,7 +82,7 @@ Barcode behavior:
 - purchase barcode printing is SKU-oriented and quantity-aware:
   - print one repeated SKU barcode label per purchased unit quantity
   - do not print unique inventory-unit codes as the purchase label barcode
-  - GRN scanning must accept repeated SKU scans and resolve each scan to the next pending unit
+  - purchase barcode printing must not require inventory-unit records to already exist
 
 ### Purchases
 
@@ -100,7 +100,9 @@ Rules:
 - `pending -> checking -> verified -> complete`
 - do not allow moving backward or skipping stages
 - purchase date and purchase number are immutable after creation
-- purchase item structure locks once GRN receiving starts
+- purchase creation/editing must not create stock or inventory units automatically
+- verified purchase quantities are added to stock only through manual Retail Store or Warehouse Store placement
+- purchase item structure locks once store placement starts
 - a purchase in `complete` is locked from structural editing/deletion
 
 Payment status in purchases is derived, not stored:
@@ -109,17 +111,19 @@ Payment status in purchases is derived, not stored:
 - `partial`
 - `paid`
 
-### GRN and Stock Intake
+### Store Placement and Stock Intake
 
-GRN is scanner-driven from the verified purchase stage.
+Stock intake is manual from the verified purchase stage.
 
 Rules:
 
-- verified purchases enter GRN checking
-- scanning updates progress but stock must not become available until the entire GRN is completed
-- the last successful scan completes the purchase and releases stock into inventory
-- inventory units remain unique internally, but purchase-printed barcode labels repeat the SKU
-  per physical unit quantity
+- verified purchase items can be added into either `retail` or `warehouse` store
+- each store has its own simple rack rows
+- stock updates only when an operator chooses a rack and quantity for a purchase item
+- the placement action creates available inventory units, stores the rack/store metadata, and increments variant stock
+- do not allow placed quantity to exceed the purchased quantity remaining for that item
+- the purchase becomes `complete` only when all item quantities are fully placed into store stock
+- purchase-printed barcode labels repeat the SKU per physical unit quantity
 
 ### Inventory Units and Traceability
 
@@ -136,7 +140,7 @@ The system now tracks unit-level inventory.
 
 Rules:
 
-- purchases create unit records
+- manual store placement creates available unit records
 - orders allocate actual units, not abstract stock only
 - delivered orders mark units delivered
 - cancel/return/delete flows release units appropriately
@@ -245,7 +249,7 @@ Use these instead of scattering new logic:
   - `app/Services/InventoryUnitService.php`
 - courier-payment attach/detach order side effects:
   - `app/Services/CourierPaymentOrderService.php`
-- purchase moderation, GRN, purchase search:
+- purchase moderation, store placement, purchase search:
   - `app/Http/Controllers/PurchaseController.php`
 - order lifecycle, payment resolution, commission, reseller penalty, allocation:
   - `app/Http/Controllers/OrderController.php`
@@ -435,16 +439,19 @@ Check:
 - import preview/store
 - barcode print actions
 
-### Purchase / GRN / inventory changes
+### Purchase / store placement / inventory changes
 
 Check:
 
 - `/purchases`
 - purchase create/edit/show/PDF
 - purchase moderation page
-- GRN scanner page
+- `/purchases/store-placement/retail`
+- `/purchases/store-placement/warehouse`
+- `/purchases/store-racks/retail`
+- `/purchases/store-racks/warehouse`
 - purchase barcodes
-- aggregate stock impact after completion
+- aggregate stock impact after manual placement
 
 ### Order changes
 

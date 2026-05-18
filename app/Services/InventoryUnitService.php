@@ -9,6 +9,7 @@ use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
+use App\Models\StoreRack;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -23,6 +24,73 @@ class InventoryUnitService
     public function createAvailableUnitsForPurchaseItem(PurchaseItem $item, ?int $userId = null): Collection
     {
         return $this->createUnitsForPurchaseItem($item, InventoryUnit::STATUS_AVAILABLE, true, $userId);
+    }
+
+    public function placePurchaseItemInStore(PurchaseItem $item, StoreRack $rack, int $quantity, ?int $userId = null): Collection
+    {
+        $item = PurchaseItem::query()
+            ->with(['purchase.items.inventoryUnits', 'variant.product', 'variant.unit', 'inventoryUnits'])
+            ->whereKey($item->id)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        $rack = StoreRack::query()
+            ->whereKey($rack->id)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        $quantity = max($quantity, 0);
+        if ($quantity < 1) {
+            throw ValidationException::withMessages([
+                'quantity' => 'Enter a quantity greater than zero.',
+            ]);
+        }
+
+        if (! $item->variant) {
+            throw ValidationException::withMessages([
+                'purchase_item_id' => 'Selected purchase item is not linked to a product variant.',
+            ]);
+        }
+
+        $purchaseStatus = strtolower((string) ($item->purchase?->status ?? 'pending'));
+        if (! in_array($purchaseStatus, ['verified', 'complete'], true)) {
+            throw ValidationException::withMessages([
+                'purchase_item_id' => 'Only verified purchases can be added to store stock.',
+            ]);
+        }
+
+        $remaining = $item->remainingPlacementQuantity();
+        if ($quantity > $remaining) {
+            throw ValidationException::withMessages([
+                'quantity' => "Only {$remaining} unit(s) remain to be placed for this purchase item.",
+            ]);
+        }
+
+        $units = $this->createUnitsForPurchaseItem(
+            $item,
+            InventoryUnit::STATUS_AVAILABLE,
+            true,
+            $userId,
+            $rack->store_type,
+            $rack->id,
+            $quantity
+        );
+
+        ProductVariant::query()
+            ->whereKey((int) $item->stock_variant_id)
+            ->lockForUpdate()
+            ->increment('quantity', $units->count());
+
+        $purchase = $item->purchase?->fresh(['items.inventoryUnits']);
+        if ($purchase && $purchase->isFullyPlacedInStores() && ($purchase->status ?? 'pending') !== 'complete') {
+            $purchase->status = 'complete';
+            $purchase->completed_by = $userId;
+            $purchase->completed_at = now();
+            $purchase->stock_applied_at = now();
+            $purchase->save();
+        }
+
+        return $units;
     }
 
     public function archivePendingUnitsForPurchase(Purchase $purchase, string $reason, ?int $userId = null): int
@@ -514,11 +582,14 @@ class InventoryUnitService
         PurchaseItem $item,
         string $status,
         bool $logCreatedAsStocked,
-        ?int $userId = null
+        ?int $userId = null,
+        ?string $storeType = null,
+        ?int $storeRackId = null,
+        ?int $quantityOverride = null
     ): Collection {
         $item->loadMissing(['purchase', 'variant.product', 'variant.unit']);
 
-        $quantity = max((int) ($item->quantity ?? 0), 0);
+        $quantity = max($quantityOverride ?? (int) ($item->quantity ?? 0), 0);
         if ($quantity < 1 || ! $item->variant) {
             return collect();
         }
@@ -533,10 +604,14 @@ class InventoryUnitService
                 'purchase_id' => $item->purchase_id,
                 'purchase_item_id' => $item->id,
                 'status' => $status,
+                'store_type' => $storeType,
+                'store_rack_id' => $storeRackId,
                 'sku_snapshot' => $item->variant->sku,
                 'product_name_snapshot' => $item->variant->product->name ?? $item->product_name,
                 'variant_label_snapshot' => $this->buildVariantLabel($item->variant),
                 'available_at' => $status === InventoryUnit::STATUS_AVAILABLE ? $now : null,
+                'stored_at' => $storeType ? $now : null,
+                'stored_by' => $storeType ? $userId : null,
                 'last_event_at' => $now,
             ]);
 

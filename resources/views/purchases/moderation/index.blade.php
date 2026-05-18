@@ -49,7 +49,7 @@
                     href="{{ route('purchases.moderation.grn') }}"
                     class="inline-flex items-center justify-center rounded-lg px-4 py-3 text-sm font-medium transition {{ $stage === 'grn' ? 'bg-blue-700 text-white shadow-sm' : 'bg-gray-50 text-gray-700 hover:bg-gray-100 dark:bg-gray-700/60 dark:text-gray-200 dark:hover:bg-gray-700' }}"
                 >
-                    GRN Checking
+                    Store Placement
                 </a>
             </div>
         </div>
@@ -133,7 +133,7 @@
                             $hasReceivedUnits = (int) ($purchase->grn_progress_units_count ?? 0) > 0;
                             $actionsLocked = $isComplete || $hasReceivedUnits;
                             $viewRoute = $stage === 'grn'
-                                ? route('purchases.grn.show', $purchase)
+                                ? route('purchases.store-placement.index', 'retail')
                                 : route('purchases.show', $purchase);
                         @endphp
                         <tr class="border-b bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700/50">
@@ -171,7 +171,7 @@
                             @endunless
                             <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    <a href="{{ $viewRoute }}" class="rounded-lg p-2 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-gray-700" title="{{ $stage === 'grn' ? 'Open GRN' : 'View' }}">
+                                    <a href="{{ $viewRoute }}" class="rounded-lg p-2 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-gray-700" title="{{ $stage === 'grn' ? 'Add to Store' : 'View' }}">
                                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                     </a>
                                     @if(!$actionsLocked)
@@ -179,7 +179,7 @@
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                         </a>
                                     @else
-                                        <span class="rounded-lg p-2 text-gray-400 dark:text-gray-500" title="{{ $isComplete ? 'Editing locked after completion' : 'Editing locked after GRN scanning starts' }}">
+                                        <span class="rounded-lg p-2 text-gray-400 dark:text-gray-500" title="{{ $isComplete ? 'Editing locked after completion' : 'Editing locked after store placement starts' }}">
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V9a5 5 0 00-10 0v2H6a2 2 0 00-2 2v6a2 2 0 002 2zm3-10V9a3 3 0 016 0v2H9z"></path></svg>
                                         </span>
                                     @endif
@@ -192,7 +192,7 @@
                                             </button>
                                         </form>
                                     @else
-                                        <span class="rounded-lg p-2 text-gray-400 dark:text-gray-500" title="{{ $isComplete ? 'Deletion locked after completion' : 'Deletion locked after GRN scanning starts' }}">
+                                        <span class="rounded-lg p-2 text-gray-400 dark:text-gray-500" title="{{ $isComplete ? 'Deletion locked after completion' : 'Deletion locked after store placement starts' }}">
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V9a5 5 0 00-10 0v2H6a2 2 0 00-2 2v6a2 2 0 002 2zm3-10V9a3 3 0 016 0v2H9z"></path></svg>
                                         </span>
                                     @endif

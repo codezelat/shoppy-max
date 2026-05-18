@@ -31,7 +31,7 @@ This system manages:
 
 - Contacts: customers, suppliers, resellers, direct resellers, cities
 - Product catalog: categories, sub-categories, units, products, variants, pricing
-- Inventory movement: purchases, GRN intake, unit-level stock tracking, and orders
+- Inventory movement: purchase intake, manual retail/warehouse store placement, unit-level stock tracking, and orders
 - Orders: create/edit/view/print/PDF, call list, waybill queue, waybill Excel export queue, plus packing and return flows that exist in part but should still be treated as work-in-progress operational areas
 - Finance flows: reseller targets/payments/dues, courier payments, bank accounts
 - Reports: province sales, profit/loss, stock, packet count, product sales, user sales
@@ -62,11 +62,12 @@ Authentication is provided by Laravel Breeze, and permissions are handled by Spa
   - note: the `returned` state exists in backend accounting/inventory logic, but returns are still a work-in-progress operational area until the dedicated post-dispatch return screen/action exists
 - Purchase workflow with:
   - forward-only moderation (`pending -> checking -> verified -> complete`)
-  - GRN checking by barcode scan
-  - stock release only after full GRN completion
+  - no automatic stock creation when a purchase is added
+  - manual placement into Retail Store or Warehouse Store rack rows before stock updates
   - immutable purchase date and purchasing ID after creation
 - Unit-level inventory traceability:
   - purchase labels generated per PCS quantity
+  - store/rack metadata on manually placed stock units
   - orders allocate real inventory units
   - delivered/cancel/return flows update tracked units
 - Waybill workflow:
@@ -244,15 +245,15 @@ These are current implemented behaviors.
 ### Inventory
 
 - Product and variant creation starts stock at `0`.
-- Purchases create inventory-unit records immediately, but stock does not become available
-  until the purchase is fully completed through GRN.
+- Purchases do not create stock or inventory units automatically.
+- Stock is added only when a verified purchase item quantity is manually placed into a Retail Store or Warehouse Store rack row.
 - Orders allocate real inventory units, not only aggregate stock counts.
 - Stock decreases when units are allocated to active orders.
 - Delivered orders mark units as delivered.
 - Cancelling, returning, or deleting orders releases units appropriately.
 - Use the inventory-unit reconciliation commands if aggregate stock drifts from tracked units.
 
-### Purchases and GRN
+### Purchases and Store Placement
 
 Purchase statuses:
 
@@ -267,10 +268,11 @@ Rules:
 - Moderation is forward-only:
   - `pending -> checking -> verified -> complete`
 - Purchase date and purchasing ID are locked after creation.
-- GRN is scanner-driven from the verified stage.
-- Partial GRN scans update progress only.
-- Stock becomes available only when the final GRN scan completes the whole purchase.
-- Once GRN receiving starts, purchase structure is locked.
+- Verified purchase items can be manually added to either Retail Store or Warehouse Store.
+- Rack rows are maintained separately for Retail Store and Warehouse Store.
+- Placing stock creates available inventory units, records the store/rack, and increments product variant stock.
+- A purchase becomes `complete` only when all purchased item quantities have been placed into store stock.
+- Once store placement starts, purchase structure is locked.
 - Completed purchases are locked from structural edits and deletion.
 
 ### Orders
@@ -416,6 +418,10 @@ Important entry points:
   - `/orders/waybill`
 - Purchases: `/purchases`
 - Purchase moderation: `/purchases/moderation`
+- Retail store placement: `/purchases/store-placement/retail`
+- Warehouse store placement: `/purchases/store-placement/warehouse`
+- Retail racks: `/purchases/store-racks/retail`
+- Warehouse racks: `/purchases/store-racks/warehouse`
 - Couriers:
   - `/couriers`
   - `/receive-courier`
@@ -487,7 +493,7 @@ Run formatter:
 Note:
 
 - The automated test suite is currently light and does not cover the main operational workflows.
-- After changing purchases, GRN, orders, courier settlement, or stock logic, manual workflow
+- After changing purchases, store placement, orders, courier settlement, or stock logic, manual workflow
   verification is still required even if `php artisan test` passes.
 - `Tests\Feature\ExampleTest` expects `/` to redirect to the login page, matching the current app entry point.
 

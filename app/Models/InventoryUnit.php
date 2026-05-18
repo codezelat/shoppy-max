@@ -9,10 +9,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class InventoryUnit extends Model
 {
     public const STATUS_PENDING_RECEIPT = 'pending_receipt';
+
     public const STATUS_GRN_SCANNED = 'grn_scanned';
+
     public const STATUS_AVAILABLE = 'available';
+
     public const STATUS_ALLOCATED = 'allocated';
+
     public const STATUS_DELIVERED = 'delivered';
+
     public const STATUS_ARCHIVED = 'archived';
 
     public const GRN_PROGRESS_STATUSES = [
@@ -36,10 +41,14 @@ class InventoryUnit extends Model
         'order_item_id',
         'unit_code',
         'status',
+        'store_type',
+        'store_rack_id',
         'sku_snapshot',
         'product_name_snapshot',
         'variant_label_snapshot',
         'available_at',
+        'stored_at',
+        'stored_by',
         'allocated_at',
         'packed_scan_at',
         'packed_scan_user_id',
@@ -50,6 +59,7 @@ class InventoryUnit extends Model
 
     protected $casts = [
         'available_at' => 'datetime',
+        'stored_at' => 'datetime',
         'allocated_at' => 'datetime',
         'packed_scan_at' => 'datetime',
         'delivered_at' => 'datetime',
@@ -70,6 +80,11 @@ class InventoryUnit extends Model
     public function purchaseItem(): BelongsTo
     {
         return $this->belongsTo(PurchaseItem::class);
+    }
+
+    public function storeRack(): BelongsTo
+    {
+        return $this->belongsTo(StoreRack::class);
     }
 
     public function order(): BelongsTo

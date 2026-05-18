@@ -59,11 +59,11 @@
 
                     @if(($purchase->status ?? 'pending') !== 'complete')
                         <div class="mb-8 rounded-lg border border-blue-200 bg-blue-50 p-4 text-left text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-300">
-                            Inventory has not been added yet. Stock will update only when this purchase is moved to <span class="font-semibold">Complete</span>.
+                            Stock has not been added yet. Quantities update only when this purchase is manually placed into retail or warehouse rack rows.
                         </div>
                     @else
                         <div class="mb-8 rounded-lg border border-green-200 bg-green-50 p-4 text-left text-sm text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-300">
-                            Inventory was added to stock when this purchase was completed on {{ optional($purchase->stock_applied_at)->format('d M Y h:i A') ?: optional($purchase->completed_at)->format('d M Y h:i A') ?: '-' }}. Completed purchases stay locked to preserve audit accuracy.
+                            Purchase quantities were fully placed into store stock on {{ optional($purchase->stock_applied_at)->format('d M Y h:i A') ?: optional($purchase->completed_at)->format('d M Y h:i A') ?: '-' }}. Completed purchases stay locked to preserve audit accuracy.
                         </div>
                     @endif
 

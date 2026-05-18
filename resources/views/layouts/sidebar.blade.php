@@ -211,6 +211,18 @@
                         <li>
                             <a href="{{ route('purchases.create') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('purchases.create') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Add Purchase</a>
                         </li>
+                        <li>
+                            <a href="{{ route('purchases.store-placement.index', 'retail') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('purchases.store-placement.*') && request()->route('store') === 'retail' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Add to Retail Store</a>
+                        </li>
+                        <li>
+                            <a href="{{ route('purchases.store-racks.index', 'retail') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('purchases.store-racks.*') && request()->route('store') === 'retail' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Retail Racks</a>
+                        </li>
+                        <li>
+                            <a href="{{ route('purchases.store-placement.index', 'warehouse') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('purchases.store-placement.*') && request()->route('store') === 'warehouse' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Add to Warehouse Store</a>
+                        </li>
+                        <li>
+                            <a href="{{ route('purchases.store-racks.index', 'warehouse') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('purchases.store-racks.*') && request()->route('store') === 'warehouse' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Warehouse Racks</a>
+                        </li>
                     </ul>
                 </li>
 

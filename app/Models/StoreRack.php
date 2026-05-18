@@ -1,0 +1,49 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class StoreRack extends Model
+{
+    public const STORE_RETAIL = 'retail';
+
+    public const STORE_WAREHOUSE = 'warehouse';
+
+    public const STORE_LABELS = [
+        self::STORE_RETAIL => 'Retail Store',
+        self::STORE_WAREHOUSE => 'Warehouse Store',
+    ];
+
+    protected $fillable = [
+        'store_type',
+        'row_name',
+        'row_key',
+    ];
+
+    public static function normalizeStoreType(string $storeType): string
+    {
+        return strtolower(trim($storeType));
+    }
+
+    public static function isValidStoreType(string $storeType): bool
+    {
+        return array_key_exists(self::normalizeStoreType($storeType), self::STORE_LABELS);
+    }
+
+    public static function storeLabel(string $storeType): string
+    {
+        return self::STORE_LABELS[self::normalizeStoreType($storeType)] ?? 'Store';
+    }
+
+    public static function normalizeRowKey(string $rowName): string
+    {
+        return mb_strtolower(preg_replace('/\s+/', ' ', trim($rowName)));
+    }
+
+    public function inventoryUnits(): HasMany
+    {
+        return $this->hasMany(InventoryUnit::class);
+    }
+}

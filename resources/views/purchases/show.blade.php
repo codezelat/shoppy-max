@@ -61,15 +61,15 @@
 
         @if(($purchase->status ?? 'pending') !== 'complete' && !$hasStartedReceiving)
             <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-300">
-                Inventory is still pending for this purchase. Open the GRN checking view after verification to start scanning labels into stock.
+                This purchase has not been added to store stock yet. After verification, use retail or warehouse store placement to add quantities into rack rows.
             </div>
         @elseif(($purchase->status ?? 'pending') !== 'complete' && $hasStartedReceiving)
             <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">
-                GRN scanning is in progress. {{ number_format($purchase->grnProgressUnitsCount(), 0) }} of {{ number_format($purchase->totalTrackedUnitsCount(), 0) }} labels have been scanned, but stock will stay unavailable until the final label completes this GRN.
+                Store placement has started. Purchase details are locked while placed stock remains linked to this purchase.
             </div>
         @else
             <div class="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-300">
-                Inventory was added to stock when this purchase was completed on {{ optional($purchase->stock_applied_at)->format('d M Y h:i A') ?: optional($purchase->completed_at)->format('d M Y h:i A') ?: '-' }}. Completed purchases are locked from further editing.
+                Purchase quantities were fully placed into store stock on {{ optional($purchase->stock_applied_at)->format('d M Y h:i A') ?: optional($purchase->completed_at)->format('d M Y h:i A') ?: '-' }}. Completed purchases are locked from further editing.
             </div>
         @endif
 
@@ -82,12 +82,12 @@
             @else
                 <span class="inline-flex items-center rounded-lg border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
                     <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V9a5 5 0 00-10 0v2H6a2 2 0 00-2 2v6a2 2 0 002 2zm3-10V9a3 3 0 016 0v2H9z"></path></svg>
-                    {{ ($purchase->status ?? 'pending') === 'complete' ? 'Editing Locked' : 'GRN In Progress' }}
+                    {{ ($purchase->status ?? 'pending') === 'complete' ? 'Editing Locked' : 'Store Placement Started' }}
                 </span>
             @endif
             @if(in_array((string) ($purchase->status ?? 'pending'), ['verified', 'complete'], true))
-                <a href="{{ route('purchases.grn.show', $purchase) }}" class="inline-flex items-center rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 focus:ring-4 focus:ring-emerald-200 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/30">
-                    Open GRN Checking
+                <a href="{{ route('purchases.store-placement.index', 'retail') }}" class="inline-flex items-center rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 focus:ring-4 focus:ring-emerald-200 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/30">
+                    Add to Store
                 </a>
             @endif
             <a href="{{ route('purchases.barcodes', $purchase) }}" target="_blank" class="inline-flex items-center rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 focus:ring-4 focus:ring-blue-200 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30">

@@ -66,6 +66,18 @@ class PurchaseItem extends Model
         return max($this->trackedUnitCount() - $this->scannedUnitCount(), 0);
     }
 
+    public function placedUnitCount(): int
+    {
+        return $this->trackedUnits()
+            ->whereIn('status', InventoryUnit::ACTIVE_STOCK_STATUSES)
+            ->count();
+    }
+
+    public function remainingPlacementQuantity(): int
+    {
+        return max((int) ($this->quantity ?? 0) - $this->placedUnitCount(), 0);
+    }
+
     public function trackedUnitRangeLabel(): ?string
     {
         $units = $this->trackedUnits();
@@ -78,12 +90,12 @@ class PurchaseItem extends Model
         $firstCode = $units->first()?->unit_code;
         $lastCode = $units->last()?->unit_code;
 
-        if (!$firstCode) {
+        if (! $firstCode) {
             return null;
         }
 
         return $count === 1 || $firstCode === $lastCode
             ? $firstCode
-            : $firstCode . ' to ' . $lastCode;
+            : $firstCode.' to '.$lastCode;
     }
 }

@@ -1,12 +1,11 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Admin\UserManagementController;
-use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\PermissionManagementController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\RoleManagementController;
+use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\GuestProductController;
-use App\Http\Controllers\ProductImportController;
+use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -44,9 +43,6 @@ Route::middleware('auth')->group(function () {
     Route::get('user-logs', [\App\Http\Controllers\UserLogController::class, 'index'])->name('user-logs.index');
 });
 
-
-
-
 // Product Management Routes
 Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
     Route::get('products/export', [\App\Http\Controllers\ProductController::class, 'export'])->name('products.export');
@@ -54,13 +50,13 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
     Route::post('products/bulk-destroy', [\App\Http\Controllers\ProductController::class, 'bulkDestroy'])->name('products.destroy.bulk');
     Route::get('products/print-barcodes-bulk', [\App\Http\Controllers\ProductController::class, 'bulkPrintBarcode'])->name('products.barcode.bulk');
     Route::get('variants/{variant}/print-barcode', [\App\Http\Controllers\ProductController::class, 'printBarcode'])->name('products.barcode.print');
-    
+
     // Product Import
     Route::get('products/import', [\App\Http\Controllers\ProductImportController::class, 'show'])->name('products.import.show');
     Route::get('products/import/template', [\App\Http\Controllers\ProductImportController::class, 'downloadTemplate'])->name('products.import.template');
     Route::post('products/import/preview', [\App\Http\Controllers\ProductImportController::class, 'preview'])->name('products.import.preview');
     Route::post('products/import/store', [\App\Http\Controllers\ProductImportController::class, 'store'])->name('products.import.store');
-    
+
     Route::resource('products', \App\Http\Controllers\ProductController::class);
     Route::resource('categories', \App\Http\Controllers\CategoryController::class);
     Route::resource('sub-categories', \App\Http\Controllers\SubCategoryController::class);
@@ -81,12 +77,12 @@ Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function (
     Route::get('/create', [\App\Http\Controllers\OrderController::class, 'create'])->name('create');
     Route::post('/', [\App\Http\Controllers\OrderController::class, 'store'])->name('store');
     Route::get('/call-list', [\App\Http\Controllers\OrderController::class, 'callList'])->name('call-list');
-    
+
     // Search APIs
     Route::get('/search-products', [\App\Http\Controllers\OrderController::class, 'searchProducts'])->name('search-products');
     Route::get('/search-resellers', [\App\Http\Controllers\OrderController::class, 'searchResellers'])->name('search-resellers');
     Route::get('/search-customers', [\App\Http\Controllers\OrderController::class, 'searchCustomers'])->name('search-customers');
-    
+
     // Waybill (Must be before /{order} wildcard)
     Route::get('/waybill', [\App\Http\Controllers\WaybillController::class, 'index'])->name('waybill.index');
     Route::get('/waybill/{courier}', [\App\Http\Controllers\WaybillController::class, 'show'])->name('waybill.show');
@@ -113,7 +109,7 @@ Route::middleware(['auth'])->prefix('orders')->name('orders.')->group(function (
     Route::put('/{order}', [\App\Http\Controllers\OrderController::class, 'update'])->name('update');
     Route::delete('/{order}', [\App\Http\Controllers\OrderController::class, 'destroy'])->name('destroy');
     Route::get('/{order}/pdf', [\App\Http\Controllers\OrderController::class, 'downloadPdf'])->name('pdf');
-    
+
     // Status update
     Route::post('/{id}/status', [\App\Http\Controllers\OrderController::class, 'updateStatus'])->name('status.update');
 });
@@ -175,6 +171,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/purchases/{purchase}/success', [\App\Http\Controllers\PurchaseController::class, 'success'])->name('purchases.success');
     Route::get('/purchases/{purchase}/barcodes', [\App\Http\Controllers\PurchaseController::class, 'printBarcodes'])->name('purchases.barcodes');
     Route::get('/purchases/{purchase}/items/{item}/barcodes', [\App\Http\Controllers\PurchaseController::class, 'printItemBarcodes'])->name('purchases.items.barcodes');
+    Route::get('/purchases/store-placement/{store}', [\App\Http\Controllers\PurchaseStorePlacementController::class, 'index'])->name('purchases.store-placement.index');
+    Route::post('/purchases/store-placement/{store}', [\App\Http\Controllers\PurchaseStorePlacementController::class, 'store'])->name('purchases.store-placement.store');
+    Route::get('/purchases/store-racks/{store}', [\App\Http\Controllers\StoreRackController::class, 'index'])->name('purchases.store-racks.index');
+    Route::post('/purchases/store-racks/{store}', [\App\Http\Controllers\StoreRackController::class, 'store'])->name('purchases.store-racks.store');
     Route::get('/purchases/moderation', function () {
         return redirect()->route('purchases.moderation.checking');
     })->name('purchases.moderation.index');
