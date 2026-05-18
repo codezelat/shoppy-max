@@ -463,7 +463,7 @@ Check:
 - waybill queue and print
 - waybill Excel export queue
 - packing flow
-  - `/orders/packing/ready` lists waybill-printed orders waiting to be picked
+  - `/orders/packing/ready` lists waybill-printed orders waiting for a pick GRN; creating the pick GRN validates rack locations, assigns a `PGRN-YYYYMMDD-####` number, opens the printable/save-as-PDF pick sheet, and moves the order to Picking
   - `/orders/packing/picking` lists picked-from-rack orders that are currently being scanned
   - `/orders/packing/packed` lists fully scanned packed orders ready for dispatch
   - the per-order scanner accepts allocated unit labels or repeated SKU scans, persists scan progress on inventory units, and automatically moves the order to `packed` on the final required scan

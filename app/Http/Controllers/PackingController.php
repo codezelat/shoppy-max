@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class PackingController extends Controller
@@ -19,7 +20,7 @@ class PackingController extends Controller
         'ready' => [
             'status' => 'waybill_printed',
             'title' => 'Ready To Pick',
-            'description' => 'Waybill printed orders waiting for rack picking.',
+            'description' => 'Create the pick GRN with rack locations before scanner picking starts.',
             'empty' => 'No waybill printed orders are waiting to be picked.',
         ],
         'picking' => [
@@ -80,6 +81,9 @@ class PackingController extends Controller
         $orders->setCollection(
             $orders->getCollection()->map(function (Order $order) {
                 $order->packing_summary = $this->buildPackingSummary($order);
+                $order->pick_grn_modal_payload = $order->pick_grn_number
+                    ? $this->buildPickGrnModalPayload($order, $order->packing_summary)
+                    : null;
 
                 return $order;
             })
@@ -112,6 +116,29 @@ class PackingController extends Controller
     /**
      * Packing Interface for a specific order (Scanner UI).
      */
+    public function pickGrn($id)
+    {
+        $order = Order::with([
+            'customer',
+            'courier',
+            'items.inventoryUnits.purchase',
+            'items.inventoryUnits.storeRack',
+            'pickGrnCreator',
+        ])->findOrFail($id);
+
+        if ((string) ($order->call_status ?? '') !== 'confirm' || ! in_array((string) ($order->delivery_status ?? ''), ['picked_from_rack', 'packed', 'dispatched', 'delivered'], true)) {
+            return redirect()->route('orders.packing.ready')->with('error', 'Create the pick GRN before viewing it.');
+        }
+
+        if (blank($order->pick_grn_number)) {
+            return redirect()->route('orders.packing.ready')->with('error', 'Pick GRN number is missing. Create the pick GRN again.');
+        }
+
+        $packingSummary = $this->buildPackingSummary($order);
+
+        return view('orders.packing.pick-grn', compact('order', 'packingSummary'));
+    }
+
     public function process($id)
     {
         $order = Order::with(['items.inventoryUnits' => function ($query) {
@@ -123,7 +150,7 @@ class PackingController extends Controller
                 ->orderBy('id');
         }])->findOrFail($id);
 
-        if ((string) ($order->call_status ?? '') !== 'confirm' || ! in_array((string) ($order->delivery_status ?? ''), ['waybill_printed', 'picked_from_rack'], true)) {
+        if ((string) ($order->call_status ?? '') !== 'confirm' || (string) ($order->delivery_status ?? '') !== 'picked_from_rack') {
             return redirect()->route('orders.packing.ready')->with('error', 'Only call-confirmed orders in the picking queue can be packed.');
         }
 
@@ -140,7 +167,7 @@ class PackingController extends Controller
 
         $order = Order::with(['items.inventoryUnits'])->findOrFail($id);
 
-        if ((string) ($order->call_status ?? '') !== 'confirm' || ! in_array((string) ($order->delivery_status ?? ''), ['waybill_printed', 'picked_from_rack'], true)) {
+        if ((string) ($order->call_status ?? '') !== 'confirm' || (string) ($order->delivery_status ?? '') !== 'picked_from_rack') {
             return response()->json([
                 'success' => false,
                 'message' => 'Only call-confirmed orders in the picking queue can be scanned.',
@@ -150,24 +177,6 @@ class PackingController extends Controller
         DB::beginTransaction();
 
         try {
-            if ((string) ($order->delivery_status ?? '') === 'waybill_printed') {
-                $order->delivery_status = 'picked_from_rack';
-                if (! $order->picked_at) {
-                    $order->picked_at = now();
-                }
-                if (! $order->picked_by) {
-                    $order->picked_by = Auth::id();
-                }
-                $order->save();
-
-                OrderLog::create([
-                    'order_id' => $order->id,
-                    'user_id' => Auth::id(),
-                    'action' => 'picked_from_rack',
-                    'description' => 'Order moved to picked from rack.',
-                ]);
-            }
-
             $result = $this->inventoryUnits->scanOrderUnitForPacking($order, $validated['unit_code'], Auth::id());
             $summary = $this->buildPackingSummary($order->fresh(['items.inventoryUnits.purchase', 'items.inventoryUnits.storeRack']));
             $autoPacked = false;
@@ -210,17 +219,46 @@ class PackingController extends Controller
 
     public function markPicked(Request $request, $id)
     {
-        $order = Order::findOrFail($id);
+        $order = Order::with(['items.inventoryUnits.purchase', 'items.inventoryUnits.storeRack'])->findOrFail($id);
 
         if ((string) ($order->call_status ?? '') !== 'confirm' || (string) ($order->delivery_status ?? '') !== 'waybill_printed') {
-            return response()->json([
+            $payload = [
                 'success' => false,
                 'message' => 'Only call-confirmed waybill-printed orders can move to Picked From Rack.',
-            ], 422);
+            ];
+
+            return $request->expectsJson()
+                ? response()->json($payload, 422)
+                : redirect()->route('orders.packing.ready')->with('error', $payload['message']);
+        }
+
+        $summary = $this->buildPackingSummary($order);
+        $summaryItems = collect($summary['items'] ?? []);
+        $requiredCount = $summaryItems->sum('required_count');
+        $allocatedCount = $summaryItems->sum(fn ($item) => count($item['units'] ?? []));
+        $missingRackLocation = $summaryItems
+            ->flatMap(fn ($item) => collect($item['units'] ?? []))
+            ->contains(fn ($unit) => empty($unit['rack_id']));
+
+        if ($requiredCount < 1 || $allocatedCount < $requiredCount || $missingRackLocation) {
+            $message = 'Pick GRN cannot be created until all required units have rack locations.';
+
+            return $request->expectsJson()
+                ? response()->json(['success' => false, 'message' => $message], 422)
+                : redirect()->route('orders.packing.ready')->with('error', $message);
         }
 
         $order->delivery_status = 'picked_from_rack';
         $order->status = $order->call_status === 'hold' ? 'hold' : 'confirm';
+        if (! $order->pick_grn_number) {
+            $order->pick_grn_number = $this->nextPickGrnNumber();
+        }
+        if (! $order->pick_grn_created_at) {
+            $order->pick_grn_created_at = now();
+        }
+        if (! $order->pick_grn_created_by) {
+            $order->pick_grn_created_by = Auth::id();
+        }
         if (! $order->picked_at) {
             $order->picked_at = now();
         }
@@ -232,14 +270,23 @@ class PackingController extends Controller
         OrderLog::create([
             'order_id' => $order->id,
             'user_id' => Auth::id(),
-            'action' => 'picked_from_rack',
-            'description' => 'Order moved to picked from rack.',
+            'action' => 'pick_grn_created',
+            'description' => 'Pick GRN '.$order->pick_grn_number.' created and order moved to picking.',
         ]);
 
-        return response()->json([
-            'success' => true,
-            'delivery_status' => $order->delivery_status,
-        ]);
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'delivery_status' => $order->delivery_status,
+                'pick_grn_number' => $order->pick_grn_number,
+                'print_url' => route('orders.packing.pick-grn', ['id' => $order->id, 'print' => 1]),
+            ]);
+        }
+
+        return redirect()
+            ->route('orders.packing.ready')
+            ->with('success', 'Pick GRN '.$order->pick_grn_number.' created. Print or save the pick sheet, then scan from the Picking tab.')
+            ->with('pick_grn_modal', $this->buildPickGrnModalPayload($order, $summary));
     }
 
     /**
@@ -328,6 +375,7 @@ class PackingController extends Controller
                     'id' => $unit->id,
                     'unit_code' => $unit->unit_code,
                     'store_type' => $unit->store_type,
+                    'rack_id' => $unit->store_rack_id,
                     'store_label' => $unit->store_type ? StoreRack::storeLabel((string) $unit->store_type) : 'Unassigned Store',
                     'rack_label' => $unit->storeRack?->display_label ?? 'Unassigned Rack',
                     'purchase_number' => $unit->purchase?->purchase_number ?? 'Legacy stock',
@@ -339,6 +387,34 @@ class PackingController extends Controller
         return [
             'items' => $items->all(),
             'all_scanned' => $items->every(fn ($item) => ($item['required_count'] ?? 0) > 0 && ($item['scanned_count'] ?? 0) >= ($item['required_count'] ?? 0)),
+        ];
+    }
+
+    private function buildPickGrnModalPayload(Order $order, array $summary): array
+    {
+        return [
+            'number' => $order->pick_grn_number,
+            'order_number' => $order->order_number,
+            'waybill_number' => $order->waybill_number,
+            'print_url' => route('orders.packing.pick-grn', ['id' => $order->id, 'print' => 1]),
+            'picking_url' => route('orders.packing.picking'),
+            'items' => collect($summary['items'] ?? [])
+                ->map(fn ($item) => [
+                    'product_name' => $item['product_name'] ?? '-',
+                    'sku' => $item['sku'] ?? '-',
+                    'required_count' => (int) ($item['required_count'] ?? 0),
+                    'units' => collect($item['units'] ?? [])
+                        ->map(fn ($unit) => [
+                            'unit_code' => $unit['unit_code'] ?? '-',
+                            'store_label' => $unit['store_label'] ?? 'Unassigned Store',
+                            'rack_label' => $unit['rack_label'] ?? 'Unassigned Rack',
+                            'purchase_number' => $unit['purchase_number'] ?? 'Legacy stock',
+                        ])
+                        ->values()
+                        ->all(),
+                ])
+                ->values()
+                ->all(),
         ];
     }
 
@@ -407,5 +483,26 @@ class PackingController extends Controller
             StoreRack::STORE_WAREHOUSE => 1,
             default => 2,
         };
+    }
+
+    private function nextPickGrnNumber(): string
+    {
+        $date = now()->format('Ymd');
+        $prefix = "PGRN-{$date}-";
+        $latest = Order::query()
+            ->where('pick_grn_number', 'like', $prefix.'%')
+            ->orderByDesc('pick_grn_number')
+            ->value('pick_grn_number');
+
+        $next = $latest && Str::startsWith($latest, $prefix)
+            ? ((int) substr($latest, strlen($prefix))) + 1
+            : 1;
+
+        do {
+            $number = $prefix.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+            $next++;
+        } while (Order::query()->where('pick_grn_number', $number)->exists());
+
+        return $number;
     }
 }

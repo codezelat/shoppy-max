@@ -2,9 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Order extends Model
@@ -42,6 +41,9 @@ class Order extends Model
         'total_commission', // New
         'sales_note',
         'waybill_number',
+        'pick_grn_number',
+        'pick_grn_created_at',
+        'pick_grn_created_by',
         'courier_id',
         'courier_cost', // Legacy or used interchangeably
         'courier_charge', // New
@@ -74,6 +76,7 @@ class Order extends Model
         'delivery_fee' => 'decimal:2',
         'reseller_return_fee_applied' => 'decimal:2',
         'waybill_printed_at' => 'datetime',
+        'pick_grn_created_at' => 'datetime',
         'waybill_excel_exported_at' => 'datetime',
         'picked_at' => 'datetime',
         'packed_at' => 'datetime',
@@ -101,6 +104,11 @@ class Order extends Model
     public function waybillPrinter()
     {
         return $this->belongsTo(User::class, 'waybill_printed_by');
+    }
+
+    public function pickGrnCreator()
+    {
+        return $this->belongsTo(User::class, 'pick_grn_created_by');
     }
 
     public function picker()
@@ -152,12 +160,12 @@ class Order extends Model
     {
         return $this->belongsTo(City::class);
     }
-    
+
     public function courier()
     {
         return $this->belongsTo(Courier::class);
     }
-    
+
     public function courierPayment()
     {
         return $this->belongsTo(CourierPayment::class);

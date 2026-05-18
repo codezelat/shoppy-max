@@ -22,6 +22,7 @@ use App\Models\PurchaseItem;
 use App\Models\Reseller;
 use App\Models\ResellerPayment;
 use App\Models\ResellerTarget;
+use App\Models\StoreRack;
 use App\Models\SubCategory;
 use App\Models\Supplier;
 use App\Models\Unit;
@@ -44,6 +45,7 @@ class DemoSystemSeeder extends Seeder
         $cities = $this->seedCities();
         $couriers = $this->seedCouriers();
         $bankAccounts = $this->seedBankAccounts();
+        $storeRacks = $this->seedStoreRacks();
         $suppliers = $this->seedSuppliers();
         $resellers = $this->seedResellers($couriers);
         $this->seedResellerTargets($resellers);
@@ -56,7 +58,7 @@ class DemoSystemSeeder extends Seeder
         $this->seedResellerPayments($resellers);
         $this->syncResellerDueAmounts($resellers);
         $this->seedAttributes();
-        $this->seedInventoryUnits();
+        $this->seedInventoryUnits($storeRacks, $users);
     }
 
     private function seedUsers(): array
@@ -104,7 +106,7 @@ class DemoSystemSeeder extends Seeder
         ];
     }
 
-    private function seedInventoryUnits(): void
+    private function seedInventoryUnits(array $storeRacks, array $users): void
     {
         if (! Schema::hasTable('inventory_units') || ! Schema::hasTable('inventory_unit_events')) {
             return;
@@ -116,6 +118,102 @@ class DemoSystemSeeder extends Seeder
         }
 
         app(InventoryUnitService::class)->backfillFromCurrentState();
+        $this->seedInventoryUnitLocations($storeRacks, $users);
+    }
+
+    private function seedStoreRacks(): array
+    {
+        if (! Schema::hasTable('store_racks')) {
+            return [];
+        }
+
+        $rows = [
+            [
+                'store_type' => StoreRack::STORE_RETAIL,
+                'rack_name' => 'Retail A',
+                'row_name' => 'Row 1',
+            ],
+            [
+                'store_type' => StoreRack::STORE_RETAIL,
+                'rack_name' => 'Retail A',
+                'row_name' => 'Row 2',
+            ],
+            [
+                'store_type' => StoreRack::STORE_WAREHOUSE,
+                'rack_name' => 'Warehouse A',
+                'row_name' => 'Row 1',
+            ],
+            [
+                'store_type' => StoreRack::STORE_WAREHOUSE,
+                'rack_name' => 'Warehouse B',
+                'row_name' => 'Row 3',
+            ],
+        ];
+
+        $map = [];
+        foreach ($rows as $row) {
+            $rack = StoreRack::updateOrCreate(
+                [
+                    'store_type' => $row['store_type'],
+                    'rack_key' => StoreRack::normalizeRackKey($row['rack_name']),
+                    'row_key' => StoreRack::normalizeRowKey($row['row_name']),
+                ],
+                [
+                    'rack_name' => $row['rack_name'],
+                    'row_name' => $row['row_name'],
+                ]
+            );
+
+            $map[$row['store_type']][] = $rack;
+        }
+
+        return $map;
+    }
+
+    private function seedInventoryUnitLocations(array $storeRacks, array $users): void
+    {
+        if (empty($storeRacks)) {
+            return;
+        }
+
+        $superAdminId = $users['super_admin']->id ?? null;
+        $retailRacks = collect($storeRacks[StoreRack::STORE_RETAIL] ?? [])->values();
+        $warehouseRacks = collect($storeRacks[StoreRack::STORE_WAREHOUSE] ?? [])->values();
+        $fallbackRacks = $retailRacks->merge($warehouseRacks)->values();
+
+        if ($fallbackRacks->isEmpty()) {
+            return;
+        }
+
+        InventoryUnit::query()
+            ->with('order')
+            ->whereIn('status', InventoryUnit::ACTIVE_STOCK_STATUSES)
+            ->orderBy('id')
+            ->chunkById(250, function ($units) use ($retailRacks, $warehouseRacks, $fallbackRacks, $superAdminId) {
+                foreach ($units as $unit) {
+                    $preferredRacks = $unit->order_id
+                        ? ($retailRacks->isNotEmpty() ? $retailRacks : $fallbackRacks)
+                        : ($warehouseRacks->isNotEmpty() ? $warehouseRacks : $fallbackRacks);
+                    $rack = $preferredRacks->get(((int) $unit->id) % $preferredRacks->count());
+
+                    if (! $rack) {
+                        continue;
+                    }
+
+                    $unit->store_type = $rack->store_type;
+                    $unit->store_rack_id = $rack->id;
+                    $unit->stored_at = $unit->available_at ?? $unit->allocated_at ?? $unit->created_at ?? now();
+                    $unit->stored_by = $superAdminId;
+
+                    $deliveryStatus = strtolower((string) ($unit->order?->delivery_status ?? ''));
+                    if (in_array($deliveryStatus, ['packed', 'dispatched', 'delivered', 'returned'], true)) {
+                        $unit->packed_scan_at = $unit->order?->packed_at ?? $unit->allocated_at ?? now();
+                        $unit->packed_scan_user_id = $unit->order?->packed_by ?? $superAdminId;
+                    }
+
+                    $unit->save();
+                }
+            });
     }
 
     private function seedUnits(): array
@@ -716,6 +814,7 @@ class DemoSystemSeeder extends Seeder
         array $cities,
         array $variants
     ): array {
+        $hasPickGrnColumns = Schema::hasColumn('orders', 'pick_grn_number');
         $rows = [
             [
                 'order_number' => 'DEMO-ORD-0001',
@@ -970,6 +1069,220 @@ class DemoSystemSeeder extends Seeder
                 ],
             ],
             [
+                'order_number' => 'DEMO-ORD-0014',
+                'order_date' => now()->toDateString(),
+                'order_type' => 'direct',
+                'status' => 'confirm',
+                'call_status' => 'confirm',
+                'delivery_status' => 'waybill_printed',
+                'payment_method' => 'COD',
+                'discount_type' => 'fixed',
+                'discount_value' => 0.00,
+                'discount_amount' => 0.00,
+                'customer' => 'Amila Perera',
+                'reseller' => null,
+                'city_key' => 'Colombo 01|Colombo',
+                'courier' => 'Lanka Post Parcel',
+                'waybill_number' => 'LPP-240001',
+                'courier_charge' => 400.00,
+                'courier_cost' => 0.00,
+                'sales_note' => 'Ready To Pick queue demo order',
+                'items' => [
+                    ['sku' => 'HSH-250ML', 'quantity' => 2, 'selling_price' => 1180.00],
+                    ['sku' => 'VLC-1M', 'quantity' => 1, 'selling_price' => 1250.00],
+                ],
+            ],
+            [
+                'order_number' => 'DEMO-ORD-0015',
+                'order_date' => now()->toDateString(),
+                'order_type' => 'direct',
+                'status' => 'confirm',
+                'call_status' => 'confirm',
+                'delivery_status' => 'picked_from_rack',
+                'payment_method' => 'COD',
+                'discount_type' => 'fixed',
+                'discount_value' => 0.00,
+                'discount_amount' => 0.00,
+                'customer' => 'Ruwan Maduranga',
+                'reseller' => null,
+                'city_key' => 'Maharagama|Colombo',
+                'courier' => 'Lanka Post Parcel',
+                'waybill_number' => 'LPP-240002',
+                'pick_grn_number' => 'PGRN-SEED-0015',
+                'courier_charge' => 400.00,
+                'courier_cost' => 0.00,
+                'sales_note' => 'Picking queue scanner demo order',
+                'items' => [
+                    ['sku' => 'PNR-1KG', 'quantity' => 2, 'selling_price' => 310.00],
+                    ['sku' => 'FDOJ-1L', 'quantity' => 2, 'selling_price' => 760.00],
+                ],
+            ],
+            [
+                'order_number' => 'DEMO-ORD-0016',
+                'order_date' => now()->toDateString(),
+                'order_type' => 'direct',
+                'status' => 'confirm',
+                'call_status' => 'confirm',
+                'delivery_status' => 'packed',
+                'payment_method' => 'COD',
+                'discount_type' => 'fixed',
+                'discount_value' => 0.00,
+                'discount_amount' => 0.00,
+                'customer' => 'Nadeesha Silva',
+                'reseller' => null,
+                'city_key' => 'Kandy|Kandy',
+                'courier' => 'Lanka Post Parcel',
+                'waybill_number' => 'LPP-240003',
+                'pick_grn_number' => 'PGRN-SEED-0016',
+                'courier_charge' => 400.00,
+                'courier_cost' => 0.00,
+                'sales_note' => 'Packed queue dispatch demo order',
+                'items' => [
+                    ['sku' => 'VLC-1M', 'quantity' => 1, 'selling_price' => 1250.00],
+                    ['sku' => 'SMGV-1000', 'quantity' => 1, 'selling_price' => 1000.00],
+                ],
+            ],
+            [
+                'order_number' => 'DEMO-ORD-0017',
+                'order_date' => now()->toDateString(),
+                'order_type' => 'direct',
+                'status' => 'confirm',
+                'call_status' => 'confirm',
+                'delivery_status' => 'waybill_printed',
+                'payment_method' => 'COD',
+                'discount_type' => 'fixed',
+                'discount_value' => 0.00,
+                'discount_amount' => 0.00,
+                'customer' => 'Kavindi Jayasekara',
+                'reseller' => null,
+                'city_key' => 'Galle|Galle',
+                'courier' => 'Lanka Post Parcel',
+                'waybill_number' => 'LPP-240004',
+                'courier_charge' => 400.00,
+                'courier_cost' => 0.00,
+                'sales_note' => 'Ready To Pick queue demo order 2',
+                'items' => [
+                    ['sku' => 'PNR-1KG', 'quantity' => 1, 'selling_price' => 310.00],
+                    ['sku' => 'FDOJ-1L', 'quantity' => 1, 'selling_price' => 760.00],
+                ],
+            ],
+            [
+                'order_number' => 'DEMO-ORD-0018',
+                'order_date' => now()->toDateString(),
+                'order_type' => 'direct',
+                'status' => 'confirm',
+                'call_status' => 'confirm',
+                'delivery_status' => 'waybill_printed',
+                'payment_method' => 'COD',
+                'discount_type' => 'fixed',
+                'discount_value' => 0.00,
+                'discount_amount' => 0.00,
+                'customer' => 'Nadeesha Silva',
+                'reseller' => null,
+                'city_key' => 'Kandy|Kandy',
+                'courier' => 'Lanka Post Parcel',
+                'waybill_number' => 'LPP-240005',
+                'courier_charge' => 400.00,
+                'courier_cost' => 0.00,
+                'sales_note' => 'Ready To Pick queue demo order 3',
+                'items' => [
+                    ['sku' => 'HSH-250ML', 'quantity' => 1, 'selling_price' => 1180.00],
+                    ['sku' => 'SMGV-1000', 'quantity' => 1, 'selling_price' => 1000.00],
+                ],
+            ],
+            [
+                'order_number' => 'DEMO-ORD-0019',
+                'order_date' => now()->toDateString(),
+                'order_type' => 'direct',
+                'status' => 'confirm',
+                'call_status' => 'confirm',
+                'delivery_status' => 'waybill_printed',
+                'payment_method' => 'COD',
+                'discount_type' => 'fixed',
+                'discount_value' => 0.00,
+                'discount_amount' => 0.00,
+                'customer' => 'Ruwan Maduranga',
+                'reseller' => null,
+                'city_key' => 'Maharagama|Colombo',
+                'courier' => 'Lanka Post Parcel',
+                'waybill_number' => 'LPP-240006',
+                'courier_charge' => 400.00,
+                'courier_cost' => 0.00,
+                'sales_note' => 'Ready To Pick personal test order 4',
+                'items' => [
+                    ['sku' => 'PNR-1KG', 'quantity' => 2, 'selling_price' => 310.00],
+                ],
+            ],
+            [
+                'order_number' => 'DEMO-ORD-0020',
+                'order_date' => now()->toDateString(),
+                'order_type' => 'direct',
+                'status' => 'confirm',
+                'call_status' => 'confirm',
+                'delivery_status' => 'waybill_printed',
+                'payment_method' => 'COD',
+                'discount_type' => 'fixed',
+                'discount_value' => 0.00,
+                'discount_amount' => 0.00,
+                'customer' => 'Anjana Fernando',
+                'reseller' => null,
+                'city_key' => 'Colombo 01|Colombo',
+                'courier' => 'Lanka Post Parcel',
+                'waybill_number' => 'LPP-240007',
+                'courier_charge' => 400.00,
+                'courier_cost' => 0.00,
+                'sales_note' => 'Ready To Pick personal test order 5',
+                'items' => [
+                    ['sku' => 'FDOJ-1L', 'quantity' => 2, 'selling_price' => 760.00],
+                ],
+            ],
+            [
+                'order_number' => 'DEMO-ORD-0021',
+                'order_date' => now()->toDateString(),
+                'order_type' => 'direct',
+                'status' => 'confirm',
+                'call_status' => 'confirm',
+                'delivery_status' => 'waybill_printed',
+                'payment_method' => 'COD',
+                'discount_type' => 'fixed',
+                'discount_value' => 0.00,
+                'discount_amount' => 0.00,
+                'customer' => 'Amila Perera',
+                'reseller' => null,
+                'city_key' => 'Colombo 01|Colombo',
+                'courier' => 'Lanka Post Parcel',
+                'waybill_number' => 'LPP-240008',
+                'courier_charge' => 400.00,
+                'courier_cost' => 0.00,
+                'sales_note' => 'Ready To Pick personal test order 6',
+                'items' => [
+                    ['sku' => 'VLC-1M', 'quantity' => 1, 'selling_price' => 1250.00],
+                ],
+            ],
+            [
+                'order_number' => 'DEMO-ORD-0022',
+                'order_date' => now()->toDateString(),
+                'order_type' => 'direct',
+                'status' => 'confirm',
+                'call_status' => 'confirm',
+                'delivery_status' => 'waybill_printed',
+                'payment_method' => 'COD',
+                'discount_type' => 'fixed',
+                'discount_value' => 0.00,
+                'discount_amount' => 0.00,
+                'customer' => 'Kavindi Jayasekara',
+                'reseller' => null,
+                'city_key' => 'Galle|Galle',
+                'courier' => 'Lanka Post Parcel',
+                'waybill_number' => 'LPP-240009',
+                'courier_charge' => 400.00,
+                'courier_cost' => 0.00,
+                'sales_note' => 'Ready To Pick personal test order 7',
+                'items' => [
+                    ['sku' => 'HSH-250ML', 'quantity' => 1, 'selling_price' => 1180.00],
+                ],
+            ],
+            [
                 'order_number' => 'DEMO-ORD-0008',
                 'order_date' => now()->toDateString(),
                 'order_type' => 'direct',
@@ -1051,7 +1364,8 @@ class DemoSystemSeeder extends Seeder
                 continue;
             }
 
-            $order = Order::query()->firstOrNew(['order_number' => $row['order_number']]);
+            $order = Order::withTrashed()->firstOrNew(['order_number' => $row['order_number']]);
+            $order->deleted_at = null;
             $orderCreatedAt = $this->localDateTime($row['order_date'], 8, 30);
             $order->order_number = $row['order_number'];
             $order->order_date = $row['order_date'];
@@ -1194,6 +1508,14 @@ class DemoSystemSeeder extends Seeder
             $order->waybill_printed_by = filled($order->waybill_number)
                 ? $creator->id
                 : null;
+            if ($hasPickGrnColumns) {
+                $hasPickGrn = in_array($order->delivery_status, ['picked_from_rack', 'packed', 'dispatched', 'delivered', 'returned'], true);
+                $order->pick_grn_number = $hasPickGrn
+                    ? ($row['pick_grn_number'] ?? 'PGRN-SEED-'.substr((string) $row['order_number'], -4))
+                    : null;
+                $order->pick_grn_created_at = $hasPickGrn ? $this->demoEventAt($timelineBase, 4) : null;
+                $order->pick_grn_created_by = $hasPickGrn ? $creator->id : null;
+            }
             $order->waybill_excel_exported_at = in_array($row['order_number'], $seededWaybillExcelExportedOrders, true)
                 ? $this->demoEventAt($timelineBase, 3)
                 : null;
@@ -1227,6 +1549,7 @@ class DemoSystemSeeder extends Seeder
             $orderUpdatedAt = $this->latestTimestamp([
                 $orderCreatedAt,
                 $order->waybill_printed_at,
+                $hasPickGrnColumns ? $order->pick_grn_created_at : null,
                 $order->waybill_excel_exported_at,
                 $order->picked_at,
                 $order->packed_at,
@@ -1485,6 +1808,8 @@ class DemoSystemSeeder extends Seeder
                     ['sku' => 'VLC-1M', 'quantity' => 20, 'purchase_price' => 900.00],
                     ['sku' => 'LDL-STD', 'quantity' => 10, 'purchase_price' => 2500.00],
                     ['sku' => 'HSH-250ML', 'quantity' => 20, 'purchase_price' => 900.00],
+                    ['sku' => 'PNR-1KG', 'quantity' => 50, 'purchase_price' => 220.00],
+                    ['sku' => 'FDOJ-1L', 'quantity' => 50, 'purchase_price' => 560.00],
                     ['sku' => 'SMGV-1000', 'quantity' => 12, 'purchase_price' => 820.00],
                 ],
             ],

@@ -351,6 +351,140 @@ class PurchaseSkuBarcodeTest extends TestCase
         $this->assertSame($user->id, (int) $order->packed_by);
     }
 
+    public function test_ready_to_pick_creates_pick_grn_before_scanning_starts(): void
+    {
+        $user = User::factory()->create();
+        [$purchase, $variant] = $this->makePurchaseWithPendingUnits(0);
+        $retailRack = StoreRack::create([
+            'store_type' => StoreRack::STORE_RETAIL,
+            'rack_name' => 'Ready Rack',
+            'rack_key' => StoreRack::normalizeRackKey('Ready Rack'),
+            'row_name' => 'Row 1',
+            'row_key' => StoreRack::normalizeRowKey('Row 1'),
+        ]);
+        $order = $this->makePackingOrder('ORD-20260518-9010', 'waybill_printed');
+        $orderItem = OrderItem::create([
+            'order_id' => $order->id,
+            'product_id' => $variant->product_id,
+            'product_variant_id' => $variant->id,
+            'product_name' => 'SKU Barcode Product',
+            'sku' => $variant->sku,
+            'quantity' => 1,
+            'unit_price' => 100,
+            'base_price' => 100,
+            'cost_price' => 50,
+            'total_price' => 100,
+        ]);
+        InventoryUnit::create([
+            'product_variant_id' => $variant->id,
+            'purchase_id' => $purchase->id,
+            'order_id' => $order->id,
+            'order_item_id' => $orderItem->id,
+            'unit_code' => 'READY-PICK-1',
+            'status' => InventoryUnit::STATUS_ALLOCATED,
+            'store_type' => StoreRack::STORE_RETAIL,
+            'store_rack_id' => $retailRack->id,
+            'sku_snapshot' => $variant->sku,
+            'allocated_at' => now(),
+            'last_event_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('orders.packing.ready'))
+            ->assertOk()
+            ->assertSee('Create Pick GRN')
+            ->assertDontSee('Start Picking');
+
+        $this->actingAs($user)
+            ->get(route('orders.packing.process', $order))
+            ->assertRedirect(route('orders.packing.ready'));
+
+        $this->actingAs($user)
+            ->postJson(route('orders.packing.scan', $order), ['unit_code' => 'ANY-SCAN'])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        $creationResponse = $this->actingAs($user)
+            ->post(route('orders.packing.mark-picked', $order))
+            ->assertRedirect(route('orders.packing.ready'))
+            ->assertSessionHas('pick_grn_modal.number')
+            ->assertSessionHas('pick_grn_modal.items');
+
+        $modalPayload = $creationResponse->baseResponse->getSession()->get('pick_grn_modal');
+
+        $this->assertSame('SKU Barcode Product', $modalPayload['items'][0]['product_name']);
+        $this->assertSame($variant->sku, $modalPayload['items'][0]['sku']);
+        $this->assertSame('READY-PICK-1', $modalPayload['items'][0]['units'][0]['unit_code']);
+        $this->assertSame('Retail Store', $modalPayload['items'][0]['units'][0]['store_label']);
+        $this->assertSame('Ready Rack / Row 1', $modalPayload['items'][0]['units'][0]['rack_label']);
+        $this->assertSame($purchase->purchase_number, $modalPayload['items'][0]['units'][0]['purchase_number']);
+
+        $order->refresh();
+        $this->assertSame('picked_from_rack', $order->delivery_status);
+        $this->assertMatchesRegularExpression('/^PGRN-\d{8}-\d{4}$/', (string) $order->pick_grn_number);
+        $this->assertNotNull($order->pick_grn_created_at);
+        $this->assertSame($user->id, (int) $order->pick_grn_created_by);
+        $this->assertNotNull($order->picked_at);
+        $this->assertSame($user->id, (int) $order->picked_by);
+
+        $this->actingAs($user)
+            ->withSession([
+                'pick_grn_modal' => $modalPayload,
+            ])
+            ->get(route('orders.packing.ready'))
+            ->assertOk()
+            ->assertSee('Pick GRN Created')
+            ->assertSee($order->pick_grn_number)
+            ->assertSee('SKU Barcode Product')
+            ->assertSee($variant->sku)
+            ->assertSee('READY-PICK-1')
+            ->assertSee('Retail Store')
+            ->assertSee('Ready Rack / Row 1')
+            ->assertSee($purchase->purchase_number)
+            ->assertSee('Print / Save PDF')
+            ->assertSee('target="_blank"', false);
+
+        $this->actingAs($user)
+            ->get(route('orders.packing.picking'))
+            ->assertOk()
+            ->assertSee('activePickGrn', false)
+            ->assertSee('pickGrnPayloads', false)
+            ->assertSee('activePickGrn = pickGrnPayloads', false)
+            ->assertDontSee("@click='activePickGrn =", false)
+            ->assertSee('Pick GRN Details')
+            ->assertSee('Print / Save PDF')
+            ->assertSee('target="_blank"', false)
+            ->assertSee('READY-PICK-1')
+            ->assertSee('Ready Rack / Row 1')
+            ->assertSee($purchase->purchase_number);
+
+        $order->update(['delivery_status' => 'packed']);
+
+        $this->actingAs($user)
+            ->get(route('orders.packing.packed'))
+            ->assertOk()
+            ->assertSee($order->order_number)
+            ->assertDontSee('Pick GRN</button>', false)
+            ->assertDontSee('Pick GRN Details');
+
+        $order->update(['delivery_status' => 'picked_from_rack']);
+
+        $this->actingAs($user)
+            ->get(route('orders.packing.process', $order))
+            ->assertOk()
+            ->assertSee('Scan Now')
+            ->assertSee('@click="scanItem()"', false);
+
+        $this->actingAs($user)
+            ->get(route('orders.packing.pick-grn', $order))
+            ->assertOk()
+            ->assertSee($order->pick_grn_number)
+            ->assertSee('Print / Save PDF')
+            ->assertSee('Ready Rack / Row 1')
+            ->assertSee($purchase->purchase_number)
+            ->assertSee('READY-PICK-1');
+    }
+
     private function makePurchaseWithPendingUnits(int $quantity): array
     {
         $supplier = Supplier::create([

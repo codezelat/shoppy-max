@@ -149,6 +149,14 @@
                         autocomplete="off"
                         class="block w-full rounded-lg border border-indigo-500 bg-gray-50 p-3 font-mono text-lg text-gray-900 focus:border-indigo-600 focus:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-indigo-500 dark:bg-gray-700 dark:text-white"
                     >
+                    <button
+                        type="button"
+                        @click="scanItem()"
+                        :disabled="scannerDisabled || !scanInput.trim()"
+                        class="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-blue-700 px-5 py-3 text-sm font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-600 dark:hover:bg-blue-700"
+                    >
+                        Scan Now
+                    </button>
                     <div class="mt-3 rounded-lg border px-3 py-2 text-sm" :class="statusOk ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-200' : 'border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-300'">
                         <span x-text="message"></span>
                     </div>

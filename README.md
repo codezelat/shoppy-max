@@ -57,7 +57,7 @@ Authentication is provided by Laravel Breeze, and permissions are handled by Spa
   - call status tracking
   - payment entries and derived payment status
   - order structure locking after intake progresses, with manual edit/cancel/delete blocked once waybill printing starts
-  - packing pages split into Ready To Pick, Picking, and Packed queues, with unit-level barcode scans, persisted scan progress, and automatic packing on the final required scan
+  - packing pages split into Ready To Pick, Picking, and Packed queues: Ready To Pick creates a numbered pick GRN with rack locations and opens a printable/save-as-PDF pick sheet, Picking handles scanner scans, and the final required scan automatically moves the order to Packed
   - note: packing core flow exists, but it is still a work-in-progress operational area and broader hardening / full browser QA are still pending
   - note: the `returned` state exists in backend accounting/inventory logic, but returns are still a work-in-progress operational area until the dedicated post-dispatch return screen/action exists
 - Purchase workflow with:

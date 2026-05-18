@@ -30,7 +30,14 @@
         </div>
     </x-slot>
 
-    <div class="rounded-md bg-white p-6 shadow-md dark:bg-gray-800">
+    @php
+        $pickGrnPayloads = $orders->getCollection()
+            ->filter(fn ($order) => filled($order->pick_grn_number) && $order->pick_grn_modal_payload)
+            ->mapWithKeys(fn ($order) => [(string) $order->id => $order->pick_grn_modal_payload])
+            ->all();
+    @endphp
+
+    <div class="rounded-md bg-white p-6 shadow-md dark:bg-gray-800" x-data="{ activePickGrn: null, pickGrnPayloads: @js($pickGrnPayloads) }">
         <div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ $stageConfig['title'] }}</h3>
@@ -89,7 +96,7 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[1100px] text-left text-sm text-gray-500 dark:text-gray-400">
+                <table class="w-full min-w-[1080px] text-left text-sm text-gray-500 dark:text-gray-400">
                     <thead class="bg-gray-100 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
                         <tr>
                             <th class="px-4 py-3">Order</th>
@@ -97,24 +104,12 @@
                             <th class="px-4 py-3">Customer</th>
                             <th class="px-4 py-3">Scan Progress</th>
                             <th class="px-4 py-3">Pick Locations</th>
-                            <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3 text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                         @forelse($orders as $order)
                             @php
-                                $deliveryStatus = strtolower((string) ($order->delivery_status ?? 'pending'));
-                                $deliveryLabels = [
-                                    'waybill_printed' => 'Ready To Pick',
-                                    'picked_from_rack' => 'Picking',
-                                    'packed' => 'Packed',
-                                ];
-                                $deliveryClasses = [
-                                    'waybill_printed' => 'border-indigo-300 bg-indigo-100 text-indigo-800 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
-                                    'picked_from_rack' => 'border-purple-300 bg-purple-100 text-purple-800 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-                                    'packed' => 'border-blue-300 bg-blue-100 text-blue-800 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-                                ];
                                 $summary = $order->packing_summary ?? ['items' => [], 'all_scanned' => false];
                                 $requiredCount = collect($summary['items'])->sum('required_count');
                                 $scannedCount = collect($summary['items'])->sum('scanned_count');
@@ -136,6 +131,9 @@
                                 <td class="px-4 py-3">
                                     <div class="font-mono text-gray-900 dark:text-white">{{ $order->waybill_number ?: '-' }}</div>
                                     <div class="text-xs text-gray-500 dark:text-gray-400">{{ $order->courier?->name ?? 'Courier not assigned' }}</div>
+                                    @if($order->pick_grn_number)
+                                        <div class="mt-1 text-xs font-medium text-blue-700 dark:text-blue-300">Pick GRN: {{ $order->pick_grn_number }}</div>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="font-medium text-gray-900 dark:text-white">{{ $order->customer_name ?: ($order->customer->name ?? '-') }}</div>
@@ -167,26 +165,33 @@
                                         <span class="text-xs text-amber-600 dark:text-amber-300">No allocated rack labels</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-medium {{ $deliveryClasses[$deliveryStatus] ?? 'border-gray-300 bg-gray-100 text-gray-800' }}">
-                                        {{ $deliveryLabels[$deliveryStatus] ?? ucfirst(str_replace('_', ' ', $deliveryStatus)) }}
-                                    </span>
-                                </td>
                                 <td class="px-4 py-3 text-right">
-                                    <div class="flex justify-end gap-2">
-                                        <a href="{{ route('orders.show', $order) }}" class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
+                                    <div class="flex min-w-[300px] justify-end gap-2">
+                                        <a href="{{ route('orders.show', $order) }}" class="inline-flex min-w-[84px] items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
                                             View
                                         </a>
-                                        @if($stage === 'packed')
+                                        @if($order->pick_grn_number && $stage !== 'packed')
+                                            <button type="button" @click="activePickGrn = pickGrnPayloads[@js((string) $order->id)] || null" class="inline-flex min-w-[104px] items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/40">
+                                                Pick GRN
+                                            </button>
+                                        @endif
+                                        @if($stage === 'ready')
+                                            <form action="{{ route('orders.packing.mark-picked', $order->id) }}" method="POST">
+                                                @csrf
+                                                <button type="submit" class="inline-flex min-w-[142px] items-center justify-center rounded-lg bg-blue-700 px-4 py-2 text-xs font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
+                                                    Create Pick GRN
+                                                </button>
+                                            </form>
+                                        @elseif($stage === 'packed')
                                             <form action="{{ route('orders.packing.mark-dispatched', $order->id) }}" method="POST">
                                                 @csrf
-                                                <button type="submit" class="inline-flex items-center rounded-lg bg-cyan-600 px-3 py-2 text-xs font-medium text-white hover:bg-cyan-700 focus:ring-4 focus:ring-cyan-300">
+                                                <button type="submit" class="inline-flex min-w-[104px] items-center justify-center rounded-lg bg-cyan-600 px-4 py-2 text-xs font-medium text-white hover:bg-cyan-700 focus:ring-4 focus:ring-cyan-300">
                                                     Dispatch
                                                 </button>
                                             </form>
                                         @else
-                                            <a href="{{ route('orders.packing.process', $order->id) }}" class="inline-flex items-center rounded-lg bg-blue-700 px-3 py-2 text-xs font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
-                                                {{ $stage === 'ready' ? 'Start Picking' : 'Scan' }}
+                                            <a href="{{ route('orders.packing.process', $order->id) }}" class="inline-flex min-w-[96px] items-center justify-center rounded-lg bg-blue-700 px-4 py-2 text-xs font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
+                                                Scan
                                             </a>
                                         @endif
                                     </div>
@@ -194,7 +199,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
+                                <td colspan="6" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
                                     {{ $stageConfig['empty'] }}
                                 </td>
                             </tr>
@@ -207,5 +212,196 @@
         <div class="mt-4">
             {{ $orders->withQueryString()->links() }}
         </div>
+
+        @if(session('pick_grn_modal'))
+            @php($pickGrnModal = session('pick_grn_modal'))
+            <div
+                x-data="{ open: true }"
+                x-show="open"
+                x-cloak
+                class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 px-4 py-6"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="pick-grn-modal-title"
+            >
+                <div class="w-full max-w-3xl rounded-lg bg-white shadow-xl dark:bg-gray-800">
+                    <div class="border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 id="pick-grn-modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">Pick GRN Created</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Print or save this sheet before scanning from Picking.</p>
+                            </div>
+                            <button type="button" @click="open = false" class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200" aria-label="Close">
+                                <svg class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 12 12M13 1 1 13"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-5">
+                        <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-900/20">
+                            <p class="text-xs uppercase tracking-wide text-blue-700 dark:text-blue-300">Pick GRN No</p>
+                            <p class="mt-1 font-mono text-xl font-bold text-blue-900 dark:text-blue-100">{{ $pickGrnModal['number'] ?? '-' }}</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Order</p>
+                                <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ $pickGrnModal['order_number'] ?? '-' }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Waybill</p>
+                                <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ $pickGrnModal['waybill_number'] ?? '-' }}</p>
+                            </div>
+                        </div>
+                        <div class="rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div class="border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/30">
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white">Items To Pick</p>
+                            </div>
+                            <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                                @forelse(collect($pickGrnModal['items'] ?? []) as $item)
+                                    <div class="px-4 py-3">
+                                        <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $item['product_name'] ?? '-' }}</p>
+                                                <p class="mt-0.5 font-mono text-xs text-gray-500 dark:text-gray-400">{{ $item['sku'] ?? '-' }}</p>
+                                            </div>
+                                            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ number_format((int) ($item['required_count'] ?? 0)) }} qty</span>
+                                        </div>
+                                        <div class="mt-3 space-y-2">
+                                            @forelse(collect($item['units'] ?? []) as $unit)
+                                                <div class="grid gap-2 rounded-md bg-gray-50 px-3 py-2 text-xs dark:bg-gray-900/40 sm:grid-cols-4">
+                                                    <div>
+                                                        <span class="block text-gray-500 dark:text-gray-400">Label</span>
+                                                        <span class="font-mono font-medium text-gray-900 dark:text-white">{{ $unit['unit_code'] ?? '-' }}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="block text-gray-500 dark:text-gray-400">Store</span>
+                                                        <span class="font-medium text-gray-900 dark:text-white">{{ $unit['store_label'] ?? 'Unassigned Store' }}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="block text-gray-500 dark:text-gray-400">Rack / Row</span>
+                                                        <span class="font-medium text-gray-900 dark:text-white">{{ $unit['rack_label'] ?? 'Unassigned Rack' }}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="block text-gray-500 dark:text-gray-400">GRN Source</span>
+                                                        <span class="font-mono font-medium text-gray-900 dark:text-white">{{ $unit['purchase_number'] ?? 'Legacy stock' }}</span>
+                                                    </div>
+                                                </div>
+                                            @empty
+                                                <p class="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">No allocated unit lines found for this item.</p>
+                                            @endforelse
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">No pick item lines found.</div>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-2 border-t border-gray-200 px-5 py-4 dark:border-gray-700 sm:flex-row sm:justify-end">
+                        <a href="{{ $pickGrnModal['picking_url'] ?? route('orders.packing.picking') }}" class="inline-flex items-center justify-center rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                            Go To Picking
+                        </a>
+                        <a href="{{ $pickGrnModal['print_url'] ?? '#' }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
+                            Print / Save PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if($stage !== 'packed')
+            <div
+                x-show="activePickGrn"
+                x-cloak
+                class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 px-4 py-6"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="pick-grn-details-title"
+            >
+                <div class="w-full max-w-3xl rounded-lg bg-white shadow-xl dark:bg-gray-800" @click.outside="activePickGrn = null">
+                    <div class="border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 id="pick-grn-details-title" class="text-lg font-semibold text-gray-900 dark:text-white">Pick GRN Details</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Review the pick sheet details or print it in a new tab.</p>
+                            </div>
+                            <button type="button" @click="activePickGrn = null" class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200" aria-label="Close">
+                                <svg class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 12 12M13 1 1 13"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-5">
+                        <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-900/20">
+                            <p class="text-xs uppercase tracking-wide text-blue-700 dark:text-blue-300">Pick GRN No</p>
+                            <p class="mt-1 font-mono text-xl font-bold text-blue-900 dark:text-blue-100" x-text="activePickGrn?.number || '-'"></p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Order</p>
+                                <p class="mt-1 font-medium text-gray-900 dark:text-white" x-text="activePickGrn?.order_number || '-'"></p>
+                            </div>
+                            <div>
+                                <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Waybill</p>
+                                <p class="mt-1 font-medium text-gray-900 dark:text-white" x-text="activePickGrn?.waybill_number || '-'"></p>
+                            </div>
+                        </div>
+                        <div class="rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div class="border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/30">
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white">Items To Pick</p>
+                            </div>
+                            <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                                <template x-for="item in (activePickGrn?.items || [])" :key="`${item.sku}-${item.product_name}`">
+                                    <div class="px-4 py-3">
+                                        <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900 dark:text-white" x-text="item.product_name || '-'"></p>
+                                                <p class="mt-0.5 font-mono text-xs text-gray-500 dark:text-gray-400" x-text="item.sku || '-'"></p>
+                                            </div>
+                                            <span class="text-xs font-medium text-gray-500 dark:text-gray-400" x-text="`${Number(item.required_count || 0).toLocaleString()} qty`"></span>
+                                        </div>
+                                        <div class="mt-3 space-y-2">
+                                            <template x-for="unit in (item.units || [])" :key="unit.unit_code">
+                                                <div class="grid gap-2 rounded-md bg-gray-50 px-3 py-2 text-xs dark:bg-gray-900/40 sm:grid-cols-4">
+                                                    <div>
+                                                        <span class="block text-gray-500 dark:text-gray-400">Label</span>
+                                                        <span class="font-mono font-medium text-gray-900 dark:text-white" x-text="unit.unit_code || '-'"></span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="block text-gray-500 dark:text-gray-400">Store</span>
+                                                        <span class="font-medium text-gray-900 dark:text-white" x-text="unit.store_label || 'Unassigned Store'"></span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="block text-gray-500 dark:text-gray-400">Rack / Row</span>
+                                                        <span class="font-medium text-gray-900 dark:text-white" x-text="unit.rack_label || 'Unassigned Rack'"></span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="block text-gray-500 dark:text-gray-400">GRN Source</span>
+                                                        <span class="font-mono font-medium text-gray-900 dark:text-white" x-text="unit.purchase_number || 'Legacy stock'"></span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                                <div x-show="!(activePickGrn?.items || []).length" class="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                    No pick item lines found.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-2 border-t border-gray-200 px-5 py-4 dark:border-gray-700 sm:flex-row sm:justify-end">
+                        <button type="button" @click="activePickGrn = null" class="inline-flex items-center justify-center rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                            Close
+                        </button>
+                        <a :href="activePickGrn?.print_url || '#'" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
+                            Print / Save PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 </x-app-layout>

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Order;
 use App\Models\Purchase;
+use App\Models\StoreRack;
 use Carbon\Carbon;
 use Database\Seeders\DemoSystemSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -94,5 +95,78 @@ class OperationalTimestampTest extends TestCase
                 $this->assertLessThanOrEqual(now(), $order->{$column});
             }
         }
+    }
+
+    public function test_demo_seed_includes_complete_packing_queues_with_located_units(): void
+    {
+        Carbon::setTestNow('2026-05-18 02:00:00');
+        $this->seed([RolesAndPermissionsSeeder::class, DemoSystemSeeder::class]);
+
+        $this->assertDatabaseHas('store_racks', [
+            'store_type' => StoreRack::STORE_RETAIL,
+            'rack_name' => 'Retail A',
+            'row_name' => 'Row 1',
+        ]);
+        $this->assertDatabaseHas('store_racks', [
+            'store_type' => StoreRack::STORE_WAREHOUSE,
+            'rack_name' => 'Warehouse A',
+            'row_name' => 'Row 1',
+        ]);
+
+        $this->assertGreaterThanOrEqual(7, Order::query()
+            ->where('order_number', 'like', 'DEMO-ORD-%')
+            ->where('call_status', 'confirm')
+            ->where('delivery_status', 'waybill_printed')
+            ->count(), 'Ready To Pick should have several seeded demo orders.');
+
+        foreach (['waybill_printed', 'picked_from_rack', 'packed'] as $deliveryStatus) {
+            $order = Order::query()
+                ->where('order_number', 'like', 'DEMO-ORD-%')
+                ->where('call_status', 'confirm')
+                ->where('delivery_status', $deliveryStatus)
+                ->whereNotNull('waybill_number')
+                ->with(['inventoryUnits.purchase', 'inventoryUnits.storeRack'])
+                ->first();
+
+            $this->assertNotNull($order, "Missing seeded {$deliveryStatus} packing order.");
+            $this->assertTrue($order->inventoryUnits->isNotEmpty(), "Missing allocated units for {$order?->order_number}.");
+
+            foreach ($order->inventoryUnits as $unit) {
+                $this->assertNotNull($unit->purchase_id, "Missing GRN source for {$unit->unit_code}.");
+                $this->assertNotNull($unit->store_rack_id, "Missing rack for {$unit->unit_code}.");
+                $this->assertNotNull($unit->storeRack, "Missing rack relation for {$unit->unit_code}.");
+            }
+        }
+
+        $packedOrder = Order::query()
+            ->where('order_number', 'like', 'DEMO-ORD-%')
+            ->where('delivery_status', 'packed')
+            ->with('inventoryUnits')
+            ->firstOrFail();
+
+        $this->assertTrue($packedOrder->inventoryUnits->every(fn ($unit) => filled($unit->packed_scan_at)));
+
+        $this->assertNotNull(Order::query()
+            ->where('order_number', 'like', 'DEMO-ORD-%')
+            ->where('delivery_status', 'picked_from_rack')
+            ->whereNotNull('pick_grn_number')
+            ->first());
+    }
+
+    public function test_demo_seed_restores_soft_deleted_demo_orders_instead_of_duplicating(): void
+    {
+        Carbon::setTestNow('2026-05-18 02:00:00');
+        $this->seed([RolesAndPermissionsSeeder::class, DemoSystemSeeder::class]);
+
+        $order = Order::where('order_number', 'DEMO-ORD-0014')->firstOrFail();
+        $order->delete();
+
+        $this->seed(DemoSystemSeeder::class);
+
+        $this->assertSame(1, Order::withTrashed()->where('order_number', 'DEMO-ORD-0014')->count());
+        $this->assertDatabaseHas('orders', [
+            'order_number' => 'DEMO-ORD-0014',
+            'deleted_at' => null,
+        ]);
     }
 }
