@@ -133,7 +133,8 @@ class PurchaseStorePlacementController extends Controller
                 'product_name' => (string) $item->product_name,
                 'sku' => (string) $item->variant?->sku,
                 'rack' => (string) $rack->display_label,
-                'unit_code' => (string) $unit?->unit_code,
+                'unit_code' => (string) $unit?->barcode_value,
+                'barcode_value' => (string) $unit?->barcode_value,
                 'placed_count' => $item->placedUnitCount(),
                 'remaining_count' => $item->remainingPlacementQuantity(),
             ]);

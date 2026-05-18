@@ -14,8 +14,8 @@
         ->values();
 
     $count = $unitCollection->count();
-    $firstCode = $unitCollection->first()?->unit_code;
-    $lastCode = $unitCollection->last()?->unit_code;
+    $firstCode = $unitCollection->first()?->barcode_value;
+    $lastCode = $unitCollection->last()?->barcode_value;
     $rangeLabel = $count === 0
         ? $emptyLabel
         : ($count === 1 || $firstCode === $lastCode ? $firstCode : $firstCode . ' to ' . $lastCode);
@@ -86,7 +86,7 @@
 
                             <div class="flex flex-col gap-2 rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700">
                                 <div class="flex flex-wrap items-center justify-between gap-2">
-                                    <span class="font-mono text-sm text-gray-900 dark:text-white">{{ $trackedUnit->unit_code }}</span>
+                                    <span class="font-mono text-sm text-gray-900 dark:text-white">{{ $trackedUnit->barcode_value }}</span>
                                     @if($showStatus)
                                         <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium {{ $statusClass }}">
                                             {{ $statusLabel }}

@@ -101,4 +101,17 @@ class InventoryUnit extends Model
     {
         return $this->hasMany(InventoryUnitEvent::class);
     }
+
+    public function getBarcodeValueAttribute(): string
+    {
+        $sku = trim((string) ($this->sku_snapshot ?? ''));
+
+        if ($sku !== '') {
+            return $sku;
+        }
+
+        $variantSku = trim((string) ($this->productVariant?->sku ?? ''));
+
+        return $variantSku !== '' ? $variantSku : (string) ($this->unit_code ?? '');
+    }
 }

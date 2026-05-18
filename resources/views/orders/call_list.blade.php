@@ -378,7 +378,7 @@
                                                     <div x-show="open" x-transition.opacity class="mt-3 space-y-2">
                                                         <template x-for="trackedUnit in item.inventory_units" :key="trackedUnit.id">
                                                             <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40">
-                                                                <div class="font-mono text-[11px] text-gray-800 dark:text-gray-200" x-text="trackedUnit.unit_code"></div>
+                                                                <div class="font-mono text-[11px] text-gray-800 dark:text-gray-200" x-text="unitBarcode(trackedUnit)"></div>
                                                                 <div class="text-[10px] text-gray-500 dark:text-gray-400" x-text="trackedUnit.purchase?.purchase_number ? `Source: ${trackedUnit.purchase.purchase_number}` : 'Source: Legacy stock'"></div>
                                                                 <div class="text-[10px] text-gray-500 dark:text-gray-400" x-text="unitLocation(trackedUnit)"></div>
                                                             </div>
@@ -523,10 +523,13 @@
                         return '-';
                     }
 
-                    const firstCode = list[0]?.unit_code || '-';
-                    const lastCode = list[list.length - 1]?.unit_code || firstCode;
+                    const firstCode = this.unitBarcode(list[0]);
+                    const lastCode = this.unitBarcode(list[list.length - 1]) || firstCode;
 
                     return firstCode === lastCode ? firstCode : `${firstCode} to ${lastCode}`;
+                },
+                unitBarcode(unit) {
+                    return unit?.barcode_value || unit?.sku_snapshot || unit?.product_variant?.sku || unit?.unit_code || '-';
                 },
                 unitLocation(unit) {
                     const labels = {

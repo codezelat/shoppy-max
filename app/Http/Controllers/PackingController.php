@@ -195,7 +195,8 @@ class PackingController extends Controller
                 'delivery_status' => $order->delivery_status,
                 'auto_packed' => $autoPacked,
                 'order_item_id' => $result['order_item_id'],
-                'unit_code' => $result['unit']->unit_code,
+                'unit_code' => $result['unit']->barcode_value,
+                'barcode_value' => $result['unit']->barcode_value,
                 'scanned_count' => $result['scanned_count'],
                 'required_count' => $result['required_count'],
                 'summary' => $summary,
@@ -370,10 +371,10 @@ class PackingController extends Controller
                 'product_name' => $item->product_name,
                 'required_count' => max((int) ($item->quantity ?? 0), 0),
                 'scanned_count' => $scannedUnits->count(),
-                'scanned_codes' => $scannedUnits->pluck('unit_code')->filter()->values()->all(),
+                'scanned_codes' => $scannedUnits->pluck('barcode_value')->filter()->values()->all(),
                 'units' => $units->map(fn ($unit) => [
                     'id' => $unit->id,
-                    'unit_code' => $unit->unit_code,
+                    'barcode_value' => $unit->barcode_value,
                     'store_type' => $unit->store_type,
                     'rack_id' => $unit->store_rack_id,
                     'store_label' => $unit->store_type ? StoreRack::storeLabel((string) $unit->store_type) : 'Unassigned Store',
@@ -405,7 +406,8 @@ class PackingController extends Controller
                     'required_count' => (int) ($item['required_count'] ?? 0),
                     'units' => collect($item['units'] ?? [])
                         ->map(fn ($unit) => [
-                            'unit_code' => $unit['unit_code'] ?? '-',
+                            'id' => $unit['id'] ?? null,
+                            'barcode_value' => $unit['barcode_value'] ?? '-',
                             'store_label' => $unit['store_label'] ?? 'Unassigned Store',
                             'rack_label' => $unit['rack_label'] ?? 'Unassigned Rack',
                             'purchase_number' => $unit['purchase_number'] ?? 'Legacy stock',

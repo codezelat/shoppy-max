@@ -87,8 +87,8 @@ class PurchaseItem extends Model
             return null;
         }
 
-        $firstCode = $units->first()?->unit_code;
-        $lastCode = $units->last()?->unit_code;
+        $firstCode = $units->first()?->barcode_value;
+        $lastCode = $units->last()?->barcode_value;
 
         if (! $firstCode) {
             return null;

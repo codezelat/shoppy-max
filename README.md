@@ -66,7 +66,8 @@ Authentication is provided by Laravel Breeze, and permissions are handled by Spa
   - manual placement into Retail Store or Warehouse Store rack rows before stock updates
   - immutable purchase date and purchasing ID after creation
 - Unit-level inventory traceability:
-  - purchase labels generated per PCS quantity
+  - purchase, product quantity, and order picking labels repeat the variant SKU per physical quantity
+  - unique internal inventory-unit codes remain hidden backend traceability references
   - store/rack metadata on manually placed stock units
   - orders allocate real inventory units
   - delivered/cancel/return flows update tracked units
@@ -251,6 +252,8 @@ These are current implemented behaviors.
 - Stock decreases when units are allocated to active orders.
 - Delivered orders mark units as delivered.
 - Cancelling, returning, or deleting orders releases units appropriately.
+- Operator-facing stock, order, and Pick GRN barcode labels show the variant SKU; internal
+  inventory unit codes are kept only for traceability and state transitions.
 - Use the inventory-unit reconciliation commands if aggregate stock drifts from tracked units.
 
 ### Purchases and Store Placement
@@ -271,6 +274,7 @@ Rules:
 - Verified purchase items can be scanned into either Retail Store or Warehouse Store.
 - Rack rows are maintained separately for Retail Store and Warehouse Store.
 - The operator selects a rack, starts adding, then each SKU barcode scan creates one available inventory unit, records the store/rack, and increments product variant stock by one.
+- The JSON/display value returned after a scan is the SKU barcode value, not the internal inventory-unit code.
 - A purchase becomes `complete` only when all purchased item quantities have been placed into store stock.
 - Once store placement starts, purchase structure is locked.
 - Completed purchases are locked from structural edits and deletion.

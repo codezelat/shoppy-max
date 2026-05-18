@@ -2,9 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 class OrderItem extends Model
@@ -24,8 +23,6 @@ class OrderItem extends Model
         'total_price',
         'subtotal', // Use total_price or subtotal depending on schema, migration didn't add subtotal but existing had total_price
     ];
-    
-
 
     protected $casts = [
         'unit_price' => 'decimal:2',
@@ -79,15 +76,15 @@ class OrderItem extends Model
             return null;
         }
 
-        $firstCode = $units->first()?->unit_code;
-        $lastCode = $units->last()?->unit_code;
+        $firstCode = $units->first()?->barcode_value;
+        $lastCode = $units->last()?->barcode_value;
 
-        if (!$firstCode) {
+        if (! $firstCode) {
             return null;
         }
 
         return $count === 1 || $firstCode === $lastCode
             ? $firstCode
-            : $firstCode . ' to ' . $lastCode;
+            : $firstCode.' to '.$lastCode;
     }
 }

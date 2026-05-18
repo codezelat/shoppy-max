@@ -271,8 +271,8 @@
                                             @forelse(collect($item['units'] ?? []) as $unit)
                                                 <div class="grid gap-2 rounded-md bg-gray-50 px-3 py-2 text-xs dark:bg-gray-900/40 sm:grid-cols-4">
                                                     <div>
-                                                        <span class="block text-gray-500 dark:text-gray-400">Label</span>
-                                                        <span class="font-mono font-medium text-gray-900 dark:text-white">{{ $unit['unit_code'] ?? '-' }}</span>
+                                                        <span class="block text-gray-500 dark:text-gray-400">Barcode</span>
+                                                        <span class="font-mono font-medium text-gray-900 dark:text-white">{{ $unit['barcode_value'] ?? '-' }}</span>
                                                     </div>
                                                     <div>
                                                         <span class="block text-gray-500 dark:text-gray-400">Store</span>
@@ -363,11 +363,11 @@
                                             <span class="text-xs font-medium text-gray-500 dark:text-gray-400" x-text="`${Number(item.required_count || 0).toLocaleString()} qty`"></span>
                                         </div>
                                         <div class="mt-3 space-y-2">
-                                            <template x-for="unit in (item.units || [])" :key="unit.unit_code">
+                                            <template x-for="unit in (item.units || [])" :key="unit.id || unit.barcode_value">
                                                 <div class="grid gap-2 rounded-md bg-gray-50 px-3 py-2 text-xs dark:bg-gray-900/40 sm:grid-cols-4">
                                                     <div>
-                                                        <span class="block text-gray-500 dark:text-gray-400">Label</span>
-                                                        <span class="font-mono font-medium text-gray-900 dark:text-white" x-text="unit.unit_code || '-'"></span>
+                                                        <span class="block text-gray-500 dark:text-gray-400">Barcode</span>
+                                                        <span class="font-mono font-medium text-gray-900 dark:text-white" x-text="unit.barcode_value || '-'"></span>
                                                     </div>
                                                     <div>
                                                         <span class="block text-gray-500 dark:text-gray-400">Store</span>

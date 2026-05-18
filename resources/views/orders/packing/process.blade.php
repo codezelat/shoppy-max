@@ -89,7 +89,7 @@
                         <thead class="bg-gray-100 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
                             <tr>
                                 <th class="px-4 py-3">Product</th>
-                                <th class="px-4 py-3">Label</th>
+                                <th class="px-4 py-3">Barcode</th>
                                 <th class="px-4 py-3">Pick Location</th>
                                 <th class="px-4 py-3">GRN</th>
                                 <th class="px-4 py-3">Status</th>
@@ -98,19 +98,19 @@
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                             @forelse($summaryItems as $item)
                                 @forelse(collect($item['units'] ?? []) as $unit)
-                                    <tr class="bg-white dark:bg-gray-800" :class="unitScanned(@js($unit['unit_code'])) ? 'bg-emerald-50 dark:bg-emerald-900/10' : ''">
+                                    <tr class="bg-white dark:bg-gray-800" :class="unitScanned(@js($unit['id'])) ? 'bg-emerald-50 dark:bg-emerald-900/10' : ''">
                                         <td class="px-4 py-3">
                                             <div class="font-medium text-gray-900 dark:text-white">{{ $item['product_name'] ?? '-' }}</div>
                                             <div class="text-xs text-gray-500 dark:text-gray-400">SKU: {{ $item['sku'] ?? '-' }}</div>
                                         </td>
-                                        <td class="px-4 py-3 font-mono text-gray-900 dark:text-white">{{ $unit['unit_code'] ?? '-' }}</td>
+                                        <td class="px-4 py-3 font-mono text-gray-900 dark:text-white">{{ $unit['barcode_value'] ?? '-' }}</td>
                                         <td class="px-4 py-3">
                                             <div class="font-medium text-gray-900 dark:text-white">{{ $unit['store_label'] ?? 'Unassigned Store' }}</div>
                                             <div class="text-xs text-gray-500 dark:text-gray-400">{{ $unit['rack_label'] ?? 'Unassigned Rack' }}</div>
                                         </td>
                                         <td class="px-4 py-3">{{ $unit['purchase_number'] ?? 'Legacy stock' }}</td>
                                         <td class="px-4 py-3">
-                                            <span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-medium" :class="unitScanned(@js($unit['unit_code'])) ? 'border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300'" x-text="unitScanned(@js($unit['unit_code'])) ? 'Scanned' : 'Pending'">
+                                            <span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-medium" :class="unitScanned(@js($unit['id'])) ? 'border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300'" x-text="unitScanned(@js($unit['id'])) ? 'Scanned' : 'Pending'">
                                                 {{ ! empty($unit['scanned']) ? 'Scanned' : 'Pending' }}
                                             </span>
                                         </td>
@@ -256,8 +256,8 @@
 
                     return 'Scan every allocated label. The order will move to Packed automatically on the final scan.';
                 },
-                unitScanned(unitCode) {
-                    return this.items.some((item) => (item.units || []).some((unit) => unit.unit_code === unitCode && unit.scanned));
+                unitScanned(unitId) {
+                    return this.items.some((item) => (item.units || []).some((unit) => Number(unit.id) === Number(unitId) && unit.scanned));
                 },
                 notify(type, message) {
                     if (typeof Swal !== 'undefined') {

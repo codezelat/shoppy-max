@@ -78,11 +78,15 @@ Barcode behavior:
 - product barcode printing is catalog-oriented
 - product bulk print supports:
   - one generic label per variant
-  - quantity-aware labels per available stock
+  - quantity-aware labels per available stock, repeating the variant SKU barcode for each quantity
 - purchase barcode printing is SKU-oriented and quantity-aware:
   - print one repeated SKU barcode label per purchased unit quantity
   - do not print unique inventory-unit codes as the purchase label barcode
   - purchase barcode printing must not require inventory-unit records to already exist
+- order picking, Pick GRN sheets, packing screens, order print/PDF surfaces, and label summaries
+  must show the same SKU barcode value operators scanned at purchase/store placement time
+- internal `inventory_units.unit_code` values are still unique for traceability and database state,
+  but they are not the operator-facing barcode
 
 ### Purchases
 
@@ -124,6 +128,8 @@ Rules:
 - do not allow placed quantity to exceed the purchased quantity remaining for that item
 - the purchase becomes `complete` only when all item quantities are fully placed into store stock
 - purchase-printed barcode labels repeat the SKU per physical unit quantity
+- product and order-facing barcode labels also repeat the SKU per physical unit quantity; internal
+  `IU-*` inventory unit codes remain only for backend traceability
 
 ### Inventory Units and Traceability
 
@@ -466,7 +472,7 @@ Check:
   - `/orders/packing/ready` lists waybill-printed orders waiting for a pick GRN; creating the pick GRN validates rack locations, assigns a `PGRN-YYYYMMDD-####` number, opens the printable/save-as-PDF pick sheet, and moves the order to Picking
   - `/orders/packing/picking` lists picked-from-rack orders that are currently being scanned
   - `/orders/packing/packed` lists fully scanned packed orders ready for dispatch
-  - the per-order scanner accepts allocated unit labels or repeated SKU scans, persists scan progress on inventory units, and automatically moves the order to `packed` on the final required scan
+  - the per-order scanner accepts repeated SKU barcode scans, persists scan progress on inventory units, and automatically moves the order to `packed` on the final required scan
   - packing is still a work-in-progress operational area; do not describe it as fully hardened or fully browser-QA-proven without a dedicated end-to-end verification pass
 - returns
   - backend logic for `returned` is implemented

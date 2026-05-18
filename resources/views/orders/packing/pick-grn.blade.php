@@ -83,7 +83,7 @@
                     <tr>
                         <th>Item</th>
                         <th>SKU</th>
-                        <th>Label</th>
+                        <th>Barcode</th>
                         <th>Pick Location</th>
                         <th>GRN Source</th>
                         <th>Check</th>
@@ -95,7 +95,7 @@
                             <tr>
                                 <td>{{ $item['product_name'] ?? '-' }}</td>
                                 <td class="mono">{{ $item['sku'] ?? '-' }}</td>
-                                <td class="mono">{{ $unit['unit_code'] ?? '-' }}</td>
+                                <td class="mono">{{ $unit['barcode_value'] ?? '-' }}</td>
                                 <td>
                                     {{ $unit['store_label'] ?? 'Unassigned Store' }}<br>
                                     <span class="muted">{{ $unit['rack_label'] ?? 'Unassigned Rack' }}</span>

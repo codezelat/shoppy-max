@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\ProductController;
 use App\Models\Category;
+use App\Models\InventoryUnit;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Unit;
@@ -74,6 +76,47 @@ class ProductCrudTest extends TestCase
 
         $response->assertSessionHasErrors(['variants.1.unit_id']);
         $this->assertSame('1000', $secondVariant->fresh()->unit_value);
+    }
+
+    public function test_quantity_product_barcode_labels_repeat_variant_sku_not_internal_unit_codes(): void
+    {
+        [$category, $unit] = $this->productDependencies();
+        $product = Product::create([
+            'name' => 'Barcode Product',
+            'category_id' => $category->id,
+        ]);
+        $variant = ProductVariant::create(array_merge(
+            $this->storedVariantPayload($product, $unit, '500', 'SKU-PRODUCT-500'),
+            ['quantity' => 2]
+        ));
+
+        InventoryUnit::create([
+            'product_variant_id' => $variant->id,
+            'unit_code' => 'IU-PRODUCT-0001',
+            'status' => InventoryUnit::STATUS_AVAILABLE,
+            'sku_snapshot' => $variant->sku,
+            'available_at' => now(),
+            'last_event_at' => now(),
+        ]);
+        InventoryUnit::create([
+            'product_variant_id' => $variant->id,
+            'unit_code' => 'IU-PRODUCT-0002',
+            'status' => InventoryUnit::STATUS_AVAILABLE,
+            'sku_snapshot' => $variant->sku,
+            'available_at' => now(),
+            'last_event_at' => now(),
+        ]);
+
+        $method = new \ReflectionMethod(ProductController::class, 'buildBarcodeLabelsForVariant');
+        $method->setAccessible(true);
+
+        $labels = $method->invoke(app(ProductController::class), $variant);
+
+        $this->assertCount(2, $labels);
+        $this->assertSame(['SKU-PRODUCT-500', 'SKU-PRODUCT-500'], $labels->pluck('barcode_value')->all());
+        $this->assertSame(['SKU-PRODUCT-500', 'SKU-PRODUCT-500'], $labels->pluck('display_code')->all());
+        $this->assertNotContains('IU-PRODUCT-0001', $labels->pluck('barcode_value')->all());
+        $this->assertNotContains('IU-PRODUCT-0002', $labels->pluck('display_code')->all());
     }
 
     private function productDependencies(): array

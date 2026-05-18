@@ -96,6 +96,8 @@ class PurchaseStorePlacementTest extends TestCase
                 'placed_count' => 1,
                 'remaining_count' => 1,
                 'purchase_status' => 'verified',
+                'unit_code' => $variant->sku,
+                'barcode_value' => $variant->sku,
             ]);
         $this->assertSame(1, InventoryUnit::where('purchase_item_id', $item->id)->where('store_rack_id', $rack->id)->count());
         $this->assertSame(1, (int) $variant->fresh()->quantity);

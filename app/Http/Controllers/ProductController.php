@@ -554,7 +554,7 @@ class ProductController extends Controller
             ->where('status', InventoryUnit::STATUS_AVAILABLE)
             ->orderBy('product_variant_id')
             ->orderBy('id')
-            ->get(['product_variant_id', 'unit_code'])
+            ->get(['product_variant_id'])
             ->groupBy('product_variant_id');
 
         return $variants->flatMap(function (ProductVariant $variant) use ($availableUnits) {
@@ -587,7 +587,7 @@ class ProductController extends Controller
             ->where('product_variant_id', $variant->id)
             ->where('status', InventoryUnit::STATUS_AVAILABLE)
             ->orderBy('id')
-            ->get(['unit_code']);
+            ->get(['id']);
 
         $labels = collect();
 
@@ -595,8 +595,8 @@ class ProductController extends Controller
             $labels->push([
                 'product_name' => $productName,
                 'variant_text' => $variantText,
-                'barcode_value' => (string) $unit->unit_code,
-                'display_code' => (string) $unit->unit_code,
+                'barcode_value' => (string) $variant->sku,
+                'display_code' => (string) $variant->sku,
             ]);
         }
 

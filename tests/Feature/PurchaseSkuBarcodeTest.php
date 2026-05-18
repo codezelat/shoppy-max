@@ -33,6 +33,7 @@ class PurchaseSkuBarcodeTest extends TestCase
         $this->assertSame(3, substr_count($html, 'Barcode for '.$variant->sku));
         $this->assertSame(3, substr_count($html, '<div class="unit-code">'.$variant->sku.'</div>'));
         $this->assertStringNotContainsString('Barcode for '.$units->first()->unit_code, $html);
+        $this->assertSame($variant->sku, $purchase->items()->with('inventoryUnits')->firstOrFail()->trackedUnitRangeLabel());
     }
 
     public function test_grn_accepts_repeated_sku_barcode_scans_for_pending_units(): void
@@ -95,6 +96,7 @@ class PurchaseSkuBarcodeTest extends TestCase
         $this->assertSame(1, $firstScan['scanned_count']);
         $this->assertSame(2, $secondScan['scanned_count']);
         $this->assertSame(2, InventoryUnit::where('order_id', $order->id)->whereNotNull('packed_scan_at')->count());
+        $this->assertSame($variant->sku, $orderItem->fresh('inventoryUnits')->trackedUnitRangeLabel());
     }
 
     public function test_order_allocation_prioritizes_retail_store_units_before_warehouse_units(): void
@@ -212,7 +214,8 @@ class PurchaseSkuBarcodeTest extends TestCase
             ->assertSee('Retail Store')
             ->assertSee('Retail Rack / Row 1')
             ->assertSee($purchase->purchase_number)
-            ->assertSee('RET-PICK-1')
+            ->assertSee($variant->sku)
+            ->assertDontSee('RET-PICK-1')
             ->assertSee('onScanInput', false);
 
         $this->actingAs($user)
@@ -343,7 +346,9 @@ class PurchaseSkuBarcodeTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('delivery_status', 'packed')
             ->assertJsonPath('auto_packed', true)
-            ->assertJsonPath('summary.all_scanned', true);
+            ->assertJsonPath('summary.all_scanned', true)
+            ->assertJsonPath('unit_code', $variant->sku)
+            ->assertJsonPath('barcode_value', $variant->sku);
 
         $order->refresh();
         $this->assertSame('packed', $order->delivery_status);
@@ -414,7 +419,8 @@ class PurchaseSkuBarcodeTest extends TestCase
 
         $this->assertSame('SKU Barcode Product', $modalPayload['items'][0]['product_name']);
         $this->assertSame($variant->sku, $modalPayload['items'][0]['sku']);
-        $this->assertSame('READY-PICK-1', $modalPayload['items'][0]['units'][0]['unit_code']);
+        $this->assertSame($variant->sku, $modalPayload['items'][0]['units'][0]['barcode_value']);
+        $this->assertArrayNotHasKey('unit_code', $modalPayload['items'][0]['units'][0]);
         $this->assertSame('Retail Store', $modalPayload['items'][0]['units'][0]['store_label']);
         $this->assertSame('Ready Rack / Row 1', $modalPayload['items'][0]['units'][0]['rack_label']);
         $this->assertSame($purchase->purchase_number, $modalPayload['items'][0]['units'][0]['purchase_number']);
@@ -437,7 +443,7 @@ class PurchaseSkuBarcodeTest extends TestCase
             ->assertSee($order->pick_grn_number)
             ->assertSee('SKU Barcode Product')
             ->assertSee($variant->sku)
-            ->assertSee('READY-PICK-1')
+            ->assertDontSee('READY-PICK-1')
             ->assertSee('Retail Store')
             ->assertSee('Ready Rack / Row 1')
             ->assertSee($purchase->purchase_number)
@@ -454,7 +460,8 @@ class PurchaseSkuBarcodeTest extends TestCase
             ->assertSee('Pick GRN Details')
             ->assertSee('Print / Save PDF')
             ->assertSee('target="_blank"', false)
-            ->assertSee('READY-PICK-1')
+            ->assertSee($variant->sku)
+            ->assertDontSee('READY-PICK-1')
             ->assertSee('Ready Rack / Row 1')
             ->assertSee($purchase->purchase_number);
 
@@ -480,9 +487,10 @@ class PurchaseSkuBarcodeTest extends TestCase
             ->assertOk()
             ->assertSee($order->pick_grn_number)
             ->assertSee('Print / Save PDF')
+            ->assertSee($variant->sku)
             ->assertSee('Ready Rack / Row 1')
             ->assertSee($purchase->purchase_number)
-            ->assertSee('READY-PICK-1');
+            ->assertDontSee('READY-PICK-1');
     }
 
     private function makePurchaseWithPendingUnits(int $quantity): array
