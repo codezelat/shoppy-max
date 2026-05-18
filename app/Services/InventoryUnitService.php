@@ -93,6 +93,52 @@ class InventoryUnitService
         return $units;
     }
 
+    public function placeNextPurchaseItemForSkuInStore(StoreRack $rack, string $rawSku, ?int $userId = null): array
+    {
+        $sku = strtoupper(preg_replace('/\s+/', '', trim($rawSku)));
+
+        if ($sku === '') {
+            throw ValidationException::withMessages([
+                'barcode' => 'Scan a valid product barcode.',
+            ]);
+        }
+
+        $items = PurchaseItem::query()
+            ->with(['purchase.items.inventoryUnits', 'variant.product', 'variant.unit', 'inventoryUnits'])
+            ->whereHas('purchase', fn ($purchaseQuery) => $purchaseQuery->whereIn('status', ['verified', 'complete']))
+            ->whereHas('variant', fn ($variantQuery) => $variantQuery->whereRaw('UPPER(sku) = ?', [$sku]))
+            ->get()
+            ->sortBy(fn (PurchaseItem $item) => implode('|', [
+                optional($item->purchase?->purchase_date)->format('Y-m-d') ?? '',
+                str_pad((string) ($item->purchase_id ?? 0), 10, '0', STR_PAD_LEFT),
+                str_pad((string) $item->id, 10, '0', STR_PAD_LEFT),
+            ]))
+            ->values();
+
+        if ($items->isEmpty()) {
+            throw ValidationException::withMessages([
+                'barcode' => 'No verified purchase item was found for this SKU.',
+            ]);
+        }
+
+        $item = $items->first(fn (PurchaseItem $candidate) => $candidate->remainingPlacementQuantity() > 0);
+
+        if (! $item) {
+            throw ValidationException::withMessages([
+                'barcode' => 'All purchased units for this SKU are already placed into store stock.',
+            ]);
+        }
+
+        $units = $this->placePurchaseItemInStore($item, $rack, 1, $userId);
+        $item = $item->fresh(['purchase', 'variant.product', 'variant.unit', 'inventoryUnits']);
+
+        return [
+            'unit' => $units->first(),
+            'item' => $item,
+            'purchase' => $item->purchase,
+        ];
+    }
+
     public function archivePendingUnitsForPurchase(Purchase $purchase, string $reason, ?int $userId = null): int
     {
         $units = InventoryUnit::query()

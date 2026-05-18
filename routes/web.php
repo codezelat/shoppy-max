@@ -173,6 +173,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/purchases/{purchase}/items/{item}/barcodes', [\App\Http\Controllers\PurchaseController::class, 'printItemBarcodes'])->name('purchases.items.barcodes');
     Route::get('/purchases/store-placement/{store}', [\App\Http\Controllers\PurchaseStorePlacementController::class, 'index'])->name('purchases.store-placement.index');
     Route::post('/purchases/store-placement/{store}', [\App\Http\Controllers\PurchaseStorePlacementController::class, 'store'])->name('purchases.store-placement.store');
+    Route::post('/purchases/store-placement/{store}/scan', [\App\Http\Controllers\PurchaseStorePlacementController::class, 'scan'])->name('purchases.store-placement.scan');
     Route::get('/purchases/store-racks/{store}', [\App\Http\Controllers\StoreRackController::class, 'index'])->name('purchases.store-racks.index');
     Route::post('/purchases/store-racks/{store}', [\App\Http\Controllers\StoreRackController::class, 'store'])->name('purchases.store-racks.store');
     Route::get('/purchases/moderation', function () {

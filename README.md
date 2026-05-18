@@ -246,7 +246,7 @@ These are current implemented behaviors.
 
 - Product and variant creation starts stock at `0`.
 - Purchases do not create stock or inventory units automatically.
-- Stock is added only when a verified purchase item quantity is manually placed into a Retail Store or Warehouse Store rack row.
+- Stock is added only when a verified purchase item is scanned into a selected Retail Store or Warehouse Store rack row.
 - Orders allocate real inventory units, not only aggregate stock counts.
 - Stock decreases when units are allocated to active orders.
 - Delivered orders mark units as delivered.
@@ -268,9 +268,9 @@ Rules:
 - Moderation is forward-only:
   - `pending -> checking -> verified -> complete`
 - Purchase date and purchasing ID are locked after creation.
-- Verified purchase items can be manually added to either Retail Store or Warehouse Store.
+- Verified purchase items can be scanned into either Retail Store or Warehouse Store.
 - Rack rows are maintained separately for Retail Store and Warehouse Store.
-- Placing stock creates available inventory units, records the store/rack, and increments product variant stock.
+- The operator selects a rack, starts adding, then each SKU barcode scan creates one available inventory unit, records the store/rack, and increments product variant stock by one.
 - A purchase becomes `complete` only when all purchased item quantities have been placed into store stock.
 - Once store placement starts, purchase structure is locked.
 - Completed purchases are locked from structural edits and deletion.

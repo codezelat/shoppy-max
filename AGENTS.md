@@ -101,7 +101,7 @@ Rules:
 - do not allow moving backward or skipping stages
 - purchase date and purchase number are immutable after creation
 - purchase creation/editing must not create stock or inventory units automatically
-- verified purchase quantities are added to stock only through manual Retail Store or Warehouse Store placement
+- verified purchase quantities are added to stock only through scanner-based Retail Store or Warehouse Store placement
 - purchase item structure locks once store placement starts
 - a purchase in `complete` is locked from structural editing/deletion
 
@@ -117,10 +117,10 @@ Stock intake is manual from the verified purchase stage.
 
 Rules:
 
-- verified purchase items can be added into either `retail` or `warehouse` store
+- verified purchase items can be scanned into either `retail` or `warehouse` store
 - each store has its own simple rack rows
-- stock updates only when an operator chooses a rack and quantity for a purchase item
-- the placement action creates available inventory units, stores the rack/store metadata, and increments variant stock
+- stock updates only after an operator chooses a rack, starts adding, and scans SKU barcode labels
+- each successful scan creates one available inventory unit, stores the rack/store metadata, and increments variant stock by one
 - do not allow placed quantity to exceed the purchased quantity remaining for that item
 - the purchase becomes `complete` only when all item quantities are fully placed into store stock
 - purchase-printed barcode labels repeat the SKU per physical unit quantity

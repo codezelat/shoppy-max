@@ -23,6 +23,7 @@
             <table class="w-full text-left text-sm text-gray-500 dark:text-gray-400">
                 <thead class="bg-gray-50 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-300">
                     <tr>
+                        <th class="px-6 py-3">Rack</th>
                         <th class="px-6 py-3">Row</th>
                         <th class="px-6 py-3">Store</th>
                         <th class="px-6 py-3">Created</th>
@@ -31,13 +32,14 @@
                 <tbody>
                     @forelse($racks as $rack)
                         <tr class="border-b bg-white dark:border-gray-700 dark:bg-gray-800">
-                            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">{{ $rack->row_name }}</td>
+                            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">{{ $rack->rack_name }}</td>
+                            <td class="px-6 py-4">{{ $rack->row_name }}</td>
                             <td class="px-6 py-4">{{ $storeLabel }}</td>
                             <td class="px-6 py-4">{{ optional($rack->created_at)->format('d M Y h:i A') }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">No rack rows created yet.</td>
+                            <td colspan="4" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">No rack rows created yet.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -52,6 +54,13 @@
             @csrf
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Create Rack Row</h3>
             <div class="mt-4">
+                <label for="rack_name" class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Rack</label>
+                <input id="rack_name" name="rack_name" value="{{ old('rack_name') }}" required maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                @error('rack_name')
+                    <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                @enderror
+            </div>
+            <div class="mt-4">
                 <label for="row_name" class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Row</label>
                 <input id="row_name" name="row_name" value="{{ old('row_name') }}" required maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                 @error('row_name')
@@ -59,7 +68,7 @@
                 @enderror
             </div>
             <button type="submit" class="mt-5 inline-flex items-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700">
-                Create Row
+                Create Rack Row
             </button>
         </form>
     </div>

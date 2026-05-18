@@ -18,6 +18,8 @@ class StoreRack extends Model
 
     protected $fillable = [
         'store_type',
+        'rack_name',
+        'rack_key',
         'row_name',
         'row_key',
     ];
@@ -40,6 +42,19 @@ class StoreRack extends Model
     public static function normalizeRowKey(string $rowName): string
     {
         return mb_strtolower(preg_replace('/\s+/', ' ', trim($rowName)));
+    }
+
+    public static function normalizeRackKey(string $rackName): string
+    {
+        return mb_strtolower(preg_replace('/\s+/', ' ', trim($rackName)));
+    }
+
+    public function getDisplayLabelAttribute(): string
+    {
+        $rackName = trim((string) ($this->rack_name ?: 'Default Rack'));
+        $rowName = trim((string) $this->row_name);
+
+        return $rowName !== '' ? "{$rackName} / {$rowName}" : $rackName;
     }
 
     public function inventoryUnits(): HasMany
