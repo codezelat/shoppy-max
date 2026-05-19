@@ -22,6 +22,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'email_verified_at',
         'password',
         'phone', // Ensuring phone is kept as per previous context
     ];
@@ -52,6 +53,11 @@ class User extends Authenticatable
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class, 'user_id');
+    }
+
+    public function resellerAccount()
+    {
+        return $this->hasOne(Reseller::class, 'user_id');
     }
 
     public function packedOrders(): HasMany

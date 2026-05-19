@@ -91,6 +91,15 @@
                         @endif
                     </div>
                     <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <div class="mb-6">
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Login Account</p>
+                            @if($reseller->userAccount)
+                                <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $reseller->userAccount->email }}</p>
+                                <p class="text-xs text-green-600 dark:text-green-400">Active direct reseller login</p>
+                            @else
+                                <p class="mt-1 text-sm text-red-600 dark:text-red-400">No login account linked</p>
+                            @endif
+                        </div>
                         <div class="flex items-center">
                             <div class="p-2 bg-blue-100 rounded-lg dark:bg-blue-900">
                                 <svg class="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>

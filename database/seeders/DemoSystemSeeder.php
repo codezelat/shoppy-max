@@ -28,6 +28,7 @@ use App\Models\Supplier;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\InventoryUnitService;
+use App\Services\ResellerAccountService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -542,6 +543,7 @@ class DemoSystemSeeder extends Seeder
                 ->all();
 
             $reseller->couriers()->sync($courierIds);
+            app(ResellerAccountService::class)->syncSeedAccount($reseller);
             $map[$row['business_name']] = $reseller;
         }
 

@@ -90,6 +90,13 @@ Authentication is provided by Laravel Breeze, and permissions are handled by Spa
   - admin-readable operation labels such as "Opened Units Edit Page" and "Downloaded User Logs Export Excel" before technical route names
   - sanitized request/file metadata so secrets and file contents are not stored
 - Reseller commission/penalty logic (reseller-only, not direct reseller)
+- Reseller/direct-reseller login account creation:
+  - email is required for both reseller types
+  - creating a reseller creates a linked user account with a generated password
+  - generated login details are shown once with a copy button
+  - linked user name, email, mobile, and role stay synced when the reseller record is edited
+  - deleting a reseller retires the dedicated linked login account
+  - reseller dashboards show the linked business, due balance, order counts, and return fee where applicable
 - PDF/print/export support across modules
 
 ## Tech Stack

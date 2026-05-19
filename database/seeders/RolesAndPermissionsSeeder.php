@@ -54,6 +54,14 @@ class RolesAndPermissionsSeeder extends Seeder
             'name' => 'user',
             'guard_name' => 'web',
         ]);
+        $resellerRole = Role::firstOrCreate([
+            'name' => 'reseller',
+            'guard_name' => 'web',
+        ]);
+        $directResellerRole = Role::firstOrCreate([
+            'name' => 'direct reseller',
+            'guard_name' => 'web',
+        ]);
 
         // Assign all permissions to super admin
         $superAdminRole->syncPermissions(Permission::all());
@@ -70,6 +78,8 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // User role intentionally receives no elevated permissions.
         $userRole->syncPermissions([]);
+        $resellerRole->syncPermissions([]);
+        $directResellerRole->syncPermissions([]);
 
         // Create super admin user
         // NOTE: For security, change this password immediately after first login in production

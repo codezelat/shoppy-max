@@ -4,19 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\Reseller;
 use App\Models\Courier;
+use App\Services\ResellerAccountService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use App\Rules\SriLankaMobile;
 use App\Rules\SriLankaLandline;
 
 class DirectResellerController extends Controller
 {
+    public function __construct(private ResellerAccountService $resellerAccounts)
+    {
+    }
+
     /**
      * Display a listing of direct resellers.
      */
     public function index(Request $request)
     {
         $search = $request->input('search');
-        $query = Reseller::direct();
+        $query = Reseller::direct()->with('userAccount');
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -77,33 +84,26 @@ class DirectResellerController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'business_name' => 'required|string|max:255',
-            'name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'mobile' => ['required', 'string', new SriLankaMobile],
-            'landline' => ['nullable', 'string', new SriLankaLandline],
-            'address' => 'required|string',
-            'country' => 'required|string',
-            'province' => 'nullable|string',
-            'district' => 'nullable|string',
-            'city' => 'nullable|string',
-            'due_amount' => 'numeric|min:0',
-            'couriers' => 'nullable|array',
-            'couriers.*' => 'integer|exists:couriers,id',
-        ]);
+        $validated = $request->validate($this->rules());
 
-        $courierIds = $validated['couriers'] ?? [];
-        unset($validated['couriers']);
+        $loginDetails = DB::transaction(function () use ($validated) {
+            $courierIds = $validated['couriers'] ?? [];
+            unset($validated['couriers']);
 
-        $data = $validated;
-        $data['reseller_type'] = Reseller::TYPE_DIRECT_RESELLER;
-        $data['return_fee'] = 0;
+            $data = $validated;
+            $data['email'] = strtolower(trim($validated['email']));
+            $data['reseller_type'] = Reseller::TYPE_DIRECT_RESELLER;
+            $data['return_fee'] = 0;
 
-        $reseller = Reseller::create($data);
-        $reseller->couriers()->sync($courierIds);
+            $reseller = Reseller::create($data);
+            $reseller->couriers()->sync($courierIds);
 
-        return redirect()->route('direct-resellers.index')->with('success', 'Reseller created successfully.');
+            return $this->resellerAccounts->createAccount($reseller);
+        });
+
+        return redirect()->route('direct-resellers.index')
+            ->with('success', 'Reseller and login account created successfully.')
+            ->with('created_login', $loginDetails);
     }
 
     /**
@@ -112,8 +112,9 @@ class DirectResellerController extends Controller
     public function show(Reseller $directReseller)
     {
         $this->ensureDirectReseller($directReseller);
-        $directReseller->load('couriers');
+        $directReseller->load('couriers', 'userAccount');
 
+        $directReseller->load('userAccount');
         $reseller = $directReseller;
 
         return view('contacts.direct_resellers.show', compact('reseller'));
@@ -141,32 +142,28 @@ class DirectResellerController extends Controller
     {
         $this->ensureDirectReseller($directReseller);
 
-        $validated = $request->validate([
-            'business_name' => 'required|string|max:255',
-            'name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'mobile' => ['required', 'string', new SriLankaMobile],
-            'landline' => ['nullable', 'string', new SriLankaLandline],
-            'address' => 'required|string',
-            'country' => 'required|string',
-            'province' => 'nullable|string',
-            'district' => 'nullable|string',
-            'city' => 'nullable|string',
-            'couriers' => 'nullable|array',
-            'couriers.*' => 'integer|exists:couriers,id',
-        ]);
+        $validated = $request->validate($this->rules($directReseller));
 
-        $courierIds = $validated['couriers'] ?? [];
-        unset($validated['couriers']);
+        $loginDetails = DB::transaction(function () use ($validated, $directReseller) {
+            $courierIds = $validated['couriers'] ?? [];
+            unset($validated['couriers']);
+            unset($validated['due_amount']);
 
-        $data = $validated;
-        $data['reseller_type'] = Reseller::TYPE_DIRECT_RESELLER;
-        $data['return_fee'] = 0;
+            $data = $validated;
+            $data['email'] = strtolower(trim($validated['email']));
+            $data['reseller_type'] = Reseller::TYPE_DIRECT_RESELLER;
+            $data['return_fee'] = 0;
 
-        $directReseller->update($data);
-        $directReseller->couriers()->sync($courierIds);
+            $directReseller->update($data);
+            $directReseller->couriers()->sync($courierIds);
 
-        return redirect()->route('direct-resellers.index')->with('success', 'Reseller updated successfully.');
+            return $this->resellerAccounts->syncAccount($directReseller->fresh());
+        });
+
+        $redirect = redirect()->route('direct-resellers.index')
+            ->with('success', 'Reseller and login account updated successfully.');
+
+        return $loginDetails ? $redirect->with('created_login', $loginDetails) : $redirect;
     }
 
     /**
@@ -176,7 +173,10 @@ class DirectResellerController extends Controller
     {
         $this->ensureDirectReseller($directReseller);
 
-        $directReseller->delete();
+        DB::transaction(function () use ($directReseller) {
+            $this->resellerAccounts->retireAccount($directReseller);
+            $directReseller->delete();
+        });
 
         return redirect()->route('direct-resellers.index')->with('success', 'Reseller deleted successfully.');
     }
@@ -184,5 +184,30 @@ class DirectResellerController extends Controller
     private function ensureDirectReseller(Reseller $reseller): void
     {
         abort_unless($reseller->reseller_type === Reseller::TYPE_DIRECT_RESELLER, 404);
+    }
+
+    private function rules(?Reseller $reseller = null): array
+    {
+        return [
+            'business_name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($reseller?->user_id),
+                Rule::unique('resellers', 'email')->ignore($reseller?->id),
+            ],
+            'mobile' => ['required', 'string', new SriLankaMobile],
+            'landline' => ['nullable', 'string', new SriLankaLandline],
+            'address' => ['required', 'string'],
+            'country' => ['required', 'string'],
+            'province' => ['nullable', 'string'],
+            'district' => ['nullable', 'string'],
+            'city' => ['nullable', 'string'],
+            'due_amount' => ['sometimes', 'numeric', 'min:0'],
+            'couriers' => ['nullable', 'array'],
+            'couriers.*' => ['integer', 'exists:couriers,id'],
+        ];
     }
 }

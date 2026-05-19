@@ -215,6 +215,12 @@ Rules:
 - target management is for regular resellers only
 - direct resellers do not use return fee penalties
 - order commission logic applies only where the current controller/model rules allow it
+- email is required for both reseller types because every reseller record creates or syncs a linked login account
+- reseller account creation and sync must go through `app/Services/ResellerAccountService.php`
+- regular reseller accounts receive the `reseller` role; direct reseller accounts receive the `direct reseller` role
+- creation flashes generated credentials once for the operator to copy; edits sync the existing user without resetting its password
+- deleting a reseller/direct-reseller retires the dedicated linked login account; if that user has other roles, remove only the reseller role and keep the user
+- seeded demo resellers must have linked users so reseller dashboards and login smoke tests work on fresh data
 
 Do not mix reseller and direct-reseller financial behavior.
 
@@ -282,6 +288,8 @@ Use these instead of scattering new logic:
   - `app/Http/Controllers/PurchaseController.php`
 - order lifecycle, payment resolution, commission, reseller penalty, allocation:
   - `app/Http/Controllers/OrderController.php`
+- reseller/direct-reseller login account creation:
+  - `app/Services/ResellerAccountService.php`
 - courier receive:
   - `app/Http/Controllers/CourierReceiveController.php`
 - courier payment edit/list/show:
@@ -536,6 +544,10 @@ Check:
 Check:
 
 - reseller and direct-reseller CRUD
+- mandatory email validation on create/edit for both reseller types
+- linked user account creation, generated credential copy card, and real login with generated password
+- role assignment: `reseller` for regular resellers and `direct reseller` for direct resellers
+- reseller dashboard details after logging in as the linked reseller user
 - payments
 - dues
 - order side effects on due and penalties

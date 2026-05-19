@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Order;
+use App\Models\Reseller;
 
 class DashboardController extends Controller
 {
@@ -23,6 +25,26 @@ class DashboardController extends Controller
             'paid_commission' => 0,
         ];
 
-        return view('dashboard', compact('user', 'stats'));
+        $resellerAccount = Reseller::query()
+            ->with('userAccount')
+            ->where('user_id', $user->id)
+            ->first();
+
+        $resellerStats = null;
+        if ($resellerAccount) {
+            $orders = Order::query()->where('reseller_id', $resellerAccount->id);
+            $resellerStats = [
+                'label' => $resellerAccount->reseller_type === Reseller::TYPE_DIRECT_RESELLER
+                    ? 'Direct Reseller Account'
+                    : 'Reseller Account',
+                'total_orders' => (clone $orders)->count(),
+                'pending_orders' => (clone $orders)->where('status', 'pending')->count(),
+                'confirmed_orders' => (clone $orders)->where('status', 'confirm')->count(),
+                'delivered_orders' => (clone $orders)->where('delivery_status', 'delivered')->count(),
+                'returned_orders' => (clone $orders)->where('delivery_status', 'returned')->count(),
+            ];
+        }
+
+        return view('dashboard', compact('user', 'stats', 'resellerAccount', 'resellerStats'));
     }
 }

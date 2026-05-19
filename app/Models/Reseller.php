@@ -10,6 +10,7 @@ class Reseller extends Model
     public const TYPE_DIRECT_RESELLER = 'direct_reseller';
 
     protected $fillable = [
+        'user_id',
         'business_name',
         'name',
         'email',
@@ -53,5 +54,10 @@ class Reseller extends Model
     public function couriers()
     {
         return $this->belongsToMany(Courier::class)->withTimestamps();
+    }
+
+    public function userAccount()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }

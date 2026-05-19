@@ -28,7 +28,8 @@
     </x-slot>
 
     <div class="p-6 overflow-hidden bg-white rounded-md shadow-md dark:bg-gray-800">
-        
+        @include('contacts.partials.created-login-card')
+
         <!-- Stats Widgets -->
         <div class="grid grid-cols-1 gap-4 mb-8 md:grid-cols-3">
             <x-stats-card title="Total Resellers" value="{{ $totalResellers }}" color="blue">
@@ -92,6 +93,7 @@
                             </a>
                         </th>
                         <th scope="col" class="px-6 py-3">Mobile</th>
+                        <th scope="col" class="px-6 py-3">Login</th>
                         <th scope="col" class="px-6 py-3">
                              <a href="{{ route('direct-resellers.index', array_merge(request()->all(), ['sort' => 'due_amount', 'direction' => request('direction') == 'asc' ? 'desc' : 'asc'])) }}" class="flex items-center group cursor-pointer hover:text-primary-600 dark:hover:text-white">
                                 Due Amount
@@ -115,6 +117,13 @@
                             </td>
                             <td class="px-6 py-4">
                                 {{ $reseller->mobile }}
+                            </td>
+                            <td class="px-6 py-4">
+                                @if($reseller->userAccount)
+                                    <span class="inline-flex rounded bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">Active</span>
+                                @else
+                                    <span class="inline-flex rounded bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900 dark:text-red-300">Missing</span>
+                                @endif
                             </td>
                              <td class="px-6 py-4">
                                 @if($reseller->due_amount > 0)
@@ -147,7 +156,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                                 <div class="flex flex-col items-center justify-center py-6">
                                     <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                                     <p class="text-base">No resellers found.</p>
