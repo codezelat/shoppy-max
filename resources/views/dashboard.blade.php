@@ -39,9 +39,23 @@
                                     <h3 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ $resellerAccount->business_name }}</h3>
                                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $resellerAccount->name }} · {{ $resellerAccount->email }}</p>
                                 </div>
-                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-right dark:border-gray-700 dark:bg-gray-900/40">
-                                    <p class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Current Due</p>
-                                    <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">Rs. {{ number_format($resellerAccount->due_amount, 2) }}</p>
+                                <div class="flex flex-col items-stretch gap-3 sm:items-end">
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-right dark:border-gray-700 dark:bg-gray-900/40">
+                                        <p class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Current Due</p>
+                                        <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">Rs. {{ number_format($resellerAccount->due_amount, 2) }}</p>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        @canany(['view own orders', 'view orders'])
+                                            <a href="{{ route('orders.index') }}" class="inline-flex items-center justify-center rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                                                My Orders
+                                            </a>
+                                        @endcanany
+                                        @canany(['create own orders', 'create orders'])
+                                            <a href="{{ route('orders.create') }}" class="inline-flex items-center justify-center rounded-lg bg-blue-700 px-3 py-2 text-xs font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700">
+                                                Add Order
+                                            </a>
+                                        @endcanany
+                                    </div>
                                 </div>
                             </div>
 

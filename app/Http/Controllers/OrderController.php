@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
+use Spatie\Permission\Models\Permission;
 
 class OrderController extends Controller
 {
@@ -50,6 +51,100 @@ class OrderController extends Controller
 
     public function __construct(private ProductImageService $productImages) {}
 
+    private function currentResellerAccount(): ?Reseller
+    {
+        $userId = Auth::id();
+
+        if (! $userId) {
+            return null;
+        }
+
+        return Reseller::query()
+            ->where('user_id', $userId)
+            ->first();
+    }
+
+    private function shouldBypassPermissionChecks(array $permissions): bool
+    {
+        return app()->runningUnitTests()
+            && ! Permission::whereIn('name', $permissions)->exists();
+    }
+
+    private function userCan(string $permission): bool
+    {
+        return (bool) Auth::user()?->can($permission);
+    }
+
+    private function currentOwnOrderAccount(string $ownPermission, string $globalPermission): ?Reseller
+    {
+        if ($this->shouldBypassPermissionChecks([$ownPermission, $globalPermission])) {
+            return null;
+        }
+
+        if ($this->userCan($globalPermission)) {
+            return null;
+        }
+
+        if (! $this->userCan($ownPermission)) {
+            return null;
+        }
+
+        $account = $this->currentResellerAccount();
+
+        abort_unless($account, 403);
+
+        return $account;
+    }
+
+    private function assertOrderAccess(Order $order, string $globalPermission, string $ownPermission): void
+    {
+        if ($this->shouldBypassPermissionChecks([$globalPermission, $ownPermission])) {
+            return;
+        }
+
+        if ($this->userCan($globalPermission)) {
+            return;
+        }
+
+        if ($this->userCan($ownPermission)) {
+            $account = $this->currentResellerAccount();
+
+            abort_unless($account && (int) $order->reseller_id === (int) $account->id, 403);
+
+            return;
+        }
+
+        abort(403);
+    }
+
+    private function applyOwnOrderScope(Builder $query, string $globalPermission, string $ownPermission): Builder
+    {
+        $account = $this->currentOwnOrderAccount($ownPermission, $globalPermission);
+
+        if ($account) {
+            $query->where('reseller_id', $account->id);
+        }
+
+        return $query;
+    }
+
+    private function resellerAccountPayload(?Reseller $reseller): ?array
+    {
+        if (! $reseller) {
+            return null;
+        }
+
+        return [
+            'id' => $reseller->id,
+            'name' => $reseller->name,
+            'business_name' => $reseller->business_name,
+            'display_name' => $reseller->business_name ?: $reseller->name,
+            'mobile' => $reseller->mobile,
+            'reseller_type' => $reseller->reseller_type,
+            'type_label' => $reseller->reseller_type === Reseller::TYPE_DIRECT_RESELLER ? 'Direct Reseller' : 'Reseller',
+        ];
+    }
+
     /**
      * Display a listing of orders.
      */
@@ -64,14 +159,15 @@ class OrderController extends Controller
             $orders->getCollection()->map(fn (Order $order) => $this->decorateOrderUiFlags($order))
         );
         $couriers = Courier::all();
+        $resellerPortalAccount = $this->currentOwnOrderAccount('view own orders', 'view orders');
 
-        return view('orders.index', compact('orders', 'couriers', 'viewMode'));
+        return view('orders.index', compact('orders', 'couriers', 'viewMode', 'resellerPortalAccount'));
     }
 
     public function export(Request $request)
     {
         $viewMode = $this->resolveOrderListViewMode($request->input('view'));
-        $orders = $this->buildFilteredOrdersQuery($request, $viewMode)
+        $orders = $this->buildFilteredOrdersQuery($request, $viewMode, 'export orders', 'export own orders')
             ->latest()
             ->get();
 
@@ -97,8 +193,11 @@ class OrderController extends Controller
         $courierRatesMap = $this->buildCourierRatesMap($couriers);
         $cities = City::orderBy('city_name')->get(['id', 'city_name', 'district', 'province', 'postal_code']);
         $currentOrderDate = $today->toDateString();
+        $resellerPortalAccount = $this->resellerAccountPayload(
+            $this->currentOwnOrderAccount('create own orders', 'create orders')
+        );
 
-        return view('orders.create', compact('nextOrderNumber', 'couriers', 'courierRatesMap', 'cities', 'currentOrderDate'));
+        return view('orders.create', compact('nextOrderNumber', 'couriers', 'courierRatesMap', 'cities', 'currentOrderDate', 'resellerPortalAccount'));
     }
 
     /**
@@ -219,6 +318,23 @@ class OrderController extends Controller
             return response()->json([]);
         }
 
+        $ownAccount = $this->currentOwnOrderAccount('create own orders', 'create orders')
+            ?? $this->currentOwnOrderAccount('edit own orders', 'edit orders');
+
+        if ($ownAccount) {
+            $payload = $this->resellerAccountPayload($ownAccount);
+            $haystack = $this->normalizeSearchText(implode(' ', array_filter([
+                $payload['name'] ?? '',
+                $payload['business_name'] ?? '',
+                $payload['mobile'] ?? '',
+                $payload['type_label'] ?? '',
+            ])));
+
+            return response()->json(
+                str_contains($haystack, $this->normalizeSearchText($query)) ? [$payload] : []
+            );
+        }
+
         $resellers = Reseller::query()
             ->whereIn('reseller_type', [
                 Reseller::TYPE_RESELLER,
@@ -241,7 +357,7 @@ class OrderController extends Controller
                     'display_name' => $reseller->business_name ?: $reseller->name,
                     'mobile' => $reseller->mobile,
                     'reseller_type' => $reseller->reseller_type,
-                    'type_label' => $reseller->reseller_type === Reseller::TYPE_DIRECT_RESELLER ? 'Reseller' : 'Direct Reseller',
+                    'type_label' => $reseller->reseller_type === Reseller::TYPE_DIRECT_RESELLER ? 'Direct Reseller' : 'Reseller',
                 ];
             });
 
@@ -311,6 +427,14 @@ class OrderController extends Controller
      */
     public function store(Request $request)
     {
+        $ownAccount = $this->currentOwnOrderAccount('create own orders', 'create orders');
+        if ($ownAccount) {
+            $request->merge([
+                'order_type' => 'reseller',
+                'reseller_id' => $ownAccount->id,
+            ]);
+        }
+
         $validated = $request->validate([
             'order_type' => 'required|in:reseller,direct',
             'reseller_id' => [
@@ -606,6 +730,8 @@ class OrderController extends Controller
      */
     public function show(Order $order)
     {
+        $this->assertOrderAccess($order, 'view orders', 'view own orders');
+
         $order->load([
             'items.variant.unit',
             'items.variant.product',
@@ -633,6 +759,8 @@ class OrderController extends Controller
      */
     public function printView(Order $order)
     {
+        $this->assertOrderAccess($order, 'print orders', 'print own orders');
+
         $order->load(['items.variant.unit', 'items.variant.product', 'items.inventoryUnits.purchase', 'items.inventoryUnits.storeRack', 'customer', 'reseller', 'user', 'courier']);
 
         return view('orders.print', compact('order'));
@@ -643,6 +771,8 @@ class OrderController extends Controller
      */
     public function downloadPdf(Order $order)
     {
+        $this->assertOrderAccess($order, 'export orders', 'export own orders');
+
         $order->load(['items.variant.unit', 'items.variant.product', 'items.inventoryUnits.purchase', 'items.inventoryUnits.storeRack', 'customer', 'reseller', 'user', 'courier']);
         $pdf = Pdf::loadView('orders.pdf', compact('order'))->setPaper('a4');
 
@@ -664,11 +794,19 @@ class OrderController extends Controller
             ->unique()
             ->values();
 
-        $orders = Order::with(['items.variant.unit', 'items.inventoryUnits.purchase', 'items.inventoryUnits.storeRack', 'customer', 'reseller', 'user', 'courier'])
-            ->whereIn('id', $requestedIds)
-            ->get()
+        $ownAccount = $this->currentOwnOrderAccount('export own orders', 'export orders');
+        $ordersQuery = Order::with(['items.variant.unit', 'items.inventoryUnits.purchase', 'items.inventoryUnits.storeRack', 'customer', 'reseller', 'user', 'courier'])
+            ->whereIn('id', $requestedIds);
+
+        if ($ownAccount) {
+            $ordersQuery->where('reseller_id', $ownAccount->id);
+        }
+
+        $orders = $ordersQuery->get()
             ->sortBy(fn (Order $order) => $requestedIds->search($order->id))
             ->values();
+
+        abort_unless($orders->count() === $requestedIds->count(), 403);
 
         if ($orders->isEmpty()) {
             return back()->with('error', 'No orders selected to download.');
@@ -703,6 +841,8 @@ class OrderController extends Controller
      */
     public function edit(Order $order)
     {
+        $this->assertOrderAccess($order, 'edit orders', 'edit own orders');
+
         $this->decorateOrderUiFlags($order);
         $canAdjustLockedPayments = (bool) ($order->getAttribute('can_payment_edit') ?? false);
 
@@ -718,6 +858,9 @@ class OrderController extends Controller
         $cities = City::orderBy('city_name')->get(['id', 'city_name', 'district', 'province', 'postal_code']);
         $matchedCity = City::where('city_name', $order->customer_city ?: ($order->customer->city ?? ''))->first();
         $order->selected_city_id = $matchedCity?->id;
+        $resellerPortalAccount = $this->resellerAccountPayload(
+            $this->currentOwnOrderAccount('edit own orders', 'edit orders')
+        );
 
         return view('orders.edit', [
             'order' => $order,
@@ -726,6 +869,7 @@ class OrderController extends Controller
             'courierRatesMap' => $courierRatesMap,
             'cities' => $cities,
             'canAdjustLockedPayments' => $canAdjustLockedPayments,
+            'resellerPortalAccount' => $resellerPortalAccount,
         ]);
     }
 
@@ -734,6 +878,16 @@ class OrderController extends Controller
      */
     public function update(Request $request, Order $order)
     {
+        $this->assertOrderAccess($order, 'edit orders', 'edit own orders');
+
+        $ownAccount = $this->currentOwnOrderAccount('edit own orders', 'edit orders');
+        if ($ownAccount) {
+            $request->merge([
+                'order_type' => 'reseller',
+                'reseller_id' => $ownAccount->id,
+            ]);
+        }
+
         $manualEditLocked = $this->isManualOrderLockedAfterWaybill($order);
         $canAdjustLockedPayments = $this->canAdjustLockedOrderPayments($order);
 
@@ -1024,6 +1178,8 @@ class OrderController extends Controller
      */
     public function destroy(Order $order)
     {
+        $this->assertOrderAccess($order, 'delete orders', 'delete own orders');
+
         if ($this->isManualOrderLockedAfterWaybill($order)) {
             return redirect()
                 ->back()
@@ -1102,6 +1258,8 @@ class OrderController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $order = Order::findOrFail($id);
+        $this->assertOrderAccess($order, 'update order statuses', 'cancel own orders');
+        $ownCancelAccount = $this->currentOwnOrderAccount('cancel own orders', 'update order statuses');
 
         if ($this->isManualOrderLockedAfterWaybill($order)) {
             return response()->json([
@@ -1116,6 +1274,21 @@ class OrderController extends Controller
             'delivery_status' => 'nullable|in:pending,waybill_printed,picked_from_rack,packed,dispatched,delivered,returned',
             'sales_note' => 'nullable|string',
         ]);
+
+        if (
+            $ownCancelAccount
+            && (
+                ($validated['status'] ?? null) !== 'cancel'
+                || array_key_exists('call_status', $validated)
+                || array_key_exists('delivery_status', $validated)
+                || array_key_exists('sales_note', $validated)
+            )
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account can cancel its own pending orders only.',
+            ], 403);
+        }
 
         if (
             ($validated['status'] ?? null) !== 'cancel'
@@ -1281,9 +1454,14 @@ class OrderController extends Controller
         return in_array($viewMode, ['active', 'cancelled'], true) ? $viewMode : 'active';
     }
 
-    private function buildFilteredOrdersQuery(Request $request, string $viewMode): Builder
-    {
+    private function buildFilteredOrdersQuery(
+        Request $request,
+        string $viewMode,
+        string $globalPermission = 'view orders',
+        string $ownPermission = 'view own orders'
+    ): Builder {
         $query = Order::with(['user', 'reseller', 'customer', 'items', 'courier']);
+        $this->applyOwnOrderScope($query, $globalPermission, $ownPermission);
 
         if ($viewMode === 'cancelled') {
             $query->where('status', 'cancel');

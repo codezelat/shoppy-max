@@ -220,7 +220,7 @@
                 @endcanany
 
                 <!-- Orders -->
-                @canany(['view orders', 'create orders', 'view order call list', 'view waybills', 'view waybill excel exports', 'view packing'])
+                @canany(['view orders', 'view own orders', 'create orders', 'create own orders', 'view order call list', 'view waybills', 'view waybill excel exports', 'view packing'])
                 <li>
                     <button type="button" class="flex items-center w-full p-2 text-base transition duration-75 rounded-lg group {{ request()->routeIs('orders.*') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}" aria-controls="dropdown-orders" data-collapse-toggle="dropdown-orders">
                         <svg class="flex-shrink-0 w-5 h-5 transition duration-75 {{ request()->routeIs('orders.*') ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
@@ -230,16 +230,16 @@
                         </svg>
                     </button>
                     <ul id="dropdown-orders" class="{{ request()->routeIs('orders.*') ? '' : 'hidden' }} py-2 space-y-2">
-                        @can('view orders')
+                        @canany(['view orders', 'view own orders'])
                         <li>
                              <a href="{{ route('orders.index') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('orders.index') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Order List</a>
                         </li>
-                        @endcan
-                        @can('create orders')
+                        @endcanany
+                        @canany(['create orders', 'create own orders'])
                         <li>
                              <a href="{{ route('orders.create') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('orders.create') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Add Order</a>
                         </li>
-                        @endcan
+                        @endcanany
                         @can('view order call list')
                         <li>
                              <a href="{{ route('orders.call-list') }}" class="flex items-center w-full p-2 transition duration-75 rounded-lg pl-11 group {{ request()->routeIs('orders.call-list') ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700' }}">Call List</a>

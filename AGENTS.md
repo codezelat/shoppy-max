@@ -201,6 +201,8 @@ Rules:
 - cancelling an order forces call status and delivery status to `cancel`
 - only dispatched orders can be marked delivered
 - customer is created/updated from order input using mobile identity
+- linked reseller/direct-reseller users use own-order permissions; `/orders` list/export/search/create/edit/show/print/PDF/delete/cancel must stay scoped to `orders.reseller_id = linked resellers.id`
+- reseller/direct-reseller self-service order creation must force `order_type = reseller` and the authenticated user's own `reseller_id`, even if submitted form data tries to use `direct` or another reseller
 - once the order moves beyond early intake, core order structure becomes locked and only
   limited fields remain editable
 - online payment and discount workflows affect status/payment rules; preserve the controller logic
@@ -224,6 +226,7 @@ Rules:
 - email is required for both reseller types because every reseller record creates or syncs a linked login account
 - reseller account creation and sync must go through `app/Services/ResellerAccountService.php`
 - regular reseller accounts receive the `reseller` role; direct reseller accounts receive the `direct reseller` role
+- those roles receive `view/create/edit/delete/cancel/export/print own orders` by default, not broad back-office order permissions
 - creation opens generated credentials once in a copyable popup; edits sync the existing user without resetting its password
 - list pages expose a reset-password action that asks for explicit confirmation, invalidates the old password, and opens new copyable credentials once
 - deleting a reseller/direct-reseller retires the dedicated linked login account; if that user has other roles, remove only the reseller role and keep the user

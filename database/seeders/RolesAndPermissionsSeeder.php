@@ -2,12 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
 use App\Models\User;
 use App\Support\RbacPermissions;
+use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -86,8 +85,8 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Keep login redirects valid while operational modules remain RBAC-gated.
         $userRole->syncPermissions(['view dashboard']);
-        $resellerRole->syncPermissions(['view dashboard']);
-        $directResellerRole->syncPermissions(['view dashboard']);
+        $resellerRole->syncPermissions(RbacPermissions::resellerAccountPermissionNames());
+        $directResellerRole->syncPermissions(RbacPermissions::resellerAccountPermissionNames());
 
         // Create super admin user
         // NOTE: For security, change this password immediately after first login in production
@@ -104,8 +103,8 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Do not reset the password on repeated deploys. If the admin user already
         // exists, keep the current password and only ensure the account is verified.
-        if (!$superAdmin->wasRecentlyCreated) {
-            if (!$superAdmin->email_verified_at) {
+        if (! $superAdmin->wasRecentlyCreated) {
+            if (! $superAdmin->email_verified_at) {
                 $superAdmin->email_verified_at = now();
                 $superAdmin->save();
             }
@@ -114,7 +113,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $superAdmin->syncRoles(['super admin']);
 
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
-        
+
         // Display warning in console
         $this->command->warn('⚠️  WARNING: Default super admin created with password "password"');
         $this->command->warn('   Please change this password immediately in production!');

@@ -12,7 +12,7 @@
                     $manualEditLocked = (bool) ($order->manual_edit_locked ?? false);
                     $canPaymentEdit = (bool) ($order->can_payment_edit ?? false);
                 @endphp
-                @can('edit orders')
+                @canany(['edit orders', 'edit own orders'])
                 @if(!$manualEditLocked || $canPaymentEdit)
                     <a href="{{ route('orders.edit', $order) }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">
                         {{ $manualEditLocked ? 'Update Payment' : 'Edit' }}
@@ -22,12 +22,12 @@
                         Edit Locked
                     </span>
                 @endif
-                @endcan
-                @can('export orders')
+                @endcanany
+                @canany(['export orders', 'export own orders'])
                 <a href="{{ route('orders.pdf', $order) }}" target="_blank" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">
                     Download PDF
                 </a>
-                @endcan
+                @endcanany
                 @if(filled($order->waybill_number))
                     @can('print waybills')
                     <button
@@ -40,11 +40,11 @@
                     </button>
                     @endcan
                 @endif
-                @can('print orders')
+                @canany(['print orders', 'print own orders'])
                 <a href="{{ route('orders.print', ['order' => $order, 'autoprint' => 1]) }}" target="_blank" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">
                     Print
                 </a>
-                @endcan
+                @endcanany
             </div>
         </div>
     </x-slot>

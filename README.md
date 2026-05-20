@@ -98,6 +98,8 @@ Authentication is provided by Laravel Breeze, and permissions are handled by Spa
   - list reset-password actions confirm the exact reseller, invalidate the old password, and show the new copyable login popup once
   - deleting a reseller retires the dedicated linked login account
   - reseller dashboards show the linked business, due balance, order counts, and return fee where applicable
+  - reseller and direct-reseller login users receive own-order permissions by default; their order list, create, edit, view, print/PDF/export, cancel, and delete actions are scoped to their linked reseller record
+  - direct-reseller customer orders are still stored as `order_type = reseller` with a direct-reseller `reseller_id`; this preserves ownership while keeping regular-reseller commission/return-fee logic separate
 - PDF/print/export support across modules
 
 ## Tech Stack

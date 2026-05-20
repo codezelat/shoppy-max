@@ -52,7 +52,7 @@
                                 <h3 class="text-lg font-bold text-gray-900 dark:text-white">Order Details</h3>
                                 <span class="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-medium"
                                       :class="form.order_type === 'reseller' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'"
-                                      x-text="form.order_type === 'reseller' ? 'Reseller Order' : 'Direct Order'"></span>
+                                      x-text="orderTypeBadgeLabel()"></span>
                             </div>
 
                             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 mb-4">
@@ -67,72 +67,92 @@
                                 </div>
                             </div>
 
-                            <div class="mb-4">
-                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order Type</label>
-                                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                    <label class="flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
-                                        <input type="radio" x-model="form.order_type" value="direct" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
-                                        <span class="ml-2 text-gray-700 dark:text-gray-200">Direct Order</span>
-                                    </label>
-                                    <label class="flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
-                                        <input type="radio" x-model="form.order_type" value="reseller" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
-                                        <span class="ml-2 text-gray-700 dark:text-gray-200">Reseller Order</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Reseller Selection -->
-                            <div x-show="form.order_type === 'reseller'" x-transition>
-                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Select Reseller Account <span class="text-red-500">*</span></label>
-                                <div class="relative" @click.outside="resellers = []">
-                                    <input type="text"
-                                           x-model="resellerSearch"
-                                           @input.debounce.300ms="searchResellers()"
-                                           @focus="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
-                                           @click="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
-                                           placeholder="Search company, contact name, or mobile..."
-                                           class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-
-                                    <div x-show="resellers.length > 0 && !selectedReseller" class="absolute z-20 w-full bg-white dark:bg-gray-700 rounded-lg shadow-lg mt-1 max-h-56 overflow-y-auto border border-gray-100 dark:border-gray-600">
-                                        <ul>
-                                            <template x-for="reseller in resellers" :key="reseller.id">
-                                                <li @click="selectReseller(reseller)" class="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600 last:border-0">
-                                                    <div class="flex items-center justify-between gap-2">
-                                                        <div class="font-semibold" x-text="reseller.business_name || reseller.name"></div>
-                                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="reseller.type_label || (reseller.reseller_type === 'direct_reseller' ? 'Reseller' : 'Direct Reseller')"></span>
-                                                    </div>
-                                                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                        <span x-show="reseller.business_name">Contact: </span>
-                                                        <span x-show="reseller.business_name" x-text="reseller.name"></span>
-                                                        <span x-show="reseller.business_name"> | </span>
-                                                        <span x-text="reseller.mobile"></span>
-                                                    </div>
-                                                </li>
-                                            </template>
-                                        </ul>
-                                    </div>
-                                    <p x-show="(resellerSearch || '').trim().length >= 2 && resellers.length === 0 && !selectedReseller" class="mt-1 text-xs text-gray-500 dark:text-gray-400">No matching reseller accounts found.</p>
-                                </div>
-
-                                <div x-show="selectedReseller" class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center">
-                                    <div>
-                                        <div class="text-sm font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2">
-                                            <span x-text="selectedReseller?.business_name || selectedReseller?.name"></span>
-                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="selectedReseller?.type_label || (selectedReseller?.reseller_type === 'direct_reseller' ? 'Reseller' : 'Direct Reseller')"></span>
+                            @if($resellerPortalAccount)
+                                <div class="mb-4">
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Account</label>
+                                    <div class="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 dark:border-blue-800 dark:bg-blue-900/30">
+                                        <div class="flex flex-wrap items-center gap-2 text-sm font-bold text-blue-800 dark:text-blue-300">
+                                            <span>{{ $resellerPortalAccount['display_name'] }}</span>
+                                            <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                                {{ $resellerPortalAccount['type_label'] }}
+                                            </span>
                                         </div>
-                                        <div class="text-xs text-blue-600 dark:text-blue-400">
-                                            <span x-show="selectedReseller?.business_name">Contact: </span>
-                                            <span x-show="selectedReseller?.business_name" x-text="selectedReseller?.name"></span>
-                                            <span x-show="selectedReseller?.business_name"> | </span>
-                                            <span x-text="selectedReseller?.mobile"></span>
+                                        <div class="mt-0.5 text-xs text-blue-600 dark:text-blue-400">
+                                            {{ $resellerPortalAccount['name'] }}
+                                            @if($resellerPortalAccount['mobile'])
+                                                <span> | {{ $resellerPortalAccount['mobile'] }}</span>
+                                            @endif
                                         </div>
                                     </div>
-                                    <button type="button" @click="clearReseller()" class="text-red-500 hover:text-red-700 dark:hover:text-red-400">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                    </button>
                                 </div>
-                                <p x-show="form.order_type === 'reseller' && !form.reseller_id" class="mt-1 text-xs text-red-500">Select a reseller account to continue.</p>
-                            </div>
+                            @else
+                                <div class="mb-4">
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order Type</label>
+                                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        <label class="flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
+                                            <input type="radio" x-model="form.order_type" value="direct" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
+                                            <span class="ml-2 text-gray-700 dark:text-gray-200">Direct Order</span>
+                                        </label>
+                                        <label class="flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
+                                            <input type="radio" x-model="form.order_type" value="reseller" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
+                                            <span class="ml-2 text-gray-700 dark:text-gray-200">Reseller Order</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Reseller Selection -->
+                                <div x-show="form.order_type === 'reseller'" x-transition>
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Select Reseller Account <span class="text-red-500">*</span></label>
+                                    <div class="relative" @click.outside="resellers = []">
+                                        <input type="text"
+                                               x-model="resellerSearch"
+                                               @input.debounce.300ms="searchResellers()"
+                                               @focus="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
+                                               @click="if ((resellerSearch || '').trim().length >= 2) { searchResellers(); }"
+                                               placeholder="Search company, contact name, or mobile..."
+                                               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
+
+                                        <div x-show="resellers.length > 0 && !selectedReseller" class="absolute z-20 w-full bg-white dark:bg-gray-700 rounded-lg shadow-lg mt-1 max-h-56 overflow-y-auto border border-gray-100 dark:border-gray-600">
+                                            <ul>
+                                                <template x-for="reseller in resellers" :key="reseller.id">
+                                                    <li @click="selectReseller(reseller)" class="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600 last:border-0">
+                                                        <div class="flex items-center justify-between gap-2">
+                                                            <div class="font-semibold" x-text="reseller.business_name || reseller.name"></div>
+                                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="reseller.type_label || (reseller.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
+                                                        </div>
+                                                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                            <span x-show="reseller.business_name">Contact: </span>
+                                                            <span x-show="reseller.business_name" x-text="reseller.name"></span>
+                                                            <span x-show="reseller.business_name"> | </span>
+                                                            <span x-text="reseller.mobile"></span>
+                                                        </div>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                        </div>
+                                        <p x-show="(resellerSearch || '').trim().length >= 2 && resellers.length === 0 && !selectedReseller" class="mt-1 text-xs text-gray-500 dark:text-gray-400">No matching reseller accounts found.</p>
+                                    </div>
+
+                                    <div x-show="selectedReseller" class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center">
+                                        <div>
+                                            <div class="text-sm font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                                                <span x-text="selectedReseller?.business_name || selectedReseller?.name"></span>
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="selectedReseller?.type_label || (selectedReseller?.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
+                                            </div>
+                                            <div class="text-xs text-blue-600 dark:text-blue-400">
+                                                <span x-show="selectedReseller?.business_name">Contact: </span>
+                                                <span x-show="selectedReseller?.business_name" x-text="selectedReseller?.name"></span>
+                                                <span x-show="selectedReseller?.business_name"> | </span>
+                                                <span x-text="selectedReseller?.mobile"></span>
+                                            </div>
+                                        </div>
+                                        <button type="button" @click="clearReseller()" class="text-red-500 hover:text-red-700 dark:hover:text-red-400">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                    </div>
+                                    <p x-show="form.order_type === 'reseller' && !form.reseller_id" class="mt-1 text-xs text-red-500">Select a reseller account to continue.</p>
+                                </div>
+                            @endif
                         </div>
 
                         <!-- Customer Details Card -->
@@ -691,9 +711,11 @@
                 showSuccessModal: false,
                 createdOrderNumber: '',
                 createdOrderRedirect: @json(route('orders.index')),
-                resellerSearch: '',
+                resellerPortalAccount: @json($resellerPortalAccount),
+                isResellerPortal: @json((bool) $resellerPortalAccount),
+                resellerSearch: @json($resellerPortalAccount['display_name'] ?? ''),
                 resellers: [],
-                selectedReseller: null,
+                selectedReseller: @json($resellerPortalAccount),
                 customerSearch: '',
                 customerResults: [],
                 selectedCustomer: null,
@@ -709,9 +731,9 @@
                 courierRatesMap: @json($courierRatesMap),
                 
                 form: {
-                    order_type: 'direct', 
+                    order_type: @json($resellerPortalAccount ? 'reseller' : 'direct'), 
                     order_date: @json($currentOrderDate),
-                    reseller_id: null,
+                    reseller_id: @json($resellerPortalAccount['id'] ?? null),
                     courier_id: null,
                     courier_charge: '',
                     discount_type: 'fixed',
@@ -750,6 +772,14 @@
                         return;
                     }
                     alert(message);
+                },
+
+                orderTypeBadgeLabel() {
+                    if (this.isResellerPortal) {
+                        return `${this.resellerPortalAccount?.type_label || 'Reseller'} Order`;
+                    }
+
+                    return this.form.order_type === 'reseller' ? 'Reseller Order' : 'Direct Order';
                 },
 
                 closeSuccessModal() {
@@ -872,7 +902,11 @@
                 
                 init() {
                     this.$watch('form.order_type', (val) => {
-                        if (val !== 'reseller') {
+                        if (this.isResellerPortal) {
+                            this.form.order_type = 'reseller';
+                            this.form.reseller_id = this.resellerPortalAccount?.id || null;
+                            this.selectedReseller = this.resellerPortalAccount;
+                        } else if (val !== 'reseller') {
                             this.selectedReseller = null;
                             this.form.reseller_id = null;
                             this.resellerSearch = '';
@@ -1057,6 +1091,10 @@
                 },
                 
                 async searchResellers() {
+                    if (this.isResellerPortal) {
+                        this.resellers = [];
+                        return;
+                    }
                     if (this.form.order_type !== 'reseller') {
                         this.resellers = [];
                         return;
@@ -1084,6 +1122,9 @@
                 },
                 
                 clearReseller() {
+                    if (this.isResellerPortal) {
+                        return;
+                    }
                     this.selectedReseller = null;
                     this.form.reseller_id = null;
                 },

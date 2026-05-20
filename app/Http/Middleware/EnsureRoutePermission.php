@@ -20,14 +20,23 @@ class EnsureRoutePermission
 
         $permission = RbacPermissions::permissionForRequest($request);
 
-        abort_unless($permission, 403);
+        $permissions = collect([$permission])
+            ->merge(RbacPermissions::alternativePermissionsForRequest($request))
+            ->filter()
+            ->unique()
+            ->values();
+
+        abort_unless($permissions->isNotEmpty(), 403);
 
         // Legacy feature tests that do not seed RBAC keep exercising workflow logic.
-        if (app()->runningUnitTests() && ! Permission::where('name', $permission)->exists()) {
+        if (app()->runningUnitTests() && ! Permission::whereIn('name', $permissions)->exists()) {
             return $next($request);
         }
 
-        abort_unless($request->user()?->can($permission), 403);
+        abort_unless(
+            $request->user() && $permissions->contains(fn (string $permission) => $request->user()->can($permission)),
+            403
+        );
 
         return $next($request);
     }

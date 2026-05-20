@@ -59,6 +59,22 @@ class RbacPermissions
         return self::routePermissions()[$routeName] ?? null;
     }
 
+    public static function alternativePermissionsForRequest(Request $request): array
+    {
+        $routeName = $request->route()?->getName();
+
+        if (! $routeName) {
+            return [];
+        }
+
+        return self::alternativePermissionsForRoute($routeName);
+    }
+
+    public static function alternativePermissionsForRoute(string $routeName): array
+    {
+        return self::alternativeRoutePermissions()[$routeName] ?? [];
+    }
+
     public static function allPermissionNames(): array
     {
         return collect(self::groups())
@@ -86,6 +102,20 @@ class RbacPermissions
         ];
     }
 
+    public static function resellerAccountPermissionNames(): array
+    {
+        return [
+            'view dashboard',
+            'view own orders',
+            'create own orders',
+            'edit own orders',
+            'delete own orders',
+            'cancel own orders',
+            'export own orders',
+            'print own orders',
+        ];
+    }
+
     public static function routePermissions(): array
     {
         return collect(self::groups())
@@ -95,6 +125,27 @@ class RbacPermissions
                         ->mapWithKeys(fn (string $route) => [$route => $permission['name']]));
             })
             ->all();
+    }
+
+    public static function alternativeRoutePermissions(): array
+    {
+        return [
+            'orders.index' => ['view own orders'],
+            'orders.show' => ['view own orders'],
+            'orders.create' => ['create own orders'],
+            'orders.store' => ['create own orders'],
+            'orders.search-products' => ['create own orders', 'edit own orders'],
+            'orders.search-resellers' => ['create own orders', 'edit own orders'],
+            'orders.search-customers' => ['create own orders', 'edit own orders'],
+            'orders.edit' => ['edit own orders'],
+            'orders.update' => ['edit own orders'],
+            'orders.destroy' => ['delete own orders'],
+            'orders.status.update' => ['cancel own orders'],
+            'orders.export' => ['export own orders'],
+            'orders.pdf' => ['export own orders'],
+            'orders.bulk-pdf' => ['export own orders'],
+            'orders.print' => ['print own orders'],
+        ];
     }
 
     public static function groups(): array
@@ -212,6 +263,7 @@ class RbacPermissions
                 'label' => 'Order Management',
                 'permissions' => [
                     self::permission('view orders', 'View orders', ['orders.index', 'orders.show']),
+                    self::permission('view own orders', 'View own reseller orders'),
                     self::permission('create orders', 'Create orders', [
                         'orders.create',
                         'orders.store',
@@ -219,11 +271,17 @@ class RbacPermissions
                         'orders.search-resellers',
                         'orders.search-customers',
                     ]),
+                    self::permission('create own orders', 'Create own reseller orders'),
                     self::permission('edit orders', 'Edit orders', ['orders.edit', 'orders.update']),
+                    self::permission('edit own orders', 'Edit own reseller orders'),
                     self::permission('delete orders', 'Delete orders', ['orders.destroy']),
+                    self::permission('delete own orders', 'Delete own reseller orders'),
                     self::permission('update order statuses', 'Update order statuses', ['orders.status.update']),
+                    self::permission('cancel own orders', 'Cancel own reseller orders'),
                     self::permission('export orders', 'Export orders', ['orders.export', 'orders.pdf', 'orders.bulk-pdf']),
+                    self::permission('export own orders', 'Export own reseller orders'),
                     self::permission('print orders', 'Print orders', ['orders.print']),
+                    self::permission('print own orders', 'Print own reseller orders'),
                     self::permission('view order call list', 'View order call list', ['orders.call-list']),
                     self::permission('view waybills', 'View waybill queues', ['orders.waybill.index', 'orders.waybill.show']),
                     self::permission('print waybills', 'Print and reprint waybills', [

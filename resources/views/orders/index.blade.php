@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-                {{ __('Order Management') }}
+                {{ $resellerPortalAccount ? __('My Orders') : __('Order Management') }}
             </h2>
             <nav class="flex" aria-label="Breadcrumb">
                 <ol class="inline-flex items-center space-x-1 md:space-x-3">
@@ -60,12 +60,12 @@
                     </a>
                 </div>
 
-                @can('export orders')
+                @canany(['export orders', 'export own orders'])
                     <a href="{{ route('orders.export', array_merge(request()->except('page'), ['view' => $viewMode])) }}" class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white transition-colors bg-emerald-600 rounded-lg hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-300 dark:bg-emerald-600 dark:hover:bg-emerald-700 focus:outline-none dark:focus:ring-emerald-800 shadow-md">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16V4m0 12 4-4m-4 4-4-4M4 20h16"></path></svg>
                         Download Excel
                     </a>
-                @endcan
+                @endcanany
             </div>
 
              <form method="GET" action="{{ route('orders.index') }}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -271,8 +271,11 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @if($order->reseller)
-                                    <div class="font-medium text-gray-900 dark:text-white">
-                                        {{ $order->reseller->business_name ?: $order->reseller->name }}
+                                    <div class="flex flex-wrap items-center gap-2 font-medium text-gray-900 dark:text-white">
+                                        <span>{{ $order->reseller->business_name ?: $order->reseller->name }}</span>
+                                        <span class="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                            {{ $order->reseller->reseller_type === \App\Models\Reseller::TYPE_DIRECT_RESELLER ? 'Direct Reseller' : 'Reseller' }}
+                                        </span>
                                     </div>
                                     @if($order->reseller->mobile)
                                         <div class="text-xs text-gray-500 dark:text-gray-400">{{ $order->reseller->mobile }}</div>
@@ -337,23 +340,23 @@
                                     $isFullyDelivered = strtolower((string) ($order->delivery_status ?? '')) === 'delivered';
                                 @endphp
                                 <div class="flex items-center justify-center space-x-2">
-                                    @can('export orders')
+                                    @canany(['export orders', 'export own orders'])
                                     <a href="{{ route('orders.pdf', $order) }}" target="_blank" class="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg dark:text-indigo-400 dark:hover:bg-gray-700 transition-colors" title="Download PDF">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                     </a>
-                                    @endcan
+                                    @endcanany
                                     <a href="{{ route('orders.show', $order) }}" class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-400 dark:hover:bg-gray-700 transition-colors" title="View Details">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                     </a>
                                     @if(!$isFullyDelivered)
                                         @if(!$manualEditLocked || $canPaymentEdit)
-                                            @can('edit orders')
+                                            @canany(['edit orders', 'edit own orders'])
                                             <a href="{{ route('orders.edit', $order) }}" class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg dark:text-blue-400 dark:hover:bg-gray-700 transition-colors" title="{{ $manualEditLocked ? 'Update Payment' : 'Edit' }}">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                             </a>
-                                            @endcan
+                                            @endcanany
                                             @if($viewMode === 'active')
-                                                @can('update order statuses')
+                                                @canany(['update order statuses', 'cancel own orders'])
                                                 @if($canCancelOrder)
                                                     <button
                                                         type="button"
@@ -377,10 +380,10 @@
                                                         </svg>
                                                     </button>
                                                 @endif
-                                                @endcan
+                                                @endcanany
                                             @endif
                                             @if(!$manualEditLocked)
-                                                @can('delete orders')
+                                                @canany(['delete orders', 'delete own orders'])
                                                 <form action="{{ route('orders.destroy', $order) }}" method="POST" class="inline-block" data-confirm-message="Are you sure you want to delete this order? This will restore stock.">
                                                     @csrf
                                                     @method('DELETE')
@@ -388,10 +391,10 @@
                                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                                     </button>
                                                 </form>
-                                                @endcan
+                                                @endcanany
                                             @endif
                                         @else
-                                            @canany(['edit orders', 'delete orders'])
+                                            @canany(['edit orders', 'edit own orders', 'delete orders', 'delete own orders'])
                                             <span class="p-2 text-gray-400 dark:text-gray-500" title="Manual edit, payment update, and delete are locked for this order">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5 9 6.343 9 8s1.343 3 3 3Zm0 0v2m-6 6h12a2 2 0 002-2v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2Z"></path></svg>
                                             </span>
@@ -459,7 +462,7 @@
                         >
                             Clear
                         </button>
-                        @can('export orders')
+                        @canany(['export orders', 'export own orders'])
                         <button
                             type="button"
                             @click="downloadSelectedPdfs()"
@@ -467,7 +470,7 @@
                         >
                             Download PDFs
                         </button>
-                        @endcan
+                        @endcanany
                         @can('print waybills')
                         <button
                             type="button"

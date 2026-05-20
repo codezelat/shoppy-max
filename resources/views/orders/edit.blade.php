@@ -48,7 +48,7 @@
                                 <h3 class="text-lg font-bold text-gray-900 dark:text-white">Order Details</h3>
                                 <span class="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-medium"
                                       :class="form.order_type === 'reseller' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'"
-                                      x-text="form.order_type === 'reseller' ? 'Reseller Order' : 'Direct Order'"></span>
+                                      x-text="orderTypeBadgeLabel()"></span>
                             </div>
                             <div x-show="isEditLocked" class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-300">
                                 Core order details are locked because fulfillment has already started. You can update payment method, payment entries, and note only.
@@ -66,19 +66,39 @@
                                 </div>
                             </div>
 
-                            <div class="mb-4">
-                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order Type</label>
-                                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                    <label class="flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
-                                        <input type="radio" x-model="form.order_type" value="direct" :disabled="isEditLocked" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
-                                        <span class="ml-2 text-gray-700 dark:text-gray-200">Direct Order</span>
-                                    </label>
-                                    <label class="flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
-                                        <input type="radio" x-model="form.order_type" value="reseller" :disabled="isEditLocked" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
-                                        <span class="ml-2 text-gray-700 dark:text-gray-200">Reseller Order</span>
-                                    </label>
+                            @if($resellerPortalAccount)
+                                <div class="mb-4">
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Account</label>
+                                    <div class="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 dark:border-blue-800 dark:bg-blue-900/30">
+                                        <div class="flex flex-wrap items-center gap-2 text-sm font-bold text-blue-800 dark:text-blue-300">
+                                            <span>{{ $resellerPortalAccount['display_name'] }}</span>
+                                            <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                                {{ $resellerPortalAccount['type_label'] }}
+                                            </span>
+                                        </div>
+                                        <div class="mt-0.5 text-xs text-blue-600 dark:text-blue-400">
+                                            {{ $resellerPortalAccount['name'] }}
+                                            @if($resellerPortalAccount['mobile'])
+                                                <span> | {{ $resellerPortalAccount['mobile'] }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            @else
+                                <div class="mb-4">
+                                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Order Type</label>
+                                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        <label class="flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
+                                            <input type="radio" x-model="form.order_type" value="direct" :disabled="isEditLocked" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
+                                            <span class="ml-2 text-gray-700 dark:text-gray-200">Direct Order</span>
+                                        </label>
+                                        <label class="flex cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700">
+                                            <input type="radio" x-model="form.order_type" value="reseller" :disabled="isEditLocked" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
+                                            <span class="ml-2 text-gray-700 dark:text-gray-200">Reseller Order</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            @endif
 
                             <div class="mb-4">
                                 <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Delivery Status</label>
@@ -90,6 +110,7 @@
                                 </p>
                             </div>
 
+                            @unless($resellerPortalAccount)
                             <div x-show="form.order_type === 'reseller'" x-transition>
                                 <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">Select Reseller Account <span class="text-red-500">*</span></label>
                                 <div class="relative" @click.outside="resellers = []">
@@ -108,7 +129,7 @@
                                                 <li @click="selectReseller(reseller)" class="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-gray-600 last:border-0">
                                                     <div class="flex items-center justify-between gap-2">
                                                         <div class="font-semibold" x-text="reseller.business_name || reseller.name"></div>
-                                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="reseller.type_label || (reseller.reseller_type === 'direct_reseller' ? 'Reseller' : 'Direct Reseller')"></span>
+                                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="reseller.type_label || (reseller.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
                                                     </div>
                                                     <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                                         <span x-show="reseller.business_name">Contact: </span>
@@ -127,7 +148,7 @@
                                     <div>
                                         <div class="text-sm font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2">
                                             <span x-text="selectedReseller?.business_name || selectedReseller?.name"></span>
-                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="selectedReseller?.type_label || (selectedReseller?.reseller_type === 'direct_reseller' ? 'Reseller' : 'Direct Reseller')"></span>
+                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" x-text="selectedReseller?.type_label || (selectedReseller?.reseller_type === 'direct_reseller' ? 'Direct Reseller' : 'Reseller')"></span>
                                         </div>
                                         <div class="text-xs text-blue-600 dark:text-blue-400">
                                             <span x-show="selectedReseller?.business_name">Contact: </span>
@@ -142,6 +163,7 @@
                                 </div>
                                 <p x-show="form.order_type === 'reseller' && !form.reseller_id" class="mt-1 text-xs text-red-500">Select a reseller account to continue.</p>
                             </div>
+                            @endunless
                         </div>
 
                         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
@@ -620,10 +642,12 @@
                     && String(initialOrder.delivery_status || 'pending').toLowerCase() === 'pending'
                 ),
                 canAdjustLockedPayments: @json($canAdjustLockedPayments),
+                resellerPortalAccount: @json($resellerPortalAccount),
+                isResellerPortal: @json((bool) $resellerPortalAccount),
                 lastPaymentMethod: initialOrder.payment_method || 'COD',
-                resellerSearch: '',
+                resellerSearch: @json($resellerPortalAccount['display_name'] ?? ''),
                 resellers: [],
-                selectedReseller: initialOrder.reseller || null,
+                selectedReseller: @json($resellerPortalAccount) || initialOrder.reseller || null,
                 customerSearch: '',
                 customerResults: [],
                 selectedCustomer: initialOrder.customer
@@ -652,9 +676,9 @@
                 courierRatesMap: @json($courierRatesMap),
                 
                 form: {
-                    order_type: initialOrder.order_type,
+                    order_type: @json($resellerPortalAccount ? 'reseller' : null) || initialOrder.order_type,
                     order_date: initialOrder.order_date,
-                    reseller_id: initialOrder.reseller_id,
+                    reseller_id: @json($resellerPortalAccount['id'] ?? null) || initialOrder.reseller_id,
                     
                     // Fulfillment
                     courier_id: initialOrder.courier_id,
@@ -729,6 +753,14 @@
                         return;
                     }
                     alert(message);
+                },
+
+                orderTypeBadgeLabel() {
+                    if (this.isResellerPortal) {
+                        return `${this.resellerPortalAccount?.type_label || 'Reseller'} Order`;
+                    }
+
+                    return this.form.order_type === 'reseller' ? 'Reseller Order' : 'Direct Order';
                 },
 
                 formatDeliveryStatus(status) {
@@ -842,7 +874,11 @@
                 
                 init() {
                     this.$watch('form.order_type', (val) => {
-                        if (val !== 'reseller') {
+                        if (this.isResellerPortal) {
+                            this.form.order_type = 'reseller';
+                            this.form.reseller_id = this.resellerPortalAccount?.id || null;
+                            this.selectedReseller = this.resellerPortalAccount;
+                        } else if (val !== 'reseller') {
                             this.selectedReseller = null;
                             this.form.reseller_id = null;
                             this.resellerSearch = '';
@@ -1077,7 +1113,7 @@
                 
                 // --- Search Logic ---
                 async searchResellers() {
-                    if (this.isEditLocked) {
+                    if (this.isResellerPortal || this.isEditLocked) {
                         this.resellers = [];
                         return;
                     }
@@ -1100,6 +1136,9 @@
                 },
                 
                 selectReseller(reseller) {
+                    if (this.isResellerPortal) {
+                        return;
+                    }
                     this.selectedReseller = reseller;
                     this.form.reseller_id = reseller.id;
                     this.resellers = [];
@@ -1107,7 +1146,7 @@
                 },
                 
                 clearReseller() {
-                    if (this.isEditLocked) {
+                    if (this.isResellerPortal || this.isEditLocked) {
                         return;
                     }
                     this.selectedReseller = null;
